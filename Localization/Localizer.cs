@@ -1,0 +1,175 @@
+using STALKER2LocalizationTool.Models;
+
+namespace STALKER2LocalizationTool.Localization;
+
+public sealed class Localizer
+{
+    private readonly Dictionary<string, string> _fallback = BuildFallbackEnglish();
+    private Dictionary<string, string> _strings = new(StringComparer.OrdinalIgnoreCase);
+
+    public Localizer()
+    {
+        Reload();
+    }
+
+    public string T(string key)
+    {
+        if (_strings.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
+            return value;
+        if (_fallback.TryGetValue(key, out var fallback))
+            return fallback;
+        return key;
+    }
+
+    public string LanguageName(BuildLanguage language) => T($"language.{language.Key}");
+
+    private void Reload()
+    {
+        _strings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var path = Path.Combine(AppContext.BaseDirectory, "locales", "en.json");
+        if (!File.Exists(path))
+            return;
+
+        try
+        {
+            var values = JsonSerializer.Deserialize<Dictionary<string, string>>(
+                File.ReadAllText(path, Encoding.UTF8)
+            );
+            if (values is not null)
+                _strings = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            _strings.Clear();
+        }
+    }
+
+    private static Dictionary<string, string> BuildFallbackEnglish() => new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["app.title"] = AppConstants.AppName,
+        ["ui.build_language"] = "Build languages",
+        ["ui.mods"] = "MODS",
+        ["ui.editable_translations"] = "EDITABLE JSONS",
+        ["ui.extract"] = "EXTRACT NEW / CHANGED",
+        ["ui.build_modular"] = "BUILD MODULAR",
+        ["ui.build_all_in_one"] = "BUILD ALL-IN-ONE",
+        ["ui.tab_game"] = "GAME",
+        ["ui.tab_mods"] = "MODS",
+        ["ui.game_intro"] = "Extract every supported language from the base game, edit the JSON files directly in Editable\\Game, then build one or more selected languages.",
+        ["ui.scan_game"] = "SCAN GAME",
+        ["ui.extract_game"] = "EXTRACT ALL LANGUAGES",
+        ["ui.build_game"] = "BUILD GAME PACKAGE",
+        ["ui.scanning_game"] = "Scanning base game...",
+        ["ui.extracting_game"] = "Extracting all game languages...",
+        ["ui.building_game"] = "Building game localization package...",
+        ["ui.not_scanned"] = "Not scanned",
+        ["ui.available"] = "Available",
+        ["ui.all_jsons"] = "All JSONs",
+        ["ui.json_count"] = "{0} / {1} JSONs",
+        ["ui.game_paths_missing"] = "Set the game Paks folder and verify the bundled tools before scanning the base game.",
+        ["ui.settings"] = "Settings",
+        ["ui.refresh"] = "Refresh",
+        ["ui.open_cached"] = "Open cached",
+        ["ui.open_jsons_folder"] = "Open JSONs",
+        ["ui.open_output"] = "Open output",
+        ["ui.log"] = "Log",
+        ["ui.mod"] = "Mod",
+        ["ui.localization_types"] = "Localization",
+        ["ui.status"] = "Status",
+        ["ui.details"] = "Details",
+        ["ui.mods_found"] = "{0} mods found",
+        ["ui.localization_found"] = "{0} with localization",
+        ["ui.changed_found"] = "{0} new / changed",
+        ["ui.available_found"] = "{0} available",
+        ["ui.missing_found"] = "{0} missing",
+        ["ui.scanning"] = "Scanning mods...",
+        ["ui.extracting"] = "Extracting localization...",
+        ["ui.building"] = "Building localization packages...",
+        ["ui.idle"] = "Idle",
+        ["ui.done"] = "Done",
+        ["ui.cancel"] = "Cancel",
+        ["ui.save"] = "Save",
+        ["ui.browse"] = "Browse...",
+        ["ui.paths"] = "Folders",
+        ["ui.tools"] = "Tools",
+        ["ui.game_paks"] = "Game Paks folder",
+        ["ui.mods_folder"] = "Mods folder",
+        ["ui.cached_folder"] = "Cached folder",
+        ["ui.editable_folder"] = "Editable folder",
+        ["ui.output_folder"] = "Output folder",
+        ["ui.reset_workspace_paths"] = "Reset workspace paths",
+        ["ui.retoc"] = "retoc.exe",
+        ["ui.uassetgui"] = "UAssetGUI.exe",
+        ["ui.mappings"] = "Mappings.usmap",
+        ["ui.repak"] = "repak.exe",
+        ["ui.s2hocmm"] = "S2HOCMM.exe",
+        ["ui.auto_scan"] = "Scan automatically when folders change",
+        ["ui.first_run"] = "Some required paths are missing. Configure them now.",
+        ["ui.no_editable"] = "No editable JSONs were found.",
+        ["ui.no_extract"] = "There is no new or changed localization to extract.",
+        ["ui.no_languages_selected"] = "Select at least one build language.",
+        ["ui.operation_failed"] = "Operation failed",
+        ["ui.operation_complete"] = "Operation complete",
+        ["ui.extract_complete"] = "Extraction finished.",
+        ["ui.build_complete"] = "Build finished.",
+        ["ui.build_summary_output"] = "Output: {0}",
+        ["ui.close"] = "Close",
+        ["ui.select_folder"] = "Select folder",
+        ["ui.select_file"] = "Select file",
+        ["ui.editable_hint"] = "Editable JSONs can be built",
+        ["ui.last_result"] = "Last result: {0}",
+        ["status.no_localization"] = "No supported localization",
+        ["status.needs_extraction"] = "Needs extraction",
+        ["status.missing_translation"] = "Missing translation",
+        ["status.available"] = "Available",
+        ["status.built_verified"] = "Built & verified",
+        ["status.no_language_selected"] = "No build language selected",
+        ["status.error"] = "Error",
+        ["help.build_language"] = "Check one or more languages to build. Only checked languages are built; with none checked, build actions are disabled.",
+        ["help.mods"] = "The app scans the Mods folder for LocalizationDatabase / IoStore localization only. Game.locres is handled exclusively in the GAME tab.",
+        ["help.extract"] = "Reads text from all new or updated sources. Cached keeps the rebuild source; if that mod has no Editable folder yet, an identical editable copy is created there. Existing Editable folders are never overwritten.",
+        ["help.editable"] = "Editable JSONs can be built. Extraction creates this mod folder only when it does not already exist, so your edits are never overwritten.",
+        ["help.build_modular"] = "Builds a separate LocalizationDatabase / IoStore package for every available mod. LOCRES is GAME-only.",
+        ["help.build_all_in_one"] = "Combine all mod localizations in one package",
+        ["help.game_workflow"] = "Scans the original game packages, creates one editable JSON per supported language in Editable\\Game, and builds only the checked languages directly from those files.",
+        ["help.status.no_localization"] = "This mod does not contain localization data supported by this tool, so nothing needs to be extracted from it.",
+        ["help.status.needs_extraction"] = "This mod is new or has been updated. Extract it before building a translation.",
+        ["help.status.missing_translation"] = "The mod was extracted successfully, but no finished translation was found in the Editable folder.",
+        ["help.status.available"] = "The mod is extracted, up to date, and a matching translation is available. It can be built now.",
+        ["help.status.built_verified"] = "The finished package was built and checked successfully.",
+        ["help.status.no_language_selected"] = "Check at least one build language. Extraction remains available, but building is disabled.",
+        ["help.game_paks"] = "Select the game's Stalker2\\Content\\Paks folder. The app needs the game's global files while extracting and checking mod localization.",
+        ["help.mods_folder"] = "Put the mods you want to scan in this folder. All subfolders are checked automatically.",
+        ["help.cached_folder"] = "Read-only cached extraction data required for safe rebuilding is saved here.",
+        ["help.editable_folder"] = "User-editable build JSONs are stored here. Extraction creates a mod folder only when it does not already exist.",
+        ["help.output_folder"] = "Finished .pak, .utoc and .ucas localization files are saved here.",
+        ["help.retoc"] = "retoc is used internally to read and rebuild S.T.A.L.K.E.R. 2 mod containers.",
+        ["help.uassetgui"] = "UAssetGUI is used internally to read the localization asset metadata during extraction.",
+        ["help.mappings"] = "Mappings.usmap tells UAssetGUI how to read the current game assets.",
+        ["help.repak"] = "repak is used only by the GAME workflow to extract and package Game.locres PAKs with the required S.T.A.L.K.E.R. 2 settings.",
+        ["help.s2hocmm"] = "S2HOCMM serializes and verifies Game.locres for the GAME workflow. It is not used for MODS LocalizationDatabase builds.",
+        ["help.editable_hint"] = "Editable JSONs can be built",
+        ["type.database"] = "Database",
+        ["type.locres"] = "LOCRES",
+        ["details.database"] = "Database assets: {0}",
+        ["details.locres"] = "Game.locres files: {0}",
+        ["language.arabic"] = "Arabic",
+        ["language.chinese_simplified"] = "Chinese (Simplified)",
+        ["language.chinese_traditional"] = "Chinese (Traditional)",
+        ["language.czech"] = "Czech",
+        ["language.english"] = "English",
+        ["language.french"] = "French",
+        ["language.german"] = "German",
+        ["language.italian"] = "Italian",
+        ["language.japanese"] = "Japanese",
+        ["language.korean"] = "Korean",
+        ["language.polish"] = "Polish",
+        ["language.portuguese_brazil"] = "Portuguese (Brazil)",
+        ["language.russian"] = "Russian",
+        ["language.serbian"] = "Serbian",
+        ["language.spanish_europe"] = "Spanish (Europe)",
+        ["language.spanish_latin_america"] = "Spanish (Latin America)",
+        ["language.turkish"] = "Turkish",
+        ["language.ukrainian"] = "Ukrainian",
+    };
+}
