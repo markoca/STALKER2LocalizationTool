@@ -25,6 +25,9 @@ public sealed class ExtractedAssetManifest
     public string VirtualPath { get; set; } = string.Empty;
     public string LegacyRelativePath { get; set; } = string.Empty;
     public string SourceContainerRelativePath { get; set; } = string.Empty;
+    public string InternalPackagePath { get; set; } = string.Empty;
+    public string SourcePackageIdentityPath { get; set; } = string.Empty;
+    public string DirectoryAliasPackagePath { get; set; } = string.Empty;
     public List<AliasManifest> Aliases { get; set; } = new();
     public string UassetFile { get; set; } = string.Empty;
     public string UexpFile { get; set; } = string.Empty;
@@ -47,4 +50,7 @@ public sealed class AliasManifest
 {
     public string SourceContainerRelativePath { get; set; } = string.Empty;
     public string VirtualPath { get; set; } = string.Empty;
+    public string InternalPackagePath { get; set; } = string.Empty;
+    public string DirectoryAliasPackagePath { get; set; } = string.Empty;
+    public int SidCount { get; set; }
 }

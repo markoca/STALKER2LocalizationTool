@@ -188,30 +188,192 @@ public sealed class ExtractionService
         string stagingRoot,
         CancellationToken cancellationToken)
     {
-        foreach (var containerGroup in mod.Assets.GroupBy(x => x.Canonical.SourceUtoc, StringComparer.OrdinalIgnoreCase))
+        var sourceUtocs = mod.Assets
+            .SelectMany(group => group.Aliases)
+            .Select(alias => alias.SourceUtoc)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var extractedContainers = new Dictionary<string, RetocExtractedContainer>(StringComparer.OrdinalIgnoreCase);
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var sourceUtoc = containerGroup.Key;
-            var workRoot = Path.Combine(stagingRoot, ".work", "db_" + Guid.NewGuid().ToString("N"));
-            var input = Path.Combine(workRoot, "input");
-            var legacy = Path.Combine(workRoot, "legacy");
-            Directory.CreateDirectory(input);
-            Directory.CreateDirectory(legacy);
-
-            PrepareRetocInput(sourceUtoc, input);
-            await _retoc.ToLegacyAsync(input, legacy, AppConstants.LocalizationDatabaseNeedle, cancellationToken);
-
-            var scriptObjects = Path.Combine(legacy, "scriptobjects.bin");
-            RequireFile(scriptObjects, "retoc scriptobjects.bin");
-
-            foreach (var assetGroup in containerGroup)
+            // Extract every alias source first. The current launch.py baseline resolves
+            // NewContent and OverrideContent only after inspecting the actual database
+            // payloads, so we must not throw either side away before this point.
+            foreach (var sourceUtoc in sourceUtocs)
             {
-                var alias = assetGroup.Canonical;
-                var legacyRelative = PathUtil.NormalizeVirtualPath(alias.VirtualPath);
-                var extractedUasset = Path.Combine(legacy, legacyRelative);
-                var extractedUexp = Path.ChangeExtension(extractedUasset, ".uexp");
-                RequireFile(extractedUasset, alias.VirtualPath);
-                RequireFile(extractedUexp, alias.VirtualPath + " .uexp");
+                cancellationToken.ThrowIfCancellationRequested();
+                var workRoot = Path.Combine(stagingRoot, ".work", "db_" + Guid.NewGuid().ToString("N"));
+                var input = Path.Combine(workRoot, "input");
+                var legacy = Path.Combine(workRoot, "legacy");
+                var json = Path.Combine(workRoot, "json");
+                Directory.CreateDirectory(input);
+                Directory.CreateDirectory(legacy);
+                Directory.CreateDirectory(json);
+
+                PrepareRetocInput(sourceUtoc, input);
+                await _retoc.ToLegacyAsync(input, legacy, AppConstants.LocalizationDatabaseNeedle, cancellationToken);
+
+                var scriptObjects = Path.Combine(legacy, "scriptobjects.bin");
+                RequireFile(scriptObjects, "retoc scriptobjects.bin");
+                extractedContainers[sourceUtoc] = new RetocExtractedContainer
+                {
+                    WorkRoot = workRoot,
+                    LegacyRoot = legacy,
+                    JsonRoot = json,
+                    ScriptObjects = scriptObjects,
+                };
+            }
+
+            foreach (var assetGroup in mod.Assets)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var parsedAliases = new List<ParsedAliasAsset>();
+
+                foreach (var alias in assetGroup.Aliases)
+                {
+                    if (!extractedContainers.TryGetValue(alias.SourceUtoc, out var extracted))
+                        throw new InvalidDataException($"No extracted container workspace for {alias.SourceUtoc}");
+
+                    var legacyRelative = PathUtil.NormalizeVirtualPath(alias.VirtualPath);
+                    var extractedUasset = Path.Combine(extracted.LegacyRoot, legacyRelative);
+                    var extractedUexp = Path.ChangeExtension(extractedUasset, ".uexp");
+                    RequireFile(extractedUasset, alias.VirtualPath);
+                    RequireFile(extractedUexp, alias.VirtualPath + " .uexp");
+
+                    var jsonName = $"{assetGroup.ZenChunkId}_{parsedAliases.Count:00}.json";
+                    var assetJson = Path.Combine(extracted.JsonRoot, jsonName);
+                    await _uassetGui.ToJsonAsync(extractedUasset, assetJson, cancellationToken);
+
+                    var export = UAssetInspector.ReadLocalizationExport(assetJson, alias.VirtualPath);
+                    if (!export.ImportsLocalizationDatabaseClass)
+                        throw new InvalidDataException($"{alias.VirtualPath}: asset does not import ModLocalizationDatabaseDataAsset");
+
+                    var parsed = LocalizationDatabaseCodec.Parse(export.Payload, alias.VirtualPath);
+                    var roundTrip = LocalizationDatabaseCodec.Serialize(parsed);
+                    if (!roundTrip.AsSpan().SequenceEqual(export.Payload))
+                        throw new InvalidDataException($"{alias.VirtualPath}: untouched parser/serializer round-trip changed the payload");
+
+                    var internalPackagePath = UAssetInspector.DetectInternalPackagePath(
+                        assetJson,
+                        alias.VirtualPath,
+                        alias.VirtualPath
+                    );
+
+                    parsedAliases.Add(new ParsedAliasAsset
+                    {
+                        Alias = alias,
+                        LegacyRelativePath = legacyRelative,
+                        UassetPath = extractedUasset,
+                        UexpPath = extractedUexp,
+                        AssetJsonPath = assetJson,
+                        ScriptObjectsPath = extracted.ScriptObjects,
+                        Parsed = parsed,
+                        InternalPackagePath = internalPackagePath,
+                        DirectoryAliasPackagePath = PathUtil.DirectoryAliasPackagePathFromVirtualPath(alias.VirtualPath),
+                    });
+                }
+
+                if (parsedAliases.Count == 0)
+                    continue;
+
+                var sidUnion = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var item in parsedAliases)
+                    sidUnion.UnionWith(item.Parsed.Records.Select(record => record.Sid));
+
+                var complete = parsedAliases
+                    .Where(item => new HashSet<string>(
+                        item.Parsed.Records.Select(record => record.Sid),
+                        StringComparer.Ordinal
+                    ).SetEquals(sidUnion))
+                    .ToList();
+
+                if (complete.Count == 0)
+                {
+                    var details = string.Join(
+                        Environment.NewLine,
+                        parsedAliases.Select(item =>
+                            $"  {item.Alias.SourceUtocRelative}: SIDs={item.Parsed.Records.Count} :: {item.Alias.VirtualPath}")
+                    );
+                    throw new InvalidDataException(
+                        $"Aliases of LocalizationDatabase chunk {assetGroup.ZenChunkId} expose incompatible SID sets:{Environment.NewLine}{details}"
+                    );
+                }
+
+                var allOverrideAliases = parsedAliases
+                    .Where(item => PathUtil.IsBaseContentAlias(item.Alias.VirtualPath))
+                    .ToList();
+                var completeOverrideAliases = complete
+                    .Where(item => PathUtil.IsBaseContentAlias(item.Alias.VirtualPath))
+                    .ToList();
+
+                if (allOverrideAliases.Count > 0 && completeOverrideAliases.Count == 0)
+                {
+                    var details = string.Join(
+                        Environment.NewLine,
+                        parsedAliases.Select(item =>
+                            $"  {item.Alias.SourceUtocRelative}: SIDs={item.Parsed.Records.Count} :: {item.Alias.VirtualPath}")
+                    );
+                    throw new InvalidDataException(
+                        "OverrideContent alias exists but does not contain the complete LocalizationDatabase SID set; " +
+                        $"refusing a plugin-path fallback for chunk {assetGroup.ZenChunkId}:{Environment.NewLine}{details}"
+                    );
+                }
+
+                var canonical = complete
+                    .OrderBy(item => PathUtil.IsBaseContentAlias(item.Alias.VirtualPath) ? 0 : 1)
+                    .ThenBy(item => PathUtil.IsOverrideContentContainer(item.Alias.SourceUtocRelative) ? 0 : 1)
+                    .ThenBy(item => item.Alias.SourceUtocRelative, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(item => item.Alias.VirtualPath, StringComparer.OrdinalIgnoreCase)
+                    .First();
+
+                var pluginSourcePaths = parsedAliases
+                    .Where(item => PathUtil.IsPluginContentAlias(item.Alias.VirtualPath))
+                    .Select(item => item.DirectoryAliasPackagePath)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+
+                if (pluginSourcePaths.Count > 1)
+                {
+                    throw new InvalidDataException(
+                        $"LocalizationDatabase chunk {assetGroup.ZenChunkId} maps to multiple plugin package identities:" +
+                        Environment.NewLine + string.Join(Environment.NewLine, pluginSourcePaths.Select(path => "  " + path))
+                    );
+                }
+
+                string sourcePackageIdentityPath;
+                if (pluginSourcePaths.Count == 1)
+                {
+                    sourcePackageIdentityPath = pluginSourcePaths[0];
+                }
+                else
+                {
+                    var internalCandidates = parsedAliases
+                        .Select(item => item.InternalPackagePath)
+                        .Where(path => !string.IsNullOrWhiteSpace(path) && path.StartsWith("/", StringComparison.Ordinal))
+                        .Distinct(StringComparer.Ordinal)
+                        .ToList();
+                    if (internalCandidates.Count != 1)
+                    {
+                        throw new InvalidDataException(
+                            $"Could not determine one source Unreal package identity for chunk {assetGroup.ZenChunkId}:" +
+                            Environment.NewLine + (internalCandidates.Count == 0
+                                ? "  (none)"
+                                : string.Join(Environment.NewLine, internalCandidates.Select(path => "  " + path)))
+                        );
+                    }
+                    sourcePackageIdentityPath = internalCandidates[0];
+                }
+
+                if (!string.Equals(canonical.InternalPackagePath, sourcePackageIdentityPath, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"{canonical.Alias.VirtualPath}: source package identity does not match serializer-visible package name:" +
+                        Environment.NewLine + $"  source identity : {sourcePackageIdentityPath}" +
+                        Environment.NewLine + $"  serializer path : {canonical.InternalPackagePath}"
+                    );
+                }
 
                 var assetFolderRelative = Path.Combine("assets", "database", assetGroup.ZenChunkId);
                 var assetFolder = Path.Combine(stagingRoot, assetFolderRelative);
@@ -219,24 +381,15 @@ public sealed class ExtractionService
 
                 var sourceUasset = Path.Combine(assetFolder, "source.uasset");
                 var sourceUexp = Path.Combine(assetFolder, "source.uexp");
-                var assetJson = Path.Combine(assetFolder, "asset.json");
+                var storedJson = Path.Combine(assetFolder, "asset.json");
                 var storedScriptObjects = Path.Combine(assetFolder, "scriptobjects.bin");
 
-                File.Copy(extractedUasset, sourceUasset, overwrite: true);
-                File.Copy(extractedUexp, sourceUexp, overwrite: true);
-                File.Copy(scriptObjects, storedScriptObjects, overwrite: true);
+                File.Copy(canonical.UassetPath, sourceUasset, overwrite: true);
+                File.Copy(canonical.UexpPath, sourceUexp, overwrite: true);
+                File.Copy(canonical.AssetJsonPath, storedJson, overwrite: true);
+                File.Copy(canonical.ScriptObjectsPath, storedScriptObjects, overwrite: true);
 
-                await _uassetGui.ToJsonAsync(sourceUasset, assetJson, cancellationToken);
-                var export = UAssetInspector.ReadLocalizationExport(assetJson, alias.VirtualPath);
-                if (!export.ImportsLocalizationDatabaseClass)
-                    throw new InvalidDataException($"{alias.VirtualPath}: asset does not import ModLocalizationDatabaseDataAsset");
-
-                var parsed = LocalizationDatabaseCodec.Parse(export.Payload, alias.VirtualPath);
-                var roundTrip = LocalizationDatabaseCodec.Serialize(parsed);
-                if (!roundTrip.AsSpan().SequenceEqual(export.Payload))
-                    throw new InvalidDataException($"{alias.VirtualPath}: untouched parser/serializer round-trip changed the payload");
-
-                foreach (var record in parsed.Records)
+                foreach (var record in canonical.Parsed.Records)
                 {
                     foreach (var language in BuildLanguageCatalog.All)
                     {
@@ -247,27 +400,48 @@ public sealed class ExtractionService
                     }
                 }
 
+                var canonicalLegacyRelative = PathUtil.NormalizeVirtualPath(canonical.Alias.VirtualPath);
                 manifest.Assets.Add(new ExtractedAssetManifest
                 {
                     ZenChunkId = assetGroup.ZenChunkId,
-                    DatabaseName = Path.GetFileNameWithoutExtension(alias.VirtualPath),
-                    VirtualPath = alias.VirtualPath,
-                    LegacyRelativePath = legacyRelative,
-                    SourceContainerRelativePath = alias.SourceUtocRelative,
-                    Aliases = assetGroup.Aliases.Select(x => new AliasManifest
-                    {
-                        SourceContainerRelativePath = x.SourceUtocRelative,
-                        VirtualPath = x.VirtualPath,
-                    }).ToList(),
+                    DatabaseName = Path.GetFileNameWithoutExtension(canonical.Alias.VirtualPath),
+                    VirtualPath = canonical.Alias.VirtualPath,
+                    LegacyRelativePath = canonicalLegacyRelative,
+                    SourceContainerRelativePath = canonical.Alias.SourceUtocRelative,
+                    InternalPackagePath = canonical.InternalPackagePath,
+                    SourcePackageIdentityPath = sourcePackageIdentityPath,
+                    DirectoryAliasPackagePath = canonical.DirectoryAliasPackagePath,
+                    Aliases = parsedAliases
+                        .OrderBy(item => PathUtil.IsBaseContentAlias(item.Alias.VirtualPath) ? 0 : 1)
+                        .ThenBy(item => item.Alias.SourceUtocRelative, StringComparer.OrdinalIgnoreCase)
+                        .ThenBy(item => item.Alias.VirtualPath, StringComparer.OrdinalIgnoreCase)
+                        .Select(item => new AliasManifest
+                        {
+                            SourceContainerRelativePath = item.Alias.SourceUtocRelative,
+                            VirtualPath = item.Alias.VirtualPath,
+                            InternalPackagePath = item.InternalPackagePath,
+                            DirectoryAliasPackagePath = item.DirectoryAliasPackagePath,
+                            SidCount = item.Parsed.Records.Count,
+                        })
+                        .ToList(),
                     UassetFile = Path.Combine(assetFolderRelative, "source.uasset"),
                     UexpFile = Path.Combine(assetFolderRelative, "source.uexp"),
                     AssetJsonFile = Path.Combine(assetFolderRelative, "asset.json"),
                     ScriptObjectsFile = Path.Combine(assetFolderRelative, "scriptobjects.bin"),
-                    SidCount = parsed.Records.Count,
+                    SidCount = canonical.Parsed.Records.Count,
                 });
-            }
 
-            TryDeleteDirectory(workRoot);
+                _log?.Invoke(
+                    $"{mod.ModName}: {assetGroup.ZenChunkId} -> canonical {canonical.Alias.VirtualPath}; " +
+                    $"aliases={parsedAliases.Count}, SIDs={canonical.Parsed.Records.Count}, " +
+                    $"source identity={sourcePackageIdentityPath}, directory alias={canonical.DirectoryAliasPackagePath}"
+                );
+            }
+        }
+        finally
+        {
+            foreach (var extracted in extractedContainers.Values)
+                TryDeleteDirectory(extracted.WorkRoot);
         }
     }
 
@@ -363,6 +537,27 @@ public sealed class ExtractionService
 
         foreach (var root in unpacked.Values)
             TryDeleteDirectory(root);
+    }
+
+    private sealed class RetocExtractedContainer
+    {
+        public string WorkRoot { get; init; } = string.Empty;
+        public string LegacyRoot { get; init; } = string.Empty;
+        public string JsonRoot { get; init; } = string.Empty;
+        public string ScriptObjects { get; init; } = string.Empty;
+    }
+
+    private sealed class ParsedAliasAsset
+    {
+        public LocalizationAlias Alias { get; init; } = new();
+        public string LegacyRelativePath { get; init; } = string.Empty;
+        public string UassetPath { get; init; } = string.Empty;
+        public string UexpPath { get; init; } = string.Empty;
+        public string AssetJsonPath { get; init; } = string.Empty;
+        public string ScriptObjectsPath { get; init; } = string.Empty;
+        public LocalizationPayload Parsed { get; init; } = new();
+        public string InternalPackagePath { get; init; } = string.Empty;
+        public string DirectoryAliasPackagePath { get; init; } = string.Empty;
     }
 
     private void PrepareRetocInput(string sourceUtoc, string input)

@@ -6,7 +6,6 @@ public sealed class LocalizationAliasGroupingResult
 {
     public List<LocalizationAssetGroup> Assets { get; init; } = new();
     public int ExactChunkAliasesCollapsed { get; init; }
-    public int PackagePrefixDuplicatesCollapsed { get; init; }
 }
 
 public static class LocalizationAliasGrouper
@@ -14,31 +13,24 @@ public static class LocalizationAliasGrouper
     public static LocalizationAliasGroupingResult Group(IEnumerable<LocalizationAlias> aliases)
     {
         var source = aliases.ToList();
-        var distinctFullChunkCount = source
-            .Select(alias => alias.ZenChunkId)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Count();
 
+        // ExportBundleData chunk IDs are the authoritative package identity here.
+        // Do NOT collapse only on the first 16 hex characters. The current launch.py
+        // baseline groups aliases only when the complete 24-hex Zen chunk ID matches.
         var assets = source
-            .GroupBy(alias => PathUtil.GetZenPackageIdentity(alias.ZenChunkId), StringComparer.OrdinalIgnoreCase)
+            .GroupBy(alias => alias.ZenChunkId, StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
                 var ordered = group
-                    // Prefer the actual base-game override path when NewContent and
-                    // OverrideContent expose the same localization database package.
                     .OrderBy(alias => PathUtil.IsBaseContentAlias(alias.VirtualPath) ? 0 : 1)
                     .ThenBy(alias => PathUtil.IsOverrideContentContainer(alias.SourceUtocRelative) ? 0 : 1)
                     .ThenBy(alias => alias.SourceUtocRelative, StringComparer.OrdinalIgnoreCase)
                     .ThenBy(alias => alias.VirtualPath, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(alias => alias.ZenChunkId, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
                 var canonical = ordered[0];
                 return new LocalizationAssetGroup
                 {
-                    // Keep the complete chunk ID of the canonical source for extraction,
-                    // build verification and retoc identity checks. The 16-character
-                    // package prefix is used only for duplicate detection.
                     ZenChunkId = canonical.ZenChunkId.ToLowerInvariant(),
                     Canonical = canonical,
                     Aliases = ordered,
@@ -51,8 +43,7 @@ public static class LocalizationAliasGrouper
         return new LocalizationAliasGroupingResult
         {
             Assets = assets,
-            ExactChunkAliasesCollapsed = source.Count - distinctFullChunkCount,
-            PackagePrefixDuplicatesCollapsed = distinctFullChunkCount - assets.Count,
+            ExactChunkAliasesCollapsed = source.Count - assets.Count,
         };
     }
 }

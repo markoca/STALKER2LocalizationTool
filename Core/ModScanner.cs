@@ -53,16 +53,12 @@ public sealed class ModScanner
         var ignoredSourceCount = allUtocs.Count - utocs.Count;
         _log?.Invoke(
             $"MODS source filter: {utocs.Count} IoStore eligible; " +
-            $"ignored {ignoredSourceCount} .utoc file(s) outside _OC_50/_NC/B_P/_OC/-OverrideContent naming. " +
+            $"ignored {ignoredSourceCount} unrelated .utoc file(s). " +
+            "NewContent and OverrideContent partners are scanned together so exact package aliases can be resolved. " +
             "LOCRES/PAK scanning is disabled for MODS."
         );
 
         var groups = BuildGroups(utocs);
-
-        // Select one source family per mod before scanning. OverrideContent wins; if no
-        // OverrideContent family exists, _NC is the first fallback and B_P the second.
-        foreach (var group in groups)
-            SelectPreferredSourceFamily(group);
 
         var totalSources = groups.Sum(group => group.Containers.Count);
         var processed = 0;
@@ -93,47 +89,10 @@ public sealed class ModScanner
             var aliasGrouping = LocalizationAliasGrouper.Group(aliases);
             group.Assets = aliasGrouping.Assets;
 
-            // Safety net: source-family selection above normally means one IoStore source
-            // reaches this point. If that selected OverrideContent source itself exposes more
-            // than one logical LocalizationDatabase, collapse it deterministically to one DB.
-            if (group.Assets.Count > 1)
-            {
-                var overrideAssets = group.Assets
-                    .Where(asset => asset.Aliases.Any(alias =>
-                        PathUtil.IsBaseContentAlias(alias.VirtualPath)
-                        || PathUtil.IsOverrideContentContainer(alias.SourceUtocRelative)))
-                    .OrderBy(asset => asset.Aliases.Any(alias =>
-                        PathUtil.IsBaseContentAlias(alias.VirtualPath)) ? 0 : 1)
-                    .ThenBy(asset => asset.Canonical.VirtualPath, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(asset => asset.ZenChunkId, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (overrideAssets.Count > 0)
-                {
-                    var selected = overrideAssets[0];
-                    var suppressedCount = group.Assets.Count - 1;
-                    group.Assets = new List<LocalizationAssetGroup> { selected };
-
-                    _log?.Invoke(
-                        $"{group.ModName}: found multiple localization databases; " +
-                        $"using one OverrideContent database only ({selected.Canonical.VirtualPath}) " +
-                        $"and ignoring {suppressedCount} other database asset(s)."
-                    );
-                }
-            }
-
             if (aliasGrouping.ExactChunkAliasesCollapsed > 0)
             {
                 _log?.Invoke(
                     $"{group.ModName}: ignored {aliasGrouping.ExactChunkAliasesCollapsed} duplicate localization alias(es) for identical Zen chunks."
-                );
-            }
-
-            if (aliasGrouping.PackagePrefixDuplicatesCollapsed > 0)
-            {
-                _log?.Invoke(
-                    $"{group.ModName}: ignored {aliasGrouping.PackagePrefixDuplicatesCollapsed} duplicate localization database asset(s) " +
-                    "sharing the same Zen package ID prefix (first 16 hex characters); OverrideContent/base-content alias preferred."
                 );
             }
 
@@ -143,9 +102,8 @@ public sealed class ModScanner
 
             if (group.HasLocalization)
             {
-                // Fingerprint only the selected localization source family. Ignored source
-                // families do not participate in extraction/build and therefore do not need
-                // to invalidate the Editable workspace while the preferred family still exists.
+                // Fingerprint every container that actually exposed a localization alias.
+                // NewContent/OverrideContent partners are both part of the source identity.
                 var relevantFiles = aliases
                     .Select(x => x.SourceUtoc)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -173,41 +131,6 @@ public sealed class ModScanner
         return groups
             .OrderBy(x => x.ModName, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
-    }
-
-    private void SelectPreferredSourceFamily(ModScanResult group)
-    {
-        var allSources = group.Containers
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (allSources.Count == 0)
-            return;
-
-        var families = allSources
-            .GroupBy(PathUtil.GetModLocalizationSourceFamilyKey, StringComparer.OrdinalIgnoreCase)
-            .Select(family => new
-            {
-                Key = family.Key,
-                Sources = family.ToList(),
-                Priority = family.Min(PathUtil.GetModLocalizationContainerPriority),
-            })
-            .OrderBy(family => family.Priority)
-            .ThenBy(family => family.Key, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        var selected = families[0];
-        var selectedSet = selected.Sources.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        group.Containers = group.Containers.Where(selectedSet.Contains).ToList();
-
-        if (families.Count > 1)
-        {
-            var representative = selected.Sources[0];
-            _log?.Invoke(
-                $"{group.ModName}: localization source selection -> {Path.GetFileNameWithoutExtension(representative)} " +
-                $"[{PathUtil.GetModLocalizationContainerKind(representative)}]; ignored {families.Count - 1} other eligible source family/families."
-            );
-        }
     }
 
     private List<ModScanResult> BuildGroups(List<string> utocs)

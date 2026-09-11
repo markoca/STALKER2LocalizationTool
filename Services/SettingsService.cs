@@ -249,23 +249,10 @@ public sealed class SettingsService
 
     private static string FindS2Hocmm(string baseDir)
     {
-        var nestedLocal = Path.Combine(baseDir, "tools", "S2HOCMM", "S2HOCMM.exe");
-        if (File.Exists(nestedLocal)) return nestedLocal;
-
-        var local = Path.Combine(baseDir, "tools", "S2HOCMM.exe");
-        if (File.Exists(local)) return local;
-
-        // Developer-friendly discovery for the common sibling layout:
-        //   <root>/STALKER2LocalizationTool/publish/win-x64/
-        //   <root>/S2HOCMM/S2HOCMM.exe
-        var current = new DirectoryInfo(baseDir);
-        for (var i = 0; i < 5 && current is not null; i++, current = current.Parent)
-        {
-            var sibling = Path.Combine(current.FullName, "S2HOCMM", "S2HOCMM.exe");
-            if (File.Exists(sibling)) return sibling;
-        }
-
-        return local;
+        // Release/runtime default: all external tools are deployed from the
+        // project-local tools directory. Custom paths remain supported through
+        // settings, but normal users never need a sibling developer checkout.
+        return Path.Combine(baseDir, "tools", "S2HOCMM.exe");
     }
 
     private static string DefaultIfEmpty(string? value, string fallback) =>

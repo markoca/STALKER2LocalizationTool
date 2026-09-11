@@ -81,6 +81,56 @@ public static class UAssetInspector
         };
     }
 
+
+    public static string DetectInternalPackagePath(string jsonPath, string virtualPath, string sourceLabel)
+    {
+        using var doc = JsonDocument.Parse(File.ReadAllText(jsonPath, Encoding.UTF8));
+        var normalized = virtualPath.Replace('\\', '/');
+        var assetStem = Path.GetFileNameWithoutExtension(normalized);
+        var suffix = "/" + assetStem;
+        var candidates = new HashSet<string>(StringComparer.Ordinal);
+
+        static void Walk(JsonElement element, string suffix, HashSet<string> candidates)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.String:
+                {
+                    var value = element.GetString();
+                    if (!string.IsNullOrWhiteSpace(value)
+                        && value.StartsWith("/", StringComparison.Ordinal)
+                        && value.EndsWith(suffix, StringComparison.Ordinal))
+                    {
+                        candidates.Add(value);
+                    }
+                    break;
+                }
+                case JsonValueKind.Array:
+                    foreach (var item in element.EnumerateArray())
+                        Walk(item, suffix, candidates);
+                    break;
+                case JsonValueKind.Object:
+                    foreach (var property in element.EnumerateObject())
+                        Walk(property.Value, suffix, candidates);
+                    break;
+            }
+        }
+
+        Walk(doc.RootElement, suffix, candidates);
+        if (candidates.Count != 1)
+        {
+            var details = candidates.Count == 0
+                ? "(none)"
+                : string.Join(Environment.NewLine, candidates.OrderBy(x => x, StringComparer.Ordinal));
+            throw new InvalidDataException(
+                $"{sourceLabel}: expected exactly one internal Unreal package path ending in '{suffix}', " +
+                $"found {candidates.Count}:{Environment.NewLine}{details}"
+            );
+        }
+
+        return candidates.Single();
+    }
+
     private static long ReadInt64Like(JsonElement obj, string property, string sourceLabel)
     {
         if (!obj.TryGetProperty(property, out var value))

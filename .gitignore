@@ -4,20 +4,3 @@ publish/
 .vs/
 *.user
 *.suo
-bin/
-obj/
-publish/
-
-Cached/
-Editable/
-Output/
-Mods/
-
-settings.json
-*.log
-
-.work/
-.staging.*
-
-# Downloaded from the pinned upstream UAssetGUI release by fetch/publish helpers.
-tools/UAssetGUI.exe

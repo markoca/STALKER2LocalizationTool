@@ -113,14 +113,6 @@ public sealed class GameScanner
             );
         }
 
-        if (aliasGrouping.PackagePrefixDuplicatesCollapsed > 0)
-        {
-            _log?.Invoke(
-                $"Base Game: ignored {aliasGrouping.PackagePrefixDuplicatesCollapsed} duplicate localization database asset(s) " +
-                "sharing the same Zen package ID prefix (first 16 hex characters); OverrideContent/base-content alias preferred."
-            );
-        }
-
         game.LocresAssets = locres
             .GroupBy(source => source.SourcePakRelative + "|" + source.InternalPath, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())

@@ -3,7 +3,7 @@ namespace STALKER2LocalizationTool;
 internal static class AppConstants
 {
     public const string AppName = "The STALKER2 Localization Tool";
-    public const string Version = "1.0.0-rc.4";
+    public const string Version = "1.0.0-rc.7";
     public const string EngineVersion = "VER_UE5_5";
     public const string RetocEngineVersion = "UE5_5";
     public const string UAssetGuiVersion = "v1.1.0";
@@ -12,8 +12,8 @@ internal static class AppConstants
     public const string UAssetGuiMappingsAlias = "STALKER2LocalizationTool";
     public const string LocalizationDatabaseNeedle = "LocalizationDatabase.uasset";
     public const string BaseGamePakChunkPrefix = "pakchunk0";
-    public const int ManifestSchemaVersion = 12;
-    public const string OverlayPrefix = "zzzzzzz_Localization";
+    public const int ManifestSchemaVersion = 13;
+    public const string OverlayPrefix = "zzzzzzz_ISL";
     public const string BaseGameLocresPakPrefix = "zzzzzz";
     public const string PakMountPoint = "../../../";
     public const string PakVersion = "V11";

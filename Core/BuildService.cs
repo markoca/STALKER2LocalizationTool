@@ -9,17 +9,20 @@ public sealed class BuildService
     private readonly RetocService _retoc;
     private readonly RepakService _repak;
     private readonly S2HocmmService _s2Hocmm;
+    private readonly UAssetGuiService _uassetGui;
     private readonly Action<string>? _log;
 
     public BuildService(
         AppSettings settings,
         RetocService retoc,
         RepakService repak,
+        UAssetGuiService uassetGui,
         Action<string>? log = null)
     {
         _settings = settings;
         _retoc = retoc;
         _repak = repak;
+        _uassetGui = uassetGui;
         _s2Hocmm = new S2HocmmService(settings.S2HocmmPath, settings.RepakPath, log);
         _log = log;
     }
@@ -154,8 +157,7 @@ public sealed class BuildService
         Directory.CreateDirectory(legacyRoot);
 
         var results = new List<ModBuildResult>();
-        var expectedPayloads = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
-        var expectedChunks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var expectedPackages = new Dictionary<string, ExpectedDatabasePackage>(StringComparer.OrdinalIgnoreCase);
         var pathOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var chunkOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var scriptObjectsCopied = false;
@@ -173,21 +175,12 @@ public sealed class BuildService
             var cachedRoot = Path.Combine(_settings.CachedFolder, mod.ModId);
             var manifest = LoadAndValidateManifest(mod, cachedRoot);
             var translations = LoadTranslations(mod);
-            var overrideAssets = manifest.Assets
-                .Where(asset => PathUtil.IsBaseContentAlias(asset.VirtualPath))
-                .ToList();
 
-            if (overrideAssets.Count == 0)
-            {
-                result.Verified = true;
-                result.Message = "No OverrideContent localization database assets; skipped in All-in-One mode.";
-                _log?.Invoke($"{mod.ModName}: no OverrideContent localization database assets; skipped.");
-                continue;
-            }
-
-            foreach (var asset in overrideAssets)
+            foreach (var asset in manifest.Assets)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                ValidateAssetIdentityMetadata(asset, mod.ModName);
+
                 var sourceUasset = Path.Combine(cachedRoot, asset.UassetFile);
                 var sourceUexp = Path.Combine(cachedRoot, asset.UexpFile);
                 var sourceJson = Path.Combine(cachedRoot, asset.AssetJsonFile);
@@ -203,15 +196,12 @@ public sealed class BuildService
                 result.MatchedSids += patch.MatchedSids.Count;
                 result.ChangedSids += patch.ChangedSids.Count;
 
-                // A matched SID must be included even when its current source value already
-                // equals the Editable translation. "changed" is diagnostic information only;
-                // using it as the inclusion criterion produces empty builds for valid overlays.
-                if (patch.MatchedSids.Count == 0)
+                // Match current launch.py: an already-correct source needs no physical
+                // overlay asset. Only a real Serbian-slot change enters the output.
+                if (patch.ChangedSids.Count == 0)
                     continue;
 
-                var legacyRelative = PathUtil.NormalizeVirtualPath(asset.VirtualPath);
-                var identityPath = legacyRelative.Replace('\\', '/');
-
+                var identityPath = PathUtil.NormalizeVirtualPathForComparison(asset.VirtualPath);
                 if (pathOwners.TryGetValue(identityPath, out var pathOwner))
                 {
                     throw new InvalidDataException(
@@ -231,7 +221,7 @@ public sealed class BuildService
                 pathOwners[identityPath] = mod.ModName;
                 chunkOwners[asset.ZenChunkId] = mod.ModName;
 
-                var outputUasset = Path.Combine(legacyRoot, legacyRelative);
+                var outputUasset = Path.Combine(legacyRoot, asset.LegacyRelativePath);
                 var patchInfo = PackagePatcher.PatchLegacyPackage(
                     sourceUasset,
                     sourceUexp,
@@ -261,34 +251,32 @@ public sealed class BuildService
                     scriptObjectsCopied = true;
                 }
 
-                expectedChunks.Add(asset.ZenChunkId);
-                expectedPayloads[asset.ZenChunkId] = patch.Payload;
+                expectedPackages[identityPath] = ExpectedDatabasePackage.From(asset, patch.Payload, mod.ModName);
                 result.AssetsPatched++;
             }
         }
 
-        if (expectedPayloads.Count == 0)
+        if (expectedPackages.Count == 0)
         {
             foreach (var result in results)
             {
                 result.Verified = true;
-                result.Message ??= "No Editable translation keys matched OverrideContent localization database entries.";
+                result.Message ??= "No Editable translation values required LocalizationDatabase changes.";
             }
             TryDeleteDirectory(outputRoot);
             return results;
         }
 
-        var outputUtoc = Path.Combine(outputRoot, $"{AppConstants.OverlayPrefix}_All_In_One_DB_P.utoc");
+        var outputUtoc = Path.Combine(outputRoot, $"{AppConstants.OverlayPrefix}_All_In_One_P.utoc");
         await _retoc.ToZenAsync(legacyRoot, outputUtoc, cancellationToken);
 
         RequireFile(outputUtoc, "built All-in-One database .utoc");
         RequireFile(Path.ChangeExtension(outputUtoc, ".ucas"), "built All-in-One database .ucas");
         RequireFile(Path.ChangeExtension(outputUtoc, ".pak"), "built All-in-One database .pak");
 
-        await VerifyPackageIdentityAsync(outputUtoc, expectedChunks, cancellationToken);
-        await VerifyFinishedPayloadsAsync(
+        await VerifyFinishedPackagesAsync(
             outputUtoc,
-            expectedPayloads,
+            expectedPackages,
             Path.Combine(workRoot, "database"),
             cancellationToken
         );
@@ -308,11 +296,11 @@ public sealed class BuildService
             {
                 result.OutputUtoc = outputUtoc;
                 result.OutputFiles.AddRange(sharedFiles);
-                result.Message = $"Included {result.AssetsPatched} OverrideContent asset(s) in the verified All-in-One package.";
+                result.Message = $"Included {result.AssetsPatched} verified localization package(s) in the All-in-One overlay.";
             }
             else
             {
-                result.Message ??= "No Editable translation keys matched OverrideContent localization database entries; not included.";
+                result.Message ??= "No Editable translation values required LocalizationDatabase changes; not included.";
             }
         }
 
@@ -334,8 +322,7 @@ public sealed class BuildService
         var legacyRoot = Path.Combine(workRoot, "database", "legacy");
         Directory.CreateDirectory(legacyRoot);
 
-        var expectedPayloads = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
-        var expectedChunks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var expectedPackages = new Dictionary<string, ExpectedDatabasePackage>(StringComparer.OrdinalIgnoreCase);
         var scriptObjectsCopied = false;
         var matchedTotal = 0;
         var changedTotal = 0;
@@ -344,6 +331,8 @@ public sealed class BuildService
         foreach (var asset in manifest.Assets)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            ValidateAssetIdentityMetadata(asset, manifest.ModName);
+
             var sourceUasset = Path.Combine(cachedRoot, asset.UassetFile);
             var sourceUexp = Path.Combine(cachedRoot, asset.UexpFile);
             var sourceJson = Path.Combine(cachedRoot, asset.AssetJsonFile);
@@ -359,10 +348,9 @@ public sealed class BuildService
             matchedTotal += patch.MatchedSids.Count;
             changedTotal += patch.ChangedSids.Count;
 
-            // Build every database asset with matched Editable translations, even when
-            // the source already contains the requested value. The final overlay still
-            // has to contain that asset so it can win localization precedence in-game.
-            if (patch.MatchedSids.Count == 0)
+            // Match the current launch.py baseline: only databases whose target
+            // Serbian slot actually changes need a physical override package.
+            if (patch.ChangedSids.Count == 0)
                 continue;
 
             assetsPatched++;
@@ -378,7 +366,8 @@ public sealed class BuildService
 
             _log?.Invoke(
                 $"{asset.DatabaseName}: SerialSize {patchInfo.OldSerialSize} -> {patchInfo.NewSerialSize}; " +
-                $"matched {patch.MatchedSids.Count}, changed {patch.ChangedSids.Count}"
+                $"matched {patch.MatchedSids.Count}, changed {patch.ChangedSids.Count}; " +
+                $"source identity={asset.SourcePackageIdentityPath}; alias={asset.DirectoryAliasPackagePath}"
             );
 
             var outputUexp = Path.ChangeExtension(outputUasset, ".uexp");
@@ -396,8 +385,10 @@ public sealed class BuildService
                 scriptObjectsCopied = true;
             }
 
-            expectedChunks.Add(asset.ZenChunkId);
-            expectedPayloads[asset.ZenChunkId] = patch.Payload;
+            var normalizedVirtualPath = PathUtil.NormalizeVirtualPathForComparison(asset.VirtualPath);
+            if (expectedPackages.ContainsKey(normalizedVirtualPath))
+                throw new InvalidDataException($"{manifest.ModName}: duplicate canonical output path: {asset.VirtualPath}");
+            expectedPackages[normalizedVirtualPath] = ExpectedDatabasePackage.From(asset, patch.Payload, manifest.ModName);
         }
 
         result.AssetsPatched = assetsPatched;
@@ -406,20 +397,24 @@ public sealed class BuildService
 
         if (assetsPatched == 0)
         {
-            _log?.Invoke($"{manifest.ModName}: no Editable translations matched database localization entries; database output skipped.");
+            _log?.Invoke($"{manifest.ModName}: no Editable values required LocalizationDatabase changes; database output skipped.");
             return;
         }
 
         var safe = Regex.Replace(PathUtil.MakeSafeName(manifest.ModName), @"[^A-Za-z0-9._-]+", "_");
-        var outputUtoc = Path.Combine(outputModRoot, $"{AppConstants.OverlayPrefix}_{safe}_DB_P.utoc");
+        var outputUtoc = Path.Combine(outputModRoot, $"{AppConstants.OverlayPrefix}_{safe}_P.utoc");
         await _retoc.ToZenAsync(legacyRoot, outputUtoc, cancellationToken);
 
         RequireFile(outputUtoc, "built database .utoc");
         RequireFile(Path.ChangeExtension(outputUtoc, ".ucas"), "built database .ucas");
         RequireFile(Path.ChangeExtension(outputUtoc, ".pak"), "built database .pak");
 
-        await VerifyPackageIdentityAsync(outputUtoc, expectedChunks, cancellationToken);
-        await VerifyFinishedPayloadsAsync(outputUtoc, expectedPayloads, Path.Combine(workRoot, "database"), cancellationToken);
+        await VerifyFinishedPackagesAsync(
+            outputUtoc,
+            expectedPackages,
+            Path.Combine(workRoot, "database"),
+            cancellationToken
+        );
 
         result.OutputUtoc = outputUtoc;
         result.OutputFiles.Add(outputUtoc);
@@ -605,75 +600,161 @@ public sealed class BuildService
         }
     }
 
-    private async Task VerifyPackageIdentityAsync(string outputUtoc, HashSet<string> expectedChunks, CancellationToken cancellationToken)
+    private static void ValidateAssetIdentityMetadata(ExtractedAssetManifest asset, string label)
     {
-        var outputAssets = await _retoc.ListLocalizationAssetsAsync(
-            outputUtoc,
-            Path.GetDirectoryName(outputUtoc)!,
-            cancellationToken
-        );
-        var outputChunkList = outputAssets.Select(x => x.ZenChunkId).ToList();
-        var outputChunks = outputChunkList.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(asset.ZenChunkId)
+            || !Regex.IsMatch(asset.ZenChunkId, @"\A[0-9A-Fa-f]{24}\z"))
+            throw new InvalidDataException($"{label}: invalid cached Zen chunk ID: {asset.ZenChunkId}");
 
-        var missing = expectedChunks.Except(outputChunks, StringComparer.OrdinalIgnoreCase).ToList();
-        var unexpected = outputChunks.Except(expectedChunks, StringComparer.OrdinalIgnoreCase).ToList();
-        var duplicates = outputChunkList
-            .GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .ToList();
+        if (string.IsNullOrWhiteSpace(asset.InternalPackagePath)
+            || string.IsNullOrWhiteSpace(asset.SourcePackageIdentityPath)
+            || string.IsNullOrWhiteSpace(asset.DirectoryAliasPackagePath))
+            throw new InvalidDataException($"{label}: cached package-identity metadata is incomplete. Extract again with workspace schema {AppConstants.ManifestSchemaVersion}.");
 
-        if (missing.Count > 0 || unexpected.Count > 0 || duplicates.Count > 0)
+        if (!string.Equals(asset.InternalPackagePath, asset.SourcePackageIdentityPath, StringComparison.Ordinal))
         {
             throw new InvalidDataException(
-                "IoStore package identity verification failed.\r\n" +
-                (missing.Count > 0 ? "Missing: " + string.Join(", ", missing) + "\r\n" : string.Empty) +
-                (unexpected.Count > 0 ? "Unexpected: " + string.Join(", ", unexpected) + "\r\n" : string.Empty) +
-                (duplicates.Count > 0 ? "Duplicates: " + string.Join(", ", duplicates) : string.Empty)
+                $"{label}: source package identity does not match serializer-visible package path for {asset.VirtualPath}:" +
+                Environment.NewLine + $"  source identity : {asset.SourcePackageIdentityPath}" +
+                Environment.NewLine + $"  serializer path : {asset.InternalPackagePath}"
+            );
+        }
+
+        var derivedAlias = PathUtil.DirectoryAliasPackagePathFromVirtualPath(asset.VirtualPath);
+        if (!string.Equals(derivedAlias, asset.DirectoryAliasPackagePath, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"{label}: cached directory alias does not match virtual path for {asset.VirtualPath}:" +
+                Environment.NewLine + $"  cached : {asset.DirectoryAliasPackagePath}" +
+                Environment.NewLine + $"  derived: {derivedAlias}"
             );
         }
     }
 
-    private async Task VerifyFinishedPayloadsAsync(
+    private async Task VerifyFinishedPackagesAsync(
         string outputUtoc,
-        Dictionary<string, byte[]> expectedPayloads,
+        IReadOnlyDictionary<string, ExpectedDatabasePackage> expectedPackages,
         string workRoot,
         CancellationToken cancellationToken)
     {
+        if (expectedPackages.Count == 0)
+            return;
+
         var verifyRoot = Path.Combine(workRoot, "verify_finished");
         var input = Path.Combine(verifyRoot, "input");
         var legacy = Path.Combine(verifyRoot, "legacy");
+        TryDeleteDirectory(verifyRoot);
         Directory.CreateDirectory(input);
         Directory.CreateDirectory(legacy);
 
-        FileLinker.LinkOrCopy(outputUtoc, Path.Combine(input, Path.GetFileName(outputUtoc)));
-        FileLinker.LinkOrCopy(Path.ChangeExtension(outputUtoc, ".ucas"), Path.Combine(input, Path.GetFileName(Path.ChangeExtension(outputUtoc, ".ucas"))));
-        FileLinker.LinkOrCopy(Path.ChangeExtension(outputUtoc, ".pak"), Path.Combine(input, Path.GetFileName(Path.ChangeExtension(outputUtoc, ".pak"))));
-        FileLinker.LinkOrCopy(Path.Combine(_settings.GamePaksFolder, "global.utoc"), Path.Combine(input, "global.utoc"));
-        FileLinker.LinkOrCopy(Path.Combine(_settings.GamePaksFolder, "global.ucas"), Path.Combine(input, "global.ucas"));
-
-        await _retoc.ToLegacyAsync(input, legacy, AppConstants.LocalizationDatabaseNeedle, cancellationToken);
-        var outputAssets = await _retoc.ListLocalizationAssetsAsync(
-            outputUtoc,
-            Path.GetDirectoryName(outputUtoc)!,
-            cancellationToken
-        );
-
-        foreach (var pair in expectedPayloads)
+        try
         {
-            var candidates = outputAssets
-                .Where(x => string.Equals(x.ZenChunkId, pair.Key, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (candidates.Count != 1)
-                throw new InvalidDataException($"Packaged payload verification expected one database for chunk {pair.Key}, found {candidates.Count}");
+            FileLinker.LinkOrCopy(outputUtoc, Path.Combine(input, Path.GetFileName(outputUtoc)));
+            FileLinker.LinkOrCopy(
+                Path.ChangeExtension(outputUtoc, ".ucas"),
+                Path.Combine(input, Path.GetFileName(Path.ChangeExtension(outputUtoc, ".ucas")))
+            );
+            FileLinker.LinkOrCopy(
+                Path.ChangeExtension(outputUtoc, ".pak"),
+                Path.Combine(input, Path.GetFileName(Path.ChangeExtension(outputUtoc, ".pak")))
+            );
+            FileLinker.LinkOrCopy(Path.Combine(_settings.GamePaksFolder, "global.utoc"), Path.Combine(input, "global.utoc"));
+            FileLinker.LinkOrCopy(Path.Combine(_settings.GamePaksFolder, "global.ucas"), Path.Combine(input, "global.ucas"));
 
-            var legacyRelative = PathUtil.NormalizeVirtualPath(candidates[0].VirtualPath);
-            var uexp = Path.ChangeExtension(Path.Combine(legacy, legacyRelative), ".uexp");
-            RequireFile(uexp, "round-tripped packaged .uexp");
-            PackagePatcher.VerifyPayloadOccurrence(uexp, pair.Value, $"chunk {pair.Key}");
+            await _retoc.ToLegacyAsync(input, legacy, AppConstants.LocalizationDatabaseNeedle, cancellationToken);
+            var outputAssets = await _retoc.ListLocalizationAssetsAsync(
+                outputUtoc,
+                Path.GetDirectoryName(outputUtoc)!,
+                cancellationToken
+            );
+
+            var byPath = outputAssets
+                .GroupBy(asset => PathUtil.NormalizeVirtualPathForComparison(asset.VirtualPath), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.OrdinalIgnoreCase);
+
+            var expectedPathSet = expectedPackages.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var actualPathSet = byPath.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var missingPaths = expectedPathSet.Except(actualPathSet, StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+            var unexpectedPaths = actualPathSet.Except(expectedPathSet, StringComparer.OrdinalIgnoreCase).OrderBy(x => x).ToList();
+            var duplicatePaths = byPath.Where(pair => pair.Value.Count != 1).Select(pair => pair.Key).OrderBy(x => x).ToList();
+
+            if (missingPaths.Count > 0 || unexpectedPaths.Count > 0 || duplicatePaths.Count > 0)
+            {
+                throw new InvalidDataException(
+                    "IoStore canonical-path verification failed.\r\n" +
+                    (missingPaths.Count > 0 ? "Missing: " + string.Join(", ", missingPaths) + "\r\n" : string.Empty) +
+                    (unexpectedPaths.Count > 0 ? "Unexpected: " + string.Join(", ", unexpectedPaths) + "\r\n" : string.Empty) +
+                    (duplicatePaths.Count > 0 ? "Duplicates: " + string.Join(", ", duplicatePaths) : string.Empty)
+                );
+            }
+
+            var verified = 0;
+            foreach (var pair in expectedPackages.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var expected = pair.Value;
+                var candidates = byPath[pair.Key];
+                if (candidates.Count != 1)
+                    throw new InvalidDataException($"Expected one packaged LocalizationDatabase at {pair.Key}, found {candidates.Count}");
+
+                var packaged = candidates[0];
+                if (!string.Equals(packaged.ZenChunkId, expected.ZenChunkId, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException(
+                        $"Original package identity was not preserved for {packaged.VirtualPath}:" +
+                        Environment.NewLine + $"  expected chunk: {expected.ZenChunkId}" +
+                        Environment.NewLine + $"  actual chunk  : {packaged.ZenChunkId}"
+                    );
+                }
+
+                var packagedAliasPath = PathUtil.DirectoryAliasPackagePathFromVirtualPath(packaged.VirtualPath);
+                if (!string.Equals(packagedAliasPath, expected.DirectoryAliasPackagePath, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"Directory alias mismatch for {packaged.VirtualPath}: expected {expected.DirectoryAliasPackagePath}, got {packagedAliasPath}"
+                    );
+                }
+
+                var legacyRelative = PathUtil.NormalizeVirtualPath(packaged.VirtualPath);
+                var packagedUasset = Path.Combine(legacy, legacyRelative);
+                var packagedUexp = Path.ChangeExtension(packagedUasset, ".uexp");
+                RequireFile(packagedUexp, "round-tripped packaged LocalizationDatabase .uexp");
+                PackagePatcher.VerifyPayloadOccurrence(packagedUexp, expected.Payload, $"chunk {expected.ZenChunkId}");
+
+                _log?.Invoke(
+                    $"Verified stock-retoc package: {packaged.VirtualPath}; " +
+                    $"chunk={packaged.ZenChunkId} (original preserved); payload=exact"
+                );
+                verified++;
+            }
+
+            _log?.Invoke($"Verified {verified} stock-retoc canonical path/chunk/payload set(s).");
         }
+        finally
+        {
+            TryDeleteDirectory(verifyRoot);
+        }
+    }
 
-        _log?.Invoke($"Verified {expectedPayloads.Count} exact packaged RawExport payload(s).");
+    private sealed class ExpectedDatabasePackage
+    {
+        public string Label { get; init; } = string.Empty;
+        public string VirtualPath { get; init; } = string.Empty;
+        public string ZenChunkId { get; init; } = string.Empty;
+        public string DirectoryAliasPackagePath { get; init; } = string.Empty;
+        public byte[] Payload { get; init; } = Array.Empty<byte>();
+
+        public static ExpectedDatabasePackage From(ExtractedAssetManifest asset, byte[] payload, string label)
+        {
+            return new ExpectedDatabasePackage
+            {
+                Label = label + " :: " + asset.VirtualPath,
+                VirtualPath = asset.VirtualPath,
+                ZenChunkId = asset.ZenChunkId.ToLowerInvariant(),
+                DirectoryAliasPackagePath = asset.DirectoryAliasPackagePath,
+                Payload = payload,
+            };
+        }
     }
 
     private void ValidatePrerequisites(IReadOnlyCollection<ModScanResult> mods, BuildMode mode)
@@ -681,6 +762,8 @@ public sealed class BuildService
         if (mods.Any(x => x.Assets.Count > 0))
         {
             RequireFile(_settings.RetocPath, "retoc.exe");
+            RequireFile(_settings.UAssetGuiPath, "UAssetGUI.exe");
+            RequireFile(_settings.MappingsPath, "Mappings.usmap");
             RequireFile(Path.Combine(_settings.GamePaksFolder, "global.utoc"), "game global.utoc");
             RequireFile(Path.Combine(_settings.GamePaksFolder, "global.ucas"), "game global.ucas");
         }

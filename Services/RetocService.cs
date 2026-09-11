@@ -96,7 +96,14 @@ public sealed class RetocService
     {
         return ProcessRunner.RunAsync(
             _retocPath,
-            new[] { "to-zen", legacyDirectory, outputUtoc, "--version", AppConstants.RetocEngineVersion },
+            new[]
+            {
+                "to-zen",
+                legacyDirectory,
+                outputUtoc,
+                "--version",
+                AppConstants.RetocEngineVersion,
+            },
             _log,
             cancellationToken
         );

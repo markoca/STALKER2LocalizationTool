@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.0-rc.6
+
+- Switched MODS packaging to the proven stock-retoc baseline after the full current launch.py build passed with unmodified retoc.
+- Removed the `--source-package-map` requirement and all custom retoc build/patch expectations.
+- Removed ContainerHeader redirect/FMappedName verification that existed only for the custom retoc identity path.
+- Kept the important post-pack safety checks: canonical LocalizationDatabase virtual path, complete original 24-hex chunk/FPackageId, and exact patched RawExport round-trip.
+- Project-local `tools/` remains authoritative. Publish copies prebuilt tools and performs no Git, download, Rust/cargo build, or retoc compilation.
+- `tools/retoc.exe` can now be the ordinary upstream Windows retoc CLI.
+- Manifest schema remains 13; existing RC5 schema-13 extraction caches remain valid.
+
+## v1.0.0-rc.5
+
+- Aligned MODS LocalizationDatabase handling with the current known-good `launch.py` baseline.
+- Group aliases only by the complete 24-hex ExportBundleData chunk ID; removed first-16-hex package-prefix collapsing.
+- Scan NewContent and OverrideContent localization partners together and resolve the canonical alias only after extraction inspects their SID sets.
+- Extraction now records internal Unreal package path, source package identity, directory alias path and per-alias SID counts; manifest schema is 13 and existing Cached workspaces must be re-extracted.
+- Prefer a complete `Stalker2/Content/...` alias while preserving the original plugin serializer path/FPackageId.
+- Requires a prebuilt patched `retoc.exe` exposing `--source-package-map`; the project no longer builds retoc during deployment.
+- Modular and All-in-One builds pass source-package identity maps to retoc and verify canonical path, source chunk/FPackageId, ContainerHeader redirect/FMappedName type, internal package path and exact RawExport payload after packaging.
+- Changed modular IoStore names to the `zzzzzzz_ISL_*_P` convention used by the release `launch.py` pipeline.
+- Do not emit redundant database assets when the selected-language values already match the editable JSON.
+- Removed the custom `app.manifest`; the SDK-generated Windows apphost manifest is used for the RC5 Side-by-Side startup test.
+- Source `tools/` is the authoritative deployment bundle. Publish validates and copies prebuilt `retoc.exe`, `repak.exe`, `UAssetGUI.exe`, `Mappings.usmap`, and `S2HOCMM.exe`; no Git, Rust/cargo, or dependency download is used.
+
 ## v1.0.0-rc.4
 
 - Renamed the shared JSON shortcut to **Open JSONs**.
@@ -209,3 +233,10 @@
 - A single `translations.json` can feed LocalizationDatabase assets, Game.locres, or both.
 - Added a Linux/CachyOS `publish-win-x64.sh` helper.
 - Added `EnableWindowsTargeting=true` for cross-publishing the WinForms app from Linux.
+
+## 1.0.0-rc.7
+- Publish helper tools are selected by target runtime, not by build-host OS.
+- Windows runtime bundle moved to `tools/win-x64/`.
+- Linux can cross-publish the self-contained `win-x64` release without Wine and without executing Windows helper tools.
+- The final Windows machine does not require .NET to be installed.
+- `tools/linux-x64/` is reserved for a future native Linux UI port; the current WinForms app has no native Linux target.

@@ -718,6 +718,7 @@ public sealed class MainForm : Form
                 _settings,
                 new RetocService(_settings.RetocPath, AppendLog),
                 new RepakService(_settings.RepakPath, AppendLog),
+                new UAssetGuiService(_settings.UAssetGuiPath, _settings.MappingsPath, AppendLog),
                 AppendLog
             );
             var builtLanguages = 0;
@@ -858,7 +859,13 @@ public sealed class MainForm : Form
         {
             var retoc = new RetocService(_settings.RetocPath, AppendLog);
             var repak = new RepakService(_settings.RepakPath, AppendLog);
-            var builder = new BuildService(_settings, retoc, repak, AppendLog);
+            var builder = new BuildService(
+                _settings,
+                retoc,
+                repak,
+                new UAssetGuiService(_settings.UAssetGuiPath, _settings.MappingsPath, AppendLog),
+                AppendLog
+            );
             var allResults = new List<ModBuildResult>();
             var languageSummaries = new List<(string Language, int Built, int Skipped)>();
             for (var languageIndex = 0; languageIndex < languages.Count; languageIndex++)
@@ -1091,7 +1098,7 @@ public sealed class MainForm : Form
         _buildModularButton.Enabled = canBuild;
         _buildAllInOneButton.Enabled = !_busy && _mods.Any(mod =>
             (mod.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified)
-            && mod.Assets.Any(asset => asset.Aliases.Any(alias => PathUtil.IsBaseContentAlias(alias.VirtualPath))));
+            && mod.Assets.Count > 0);
         _scanGameButton.Enabled = !_busy;
         _extractGameButton.Enabled = !_busy && _game?.UiStatus == ModUiStatus.NeedsExtraction;
         _buildGameButton.Enabled = !_busy && hasLanguages
@@ -1160,9 +1167,12 @@ public sealed class MainForm : Form
 
     private bool ValidateBuildPaths(BuildMode mode)
     {
-        // MODS is LocalizationDatabase-only. retoc is the only build backend
-        // required here; repak/S2HOCMM are reserved for the GAME tab.
-        if (!File.Exists(_settings.RetocPath))
+        // MODS is LocalizationDatabase-only. Build verification round-trips the
+        // finished IoStore asset through UAssetGUI, so retoc + UAssetGUI + mappings
+        // are required. repak/S2HOCMM remain reserved for the GAME LOCRES path.
+        if (!File.Exists(_settings.RetocPath)
+            || !File.Exists(_settings.UAssetGuiPath)
+            || !File.Exists(_settings.MappingsPath))
         {
             MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return ShowSettings() == DialogResult.OK;
@@ -1172,16 +1182,21 @@ public sealed class MainForm : Form
 
     private bool ValidateGamePaths(bool requireExtractionTools)
     {
-        bool IsValid() => Directory.Exists(_settings.GamePaksFolder)
-                          && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc"))
-                          && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas"))
-                          && File.Exists(_settings.RetocPath)
-                          && File.Exists(_settings.RepakPath)
-                          && (requireExtractionTools
-                              || _game?.LocresAssets.Count == 0
-                              || File.Exists(_settings.S2HocmmPath))
-                          && (!requireExtractionTools
-                              || (File.Exists(_settings.UAssetGuiPath) && File.Exists(_settings.MappingsPath)));
+        bool IsValid()
+        {
+            var databaseToolsRequired = requireExtractionTools || (_game?.Assets.Count ?? 0) > 0;
+            return Directory.Exists(_settings.GamePaksFolder)
+                   && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc"))
+                   && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas"))
+                   && File.Exists(_settings.RetocPath)
+                   && File.Exists(_settings.RepakPath)
+                   && (requireExtractionTools
+                       || _game?.LocresAssets.Count == 0
+                       || File.Exists(_settings.S2HocmmPath))
+                   && (!databaseToolsRequired
+                       || (File.Exists(_settings.UAssetGuiPath) && File.Exists(_settings.MappingsPath)));
+        }
+
         if (IsValid()) return true;
 
         MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);

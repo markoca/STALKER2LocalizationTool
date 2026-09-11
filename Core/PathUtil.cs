@@ -20,13 +20,19 @@ public static class PathUtil
 
     public static string NormalizeVirtualPath(string virtualPath)
     {
+        var value = NormalizeVirtualPathForComparison(virtualPath);
+        return value.Replace('/', Path.DirectorySeparatorChar);
+    }
+
+    public static string NormalizeVirtualPathForComparison(string virtualPath)
+    {
         var value = virtualPath.Replace('\\', '/').Trim();
         while (value.StartsWith("../", StringComparison.Ordinal))
             value = value[3..];
         value = value.TrimStart('/');
         if (string.IsNullOrWhiteSpace(value))
             throw new InvalidOperationException($"Could not normalize virtual asset path: {virtualPath}");
-        return value.Replace('/', Path.DirectorySeparatorChar);
+        return value;
     }
 
     public static string NormalizePakPath(string pakPath)
@@ -47,20 +53,18 @@ public static class PathUtil
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
         var patterns = new[]
         {
-            // Current MODS localization source-family suffixes. Keep these before the
-            // generic _P rule so e.g. SomeModB_P groups as SomeMod rather than SomeModB.
-            @"(?i)_OC_50$",
-            @"(?i)-OverrideContent$",
-            @"(?i)_OC$",
-            @"(?i)_NC$",
-            @"(?i)B_P$",
-
-            // Older/verbose naming remains understood for grouping compatibility, even
-            // though MODS scanning itself is filtered to the explicit source suffixes.
+            // ZoneKit / common paired localization container conventions.
             @"(?i)Stalker2-Windows-(NewContent|OverrideContent)$",
             @"(?i)-Windows-(NewContent|OverrideContent)$",
             @"(?i)[_-](NewContent|OverrideContent)$",
-            @"(?i)_P$",
+            @"(?i)_OC_50$",
+            @"(?i)_OC$",
+            @"(?i)_NC$",
+            @"(?i)-OverrideContent$",
+            @"(?i)-NewContent$",
+            @"(?i)_O$",
+            @"(?i)_N$",
+            @"(?i)[AB]_P$",
         };
         foreach (var pattern in patterns)
             stem = Regex.Replace(stem, pattern, string.Empty);
@@ -70,7 +74,18 @@ public static class PathUtil
 
     public static bool IsSupportedModLocalizationContainer(string sourcePath)
     {
-        return GetModLocalizationContainerPriority(sourcePath) < int.MaxValue;
+        var stem = Path.GetFileNameWithoutExtension(sourcePath);
+        return stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("_NC", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("-NewContent", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("Stalker2-Windows-NewContent", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("_N", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("A_P", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool IsOverrideModLocalizationContainer(string sourcePath)
@@ -78,64 +93,60 @@ public static class PathUtil
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
         return stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)
                || stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase);
+               || stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)
+               || stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase);
     }
 
     public static int GetModLocalizationContainerPriority(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
-
-        // OverrideContent is authoritative. _OC_50 is intentionally the most specific
-        // form, followed by the explicit verbose name and the normal _OC suffix.
-        if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase))
-            return 0;
-        if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase))
-            return 1;
-        if (stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase))
-            return 2;
-
-        // Fallback families are scanned only when no OverrideContent family exists.
-        if (stem.EndsWith("_NC", StringComparison.OrdinalIgnoreCase))
-            return 10;
-        if (stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase))
-            return 20;
-
+        if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)) return 0;
+        if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)) return 1;
+        if (stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase)) return 1;
+        if (stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase)) return 2;
+        if (stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)) return 3;
+        if (stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase)) return 4;
+        if (stem.EndsWith("_NC", StringComparison.OrdinalIgnoreCase)) return 10;
+        if (stem.EndsWith("-NewContent", StringComparison.OrdinalIgnoreCase)) return 11;
+        if (stem.EndsWith("Stalker2-Windows-NewContent", StringComparison.OrdinalIgnoreCase)) return 11;
+        if (stem.EndsWith("_N", StringComparison.OrdinalIgnoreCase)) return 12;
+        if (stem.EndsWith("A_P", StringComparison.OrdinalIgnoreCase)) return 13;
         return int.MaxValue;
     }
 
     public static string GetModLocalizationContainerKind(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
-        if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase))
-            return "OverrideContent (_OC_50)";
-        if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase))
-            return "OverrideContent (-OverrideContent)";
-        if (stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase))
-            return "OverrideContent (_OC)";
-        if (stem.EndsWith("_NC", StringComparison.OrdinalIgnoreCase))
-            return "NewContent (_NC)";
-        if (stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase))
-            return "B_P fallback";
+        if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)) return "OverrideContent (_OC_50)";
+        if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)
+            || stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase))
+            return "OverrideContent";
+        if (stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase)) return "OverrideContent (_OC)";
+        if (stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)) return "OverrideContent (_O)";
+        if (stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase)) return "paired B_P";
+        if (stem.EndsWith("_NC", StringComparison.OrdinalIgnoreCase)) return "NewContent (_NC)";
+        if (stem.EndsWith("-NewContent", StringComparison.OrdinalIgnoreCase)
+            || stem.EndsWith("Stalker2-Windows-NewContent", StringComparison.OrdinalIgnoreCase))
+            return "NewContent";
+        if (stem.EndsWith("_N", StringComparison.OrdinalIgnoreCase)) return "NewContent (_N)";
+        if (stem.EndsWith("A_P", StringComparison.OrdinalIgnoreCase)) return "paired A_P";
         return "unsupported";
     }
 
     public static string GetModLocalizationSourceFamilyKey(string sourcePath)
     {
         var directory = Path.GetDirectoryName(sourcePath) ?? string.Empty;
-        var stem = Path.GetFileNameWithoutExtension(sourcePath);
-        return Path.Combine(directory, stem);
+        var inferred = InferModName(directory.Length == 0 ? "." : directory, sourcePath);
+        return Path.Combine(directory, inferred);
     }
-
 
     public static string GetZenPackageIdentity(string zenChunkId)
     {
-        var value = zenChunkId.Trim();
-        if (value.Length == 24 && value.All(Uri.IsHexDigit))
-            return value[..16].ToLowerInvariant();
-
-        // Be conservative for malformed or future chunk-ID formats: do not collapse
-        // anything unless it is the expected 24-character hexadecimal Zen ID.
-        return value.ToLowerInvariant();
+        // Full 24-hex ExportBundleData chunk ID is authoritative. Keeping this helper
+        // preserves call-site compatibility while deliberately avoiding prefix collapse.
+        return zenChunkId.Trim().ToLowerInvariant();
     }
 
     public static bool IsOverrideContentContainer(string sourceContainerRelativePath)
@@ -149,13 +160,54 @@ public static class PathUtil
     {
         var fileName = Path.GetFileNameWithoutExtension(sourceContainerRelativePath);
         return fileName.EndsWith("_NC", StringComparison.OrdinalIgnoreCase)
+               || fileName.EndsWith("_N", StringComparison.OrdinalIgnoreCase)
+               || fileName.EndsWith("A_P", StringComparison.OrdinalIgnoreCase)
                || fileName.Contains("NewContent", StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool IsBaseContentAlias(string virtualPath)
     {
-        var p = virtualPath.Replace('\\', '/');
-        return p.StartsWith("../../../Stalker2/Content/", StringComparison.OrdinalIgnoreCase)
-               || p.StartsWith("Stalker2/Content/", StringComparison.OrdinalIgnoreCase);
+        var p = NormalizeVirtualPathForComparison(virtualPath);
+        return p.StartsWith("Stalker2/Content/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static bool IsPluginContentAlias(string virtualPath)
+    {
+        var p = NormalizeVirtualPathForComparison(virtualPath);
+        return p.StartsWith("Stalker2/Mods/", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public static string DirectoryAliasPackagePathFromVirtualPath(string virtualPath)
+    {
+        var value = NormalizeVirtualPathForComparison(virtualPath);
+        if (value.EndsWith(".uasset", StringComparison.OrdinalIgnoreCase))
+            value = value[..^7];
+
+        const string gamePrefix = "Stalker2/Content/";
+        if (value.StartsWith(gamePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var tail = value[gamePrefix.Length..];
+            if (string.IsNullOrWhiteSpace(tail))
+                throw new InvalidOperationException($"Invalid base-game virtual package path: {virtualPath}");
+            return "/Game/" + tail;
+        }
+
+        const string modsPrefix = "Stalker2/Mods/";
+        if (value.StartsWith(modsPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var rest = value[modsPrefix.Length..];
+            const string marker = "/Content/";
+            var markerIndex = rest.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (markerIndex <= 0)
+                throw new InvalidOperationException($"Invalid mod/plugin virtual package path: {virtualPath}");
+
+            var plugin = rest[..markerIndex];
+            var tail = rest[(markerIndex + marker.Length)..];
+            if (string.IsNullOrWhiteSpace(plugin) || string.IsNullOrWhiteSpace(tail))
+                throw new InvalidOperationException($"Invalid mod/plugin virtual package path: {virtualPath}");
+            return $"/{plugin}/{tail}";
+        }
+
+        throw new InvalidOperationException($"Cannot derive Unreal package path from LocalizationDatabase path: {virtualPath}");
     }
 }

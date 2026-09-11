@@ -2,11 +2,18 @@ $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $Project = Join-Path $Root "STALKER2LocalizationTool.csproj"
+$ToolsRoot = Join-Path $Root "tools\win-x64"
 $PublishRoot = Join-Path $Root "publish"
 $Out = Join-Path $PublishRoot "win-x64"
 $Stage = Join-Path $PublishRoot (".win-x64-stage-" + [guid]::NewGuid().ToString("N"))
 $Preserve = Join-Path $PublishRoot (".win-x64-preserve-" + [guid]::NewGuid().ToString("N"))
-$PreservedNames = @("settings.json", "tools", "locales", "Mods", "Cached", "Editable", "Output", "Extracted", "Ready")
+
+# User data survives republishing. Runtime tools/locales do NOT: source-tree files
+# are authoritative and are refreshed on every deployment.
+$PreservedNames = @("settings.json", "Mods", "Cached", "Editable", "Output", "Extracted", "Ready")
+$RequiredTools = @("retoc.exe", "repak.exe", "UAssetGUI.exe", "Mappings.usmap", "S2HOCMM.exe")
+$PinnedUAssetGuiSha256 = "b7d75c0893f1a60e565853ae638bc21f2416cd12c2d9d854e297abb87ceb3263"
+$KnownBadUAssetGuiSha256 = "e9b953245fd3716545558d751a8855d14490cd0e9e377a828e5ab4e0f34e7109"
 
 New-Item -ItemType Directory -Force -Path @($PublishRoot, $Stage, $Preserve) | Out-Null
 
@@ -58,11 +65,53 @@ function Migrate-WorkspaceName([string]$OldName, [string]$NewName) {
     Write-Warning "Both $OldName and $NewName contain data; nothing was merged or overwritten. The app will use only $NewName."
 }
 
-try {
-    Write-Host "Preparing pinned UAssetGUI dependency..."
-    & (Join-Path $Root "scripts\fetch-uassetgui.ps1")
+function Assert-ProjectToolBundle {
+    Write-Host "Checking project-local runtime tool bundle..."
 
-    Write-Host "Publishing The STALKER2 Localization Tool (win-x64 single-file)..."
+    $Missing = @()
+    foreach ($Tool in $RequiredTools) {
+        $Path = Join-Path $ToolsRoot $Tool
+        if (-not (Test-Path $Path -PathType Leaf)) {
+            $Missing += $Tool
+        }
+    }
+
+    if ($Missing.Count -gt 0) {
+        throw @"
+The source project is missing required runtime files in tools\win-x64\:
+  $($Missing -join "`n  ")
+
+Put the PREBUILT Windows files in the project tools\win-x64\ directory and publish again.
+No dependency is downloaded or compiled by the publish script.
+"@
+    }
+
+    $Retoc = Join-Path $ToolsRoot "retoc.exe"
+    $Help = (& $Retoc to-zen --help 2>&1 | Out-String)
+    if ($LASTEXITCODE -ne 0) {
+        throw @"
+tools\win-x64\retoc.exe could not run its to-zen help command.
+Use a normal prebuilt Windows retoc.exe from the official retoc release.
+The publish script never downloads or compiles retoc.
+"@
+    }
+
+    $UAssetGui = Join-Path $ToolsRoot "UAssetGUI.exe"
+    $UAssetGuiHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $UAssetGui).Hash.ToLowerInvariant()
+    if ($UAssetGuiHash -eq $KnownBadUAssetGuiSha256) {
+        throw "tools\win-x64\UAssetGUI.exe is the known-bad bundle (SHA-256 $UAssetGuiHash). Replace it before publishing."
+    }
+    if ($UAssetGuiHash -ne $PinnedUAssetGuiSha256) {
+        Write-Warning "UAssetGUI.exe is not the pinned v1.1.0 binary (SHA-256 $UAssetGuiHash). Publishing is allowed because custom tool binaries are supported."
+    }
+
+    Write-Host "Tool bundle OK: retoc / repak / UAssetGUI / Mappings / S2HOCMM"
+}
+
+try {
+    Assert-ProjectToolBundle
+
+    Write-Host "Publishing The STALKER2 Localization Tool (win-x64, self-contained)..."
     dotnet publish $Project `
       -c Release `
       -r win-x64 `
@@ -90,42 +139,26 @@ try {
     Migrate-WorkspaceName "Extracted" "Cached"
     Migrate-WorkspaceName "Ready" "Editable"
 
-    Copy-Item (Join-Path $Stage "STALKER2LocalizationTool.exe") (Join-Path $Out "STALKER2LocalizationTool.exe") -Force
-    foreach ($Name in @("Mods", "Cached", "Editable", "Output", "tools", "locales")) {
+    # Copy the complete SDK publish output. tools/ and locales/ are already present
+    # because the csproj marks them as publish content.
+    Copy-Item (Join-Path $Stage "*") $Out -Recurse -Force
+
+    foreach ($Name in @("Mods", "Cached", "Editable", "Output")) {
         New-Item -ItemType Directory -Force (Join-Path $Out $Name) | Out-Null
     }
 
-    Copy-Item (Join-Path $Root "locales\en.json") (Join-Path $Out "locales\en.json") -Force
-    foreach ($Doc in @("README.md", "CHANGELOG.md", "RC_CHECKLIST.md")) {
+    foreach ($Doc in @("README.md", "CHANGELOG.md", "RC_CHECKLIST.md", "RC7_PUBLISH_AND_TEST.md")) {
         $SourceDoc = Join-Path $Root $Doc
         if (Test-Path $SourceDoc) {
             Copy-Item $SourceDoc (Join-Path $Out $Doc) -Force
         }
     }
 
-    foreach ($Tool in @("retoc.exe", "UAssetGUI.exe", "Mappings.usmap", "repak.exe")) {
-        $Source = Join-Path $Root "tools\$Tool"
-        $Destination = Join-Path $Out "tools\$Tool"
-        if (Test-Path $Source) {
-            Copy-Item $Source $Destination -Force
-        }
-    }
-
-    $S2HocmmSource = Join-Path $Root "tools\S2HOCMM.exe"
-    if (Test-Path $S2HocmmSource) {
-        Copy-Item $S2HocmmSource (Join-Path $Out "tools\S2HOCMM.exe") -Force
-        Write-Host "S2HOCMM prepared from: $S2HocmmSource"
-    }
-    elseif (-not (Test-Path (Join-Path $Out "tools\S2HOCMM.exe")) -and
-            -not (Test-Path (Join-Path $Out "tools\S2HOCMM\S2HOCMM.exe"))) {
-        Write-Host "INFO: S2HOCMM was not bundled. The app can auto-detect a sibling ..\S2HOCMM\S2HOCMM.exe or you can select it in Settings."
-    }
-
     Write-Host ""
     Write-Host "Runtime: $Out"
-    Write-Host "Existing settings, work folders, and extra tool files were preserved."
-    Write-Host "Legacy default workspaces are migrated safely to Cached/Editable; old defaults are never used for new runtime writes."
-    Write-Host "Bundled tools were refreshed from $Root\tools; UAssetGUI was fetched/verified. S2HOCMM is copied only when explicitly present in tools/; sibling developer checkouts are auto-detected at runtime."
+    Write-Host "No Git, Rust/cargo, dependency download, or retoc compilation was used."
+    Write-Host "Project tools\ is authoritative and was copied into the runtime."
+    Write-Host "Existing settings and workspace data were preserved."
 }
 finally {
     Restore-RuntimeData
