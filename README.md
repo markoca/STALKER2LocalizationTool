@@ -67,7 +67,7 @@ RC6 rebuilds MODS overlays with normal stock `retoc.exe`. The finished package i
 
 ```text
 STALKER2LocalizationTool\
-├── STALKER2LocalizationTool.exe
+├── Localization Workbench.exe
 ├── settings.json
 ├── Mods\
 ├── Cached\
@@ -215,7 +215,7 @@ cd ~/s2tools/STALKER2LocalizationTool/publish/win-x64
 
 WINEPREFIX="$HOME/.wine-uassetgui" \
 WINEDEBUG=-all \
-wine STALKER2LocalizationTool.exe
+wine Localization Workbench.exe
 ```
 
 The UAssetGUI Wine prefix needs .NET 8 Desktop Runtime.
