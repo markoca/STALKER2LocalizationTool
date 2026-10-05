@@ -48,10 +48,11 @@ public static class ModSourceDiscovery
         string modsRoot,
         string materializationRoot,
         Action<string>? log = null,
+        IProgress<(int Current, int Total, string Message)>? progress = null,
         CancellationToken cancellationToken = default)
     {
         return Task.Run(
-            () => Discover(modsRoot, materializationRoot, log, cancellationToken),
+            () => Discover(modsRoot, materializationRoot, log, progress, cancellationToken),
             cancellationToken
         );
     }
@@ -60,6 +61,7 @@ public static class ModSourceDiscovery
         string modsRoot,
         string materializationRoot,
         Action<string>? log,
+        IProgress<(int Current, int Total, string Message)>? progress,
         CancellationToken cancellationToken)
     {
         if (!Directory.Exists(modsRoot))
@@ -67,13 +69,40 @@ public static class ModSourceDiscovery
 
         Directory.CreateDirectory(materializationRoot);
 
-        var groups = new List<SourceGroup>();
-        groups.AddRange(DiscoverLoose(modsRoot, cancellationToken));
+        var looseUtocs = Directory
+            .EnumerateFiles(modsRoot, "*.utoc", SearchOption.AllDirectories)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
-        foreach (var archivePath in Directory
-                     .EnumerateFiles(modsRoot, "*", SearchOption.AllDirectories)
-                     .Where(IsSupportedArchive)
-                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        var archivePaths = Directory
+            .EnumerateFiles(modsRoot, "*", SearchOption.AllDirectories)
+            .Where(IsSupportedArchive)
+            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var discoveryTotal = Math.Max(1, looseUtocs.Count + archivePaths.Count);
+        var discoveryCurrent = 0;
+        progress?.Report((0, discoveryTotal, "Discovering mod sources..."));
+
+        var groups = new List<SourceGroup>();
+        groups.AddRange(
+            DiscoverLoose(
+                modsRoot,
+                looseUtocs,
+                () =>
+                {
+                    discoveryCurrent++;
+                    progress?.Report((
+                        discoveryCurrent,
+                        discoveryTotal,
+                        "Discovering loose mod containers..."
+                    ));
+                },
+                cancellationToken
+            )
+        );
+
+        foreach (var archivePath in archivePaths)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -94,6 +123,15 @@ public static class ModSourceDiscovery
                 log?.Invoke(
                     $"Archive source ignored: {Path.GetRelativePath(modsRoot, archivePath)}: {ex.Message}"
                 );
+            }
+            finally
+            {
+                discoveryCurrent++;
+                progress?.Report((
+                    discoveryCurrent,
+                    discoveryTotal,
+                    $"Discovering archive: {Path.GetFileName(archivePath)}"
+                ));
             }
         }
 
@@ -116,13 +154,13 @@ public static class ModSourceDiscovery
 
     private static IEnumerable<SourceGroup> DiscoverLoose(
         string modsRoot,
+        IReadOnlyList<string> utocPaths,
+        Action onProcessed,
         CancellationToken cancellationToken)
     {
         var triplets = new List<Triplet>();
 
-        foreach (var utocPath in Directory
-                     .EnumerateFiles(modsRoot, "*.utoc", SearchOption.AllDirectories)
-                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
+        foreach (var utocPath in utocPaths)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -131,7 +169,10 @@ public static class ModSourceDiscovery
 
             // launch.py indexes only complete IoStore trios.
             if (!File.Exists(pakPath) || !File.Exists(ucasPath))
+            {
+                onProcessed();
                 continue;
+            }
 
             var relative = Path.GetRelativePath(modsRoot, utocPath);
             var parts = relative.Split(
@@ -150,6 +191,7 @@ public static class ModSourceDiscovery
                 UcasPath = ucasPath,
                 SourceLabel = physicalSource,
             });
+            onProcessed();
         }
 
         foreach (var sourceGroup in triplets.GroupBy(
