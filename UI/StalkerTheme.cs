@@ -64,6 +64,8 @@ internal static class StalkerTheme
                 control.ForeColor = Text;
                 break;
 
+            case StalkerLanguageSelector:
+            case StalkerLanguageCheckBox:
             case StalkerProgressBar:
             case StalkerCheckedListBox:
             case StalkerToggleCheckBox:
@@ -384,7 +386,7 @@ internal sealed class StalkerNavButton : Button
         FlatStyle = FlatStyle.Flat;
         FlatAppearance.BorderSize = 0;
         UseVisualStyleBackColor = false;
-        BackColor = StalkerTheme.TitleBar;
+        BackColor = StalkerTheme.PanelAlt;
         ForeColor = StalkerTheme.MutedText;
         Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         Height = 38;
@@ -437,7 +439,7 @@ internal sealed class StalkerNavButton : Button
                 ? StalkerTheme.Panel
                 : _hovered
                     ? StalkerTheme.PanelHover
-                    : StalkerTheme.TitleBar;
+                    : StalkerTheme.PanelAlt;
 
         pevent.Graphics.Clear(background);
 
@@ -585,6 +587,186 @@ internal sealed class StalkerProgressBar : ProgressBar
             using var fill = new SolidBrush(StalkerTheme.Accent);
             e.Graphics.FillRectangle(fill, 1, 1, width, Math.Max(0, rect.Height - 2));
         }
+    }
+}
+
+/// <summary>
+/// Fully custom language selector. It intentionally avoids CheckedListBox because native / Wine
+/// multi-column painting can leave unthemed black gaps between cells.
+/// </summary>
+internal sealed class StalkerLanguageSelector : Panel
+{
+    private readonly TableLayoutPanel _grid = new();
+    private readonly List<StalkerLanguageCheckBox> _items = new();
+    private bool _loading;
+
+    public event EventHandler? SelectionChanged;
+
+    public StalkerLanguageSelector()
+    {
+        BackColor = StalkerTheme.PanelAlt;
+        ForeColor = StalkerTheme.Text;
+        Padding = new Padding(6, 4, 6, 4);
+        Margin = new Padding(0);
+
+        _grid.Dock = DockStyle.Fill;
+        _grid.Margin = new Padding(0);
+        _grid.Padding = new Padding(0);
+        _grid.BackColor = StalkerTheme.PanelAlt;
+        Controls.Add(_grid);
+    }
+
+    public IReadOnlyCollection<int> CheckedIds =>
+        _items.Where(item => item.Checked).Select(item => item.LanguageId).ToArray();
+
+    public void SetLanguages(IEnumerable<(int Id, string Name, bool Checked)> languages)
+    {
+        var values = languages.ToList();
+        _loading = true;
+        SuspendLayout();
+        _grid.SuspendLayout();
+
+        try
+        {
+            _items.Clear();
+            _grid.Controls.Clear();
+            _grid.ColumnStyles.Clear();
+            _grid.RowStyles.Clear();
+
+            const int columns = 5;
+            var rows = Math.Max(1, (int)Math.Ceiling(values.Count / (double)columns));
+
+            _grid.ColumnCount = columns;
+            _grid.RowCount = rows;
+
+            for (var column = 0; column < columns; column++)
+                _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F / columns));
+            for (var row = 0; row < rows; row++)
+                _grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F / rows));
+
+            for (var index = 0; index < values.Count; index++)
+            {
+                var option = values[index];
+                var column = index / rows;
+                var row = index % rows;
+
+                var check = new StalkerLanguageCheckBox
+                {
+                    LanguageId = option.Id,
+                    Text = option.Name,
+                    Checked = option.Checked,
+                    Dock = DockStyle.Fill,
+                    Margin = new Padding(0),
+                };
+                check.CheckedChanged += (_, _) =>
+                {
+                    if (!_loading)
+                        SelectionChanged?.Invoke(this, EventArgs.Empty);
+                };
+
+                _items.Add(check);
+                _grid.Controls.Add(check, column, row);
+            }
+        }
+        finally
+        {
+            _grid.ResumeLayout(true);
+            ResumeLayout(true);
+            _loading = false;
+        }
+    }
+}
+
+/// <summary>
+/// Owner-drawn square language checkbox with a consistent graphite background and yellow check.
+/// </summary>
+internal sealed class StalkerLanguageCheckBox : CheckBox
+{
+    private bool _hovered;
+
+    public int LanguageId { get; set; }
+
+    public StalkerLanguageCheckBox()
+    {
+        AutoSize = false;
+        Height = 24;
+        BackColor = StalkerTheme.PanelAlt;
+        ForeColor = StalkerTheme.Text;
+        Cursor = Cursors.Hand;
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnMouseEnter(EventArgs eventargs)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(eventargs);
+    }
+
+    protected override void OnMouseLeave(EventArgs eventargs)
+    {
+        _hovered = false;
+        Invalidate();
+        base.OnMouseLeave(eventargs);
+    }
+
+    protected override void OnCheckedChanged(EventArgs e)
+    {
+        Invalidate();
+        base.OnCheckedChanged(e);
+    }
+
+    protected override void OnEnabledChanged(EventArgs e)
+    {
+        Invalidate();
+        base.OnEnabledChanged(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs pevent)
+    {
+        pevent.Graphics.Clear(StalkerTheme.PanelAlt);
+
+        var box = new Rectangle(
+            6,
+            Math.Max(0, (Height - 14) / 2),
+            14,
+            14);
+
+        var borderColor = Checked || _hovered
+            ? StalkerTheme.Accent
+            : StalkerTheme.Border;
+
+        using (var border = new Pen(borderColor))
+            pevent.Graphics.DrawRectangle(border, box);
+
+        if (Checked)
+        {
+            using var fill = new SolidBrush(StalkerTheme.Accent);
+            pevent.Graphics.FillRectangle(fill, Rectangle.Inflate(box, -3, -3));
+        }
+
+        var textRect = new Rectangle(
+            box.Right + 8,
+            0,
+            Math.Max(0, Width - box.Right - 12),
+            Height);
+
+        TextRenderer.DrawText(
+            pevent.Graphics,
+            Text,
+            Font,
+            textRect,
+            Enabled
+                ? (_hovered ? StalkerTheme.Accent : StalkerTheme.Text)
+                : StalkerTheme.MutedText,
+            TextFormatFlags.Left
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis
+            | TextFormatFlags.NoPrefix);
     }
 }
 
