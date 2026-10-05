@@ -85,6 +85,9 @@ public sealed class MainForm : Form
         MinimumSize = new Size(1180, 720);
         Size = new Size(1360, 820);
         Font = new Font("Segoe UI", 9F);
+        var windowIcon = StalkerTheme.CreateWindowIcon();
+        if (windowIcon is not null)
+            Icon = windowIcon;
 
         BuildUi();
         ApplyLocalization();
@@ -167,23 +170,25 @@ public sealed class MainForm : Form
         var identity = new TableLayoutPanel
         {
             AutoSize = true,
-            ColumnCount = 1,
-            RowCount = 2,
+            ColumnCount = 2,
+            RowCount = 1,
             Margin = new Padding(2, 0, 0, 0),
         };
-        var eyebrow = new Label
+        identity.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 54));
+        identity.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var brandMark = new StalkerBrandMark
         {
-            Text = "LOCALIZATION WORKBENCH",
-            AutoSize = true,
-            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-            Tag = StalkerTheme.SectionLabelTag,
-            Margin = new Padding(0, 0, 0, 2),
+            Anchor = AnchorStyles.Left | AnchorStyles.Top,
+            Margin = new Padding(0, 0, 10, 0),
         };
         _title.AutoSize = true;
         _title.Font = new Font("Segoe UI", 19F, FontStyle.Bold);
-        _title.Margin = new Padding(0);
-        identity.Controls.Add(eyebrow, 0, 0);
-        identity.Controls.Add(_title, 0, 1);
+        _title.Margin = new Padding(0, 7, 0, 0);
+        _title.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+
+        identity.Controls.Add(brandMark, 0, 0);
+        identity.Controls.Add(_title, 1, 0);
 
         var headerActions = new FlowLayoutPanel
         {
@@ -539,7 +544,7 @@ public sealed class MainForm : Form
             Margin = new Padding(0),
         };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _modsTab.Controls.Add(layout);
@@ -702,15 +707,32 @@ public sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             BackColor = StalkerTheme.PanelAlt,
-            Padding = new Padding(8),
+            Padding = new Padding(10),
             Margin = margin,
+            Font = new Font("Segoe UI", 9F, FontStyle.Bold),
         };
-        value.AutoSize = false;
-        value.Dock = DockStyle.Fill;
-        value.TextAlign = ContentAlignment.MiddleCenter;
-        value.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-        value.Margin = new Padding(0);
-        card.Controls.Add(value);
+
+        // Keep the existing Label as the state holder used by UpdateSummary(), but draw its
+        // text ourselves. Wine occasionally lays out a Dock=Fill Label at the bottom edge
+        // of a TableLayoutPanel cell and clips half of the text.
+        value.Visible = false;
+        value.TextChanged += (_, _) => card.Invalidate();
+
+        card.Paint += (_, e) =>
+        {
+            var bounds = Rectangle.Inflate(card.ClientRectangle, -12, -8);
+            TextRenderer.DrawText(
+                e.Graphics,
+                value.Text,
+                card.Font,
+                bounds,
+                StalkerTheme.Text,
+                TextFormatFlags.HorizontalCenter
+                | TextFormatFlags.VerticalCenter
+                | TextFormatFlags.EndEllipsis
+                | TextFormatFlags.NoPrefix);
+        };
+
         return card;
     }
 
@@ -747,7 +769,7 @@ public sealed class MainForm : Form
         _grid.MultiSelect = false;
         _grid.AutoGenerateColumns = false;
         _grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
-        _grid.BackgroundColor = StalkerTheme.WindowBackground;
+        _grid.BackgroundColor = StalkerTheme.Panel;
         _grid.BorderStyle = BorderStyle.FixedSingle;
         _grid.ColumnHeadersHeight = 34;
         _grid.RowTemplate.Height = 30;
