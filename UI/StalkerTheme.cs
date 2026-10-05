@@ -29,6 +29,9 @@ internal static class StalkerTheme
     public static readonly Color AccentDark = Color.FromArgb(0x80, 0x6B, 0x12);
     public static readonly Color Danger = Color.FromArgb(0xD7, 0x7A, 0x62);
 
+    private static readonly Lazy<bool> WineRuntime = new(DetectWineRuntime);
+    public static bool IsWine => WineRuntime.Value;
+
     public static void Apply(Form form)
     {
         form.SuspendLayout();
@@ -327,6 +330,29 @@ internal static class StalkerTheme
         graphics.FillEllipse(accent, core);
     }
 
+    private static bool DetectWineRuntime()
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        try
+        {
+            return wine_get_version() != IntPtr.Zero;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private static void TryApplyDarkNativeScrollbarTheme(Control control)
     {
         var mayOwnNativeScrollbars =
@@ -342,7 +368,7 @@ internal static class StalkerTheme
 
         void Apply()
         {
-            if (!OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindows() || IsWine)
                 return;
 
             try
@@ -413,6 +439,9 @@ internal static class StalkerTheme
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const int DwmwaBorderColor = 34;
     private const int DwmwaCaptionColor = 35;
+
+    [DllImport("ntdll.dll", EntryPoint = "wine_get_version", CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr wine_get_version();
 
     [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
     private static extern int SetWindowTheme(
