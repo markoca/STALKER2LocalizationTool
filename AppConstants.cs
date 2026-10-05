@@ -2,7 +2,7 @@ namespace STALKER2LocalizationTool;
 
 internal static class AppConstants
 {
-    public const string AppName = "The STALKER2 Localization Tool";
+    public const string AppName = "The STALKER2 Localization Workbench";
     public const string Version = "1.0.0-rc.7";
     public const string EngineVersion = "VER_UE5_5";
     public const string RetocEngineVersion = "UE5_5";
