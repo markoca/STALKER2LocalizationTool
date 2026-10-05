@@ -38,13 +38,25 @@ public sealed class ModScanner
         if (!Directory.Exists(_modsRoot))
             return new List<ModScanResult>();
 
+        progress?.Report((0, 100, "Starting MODS scan..."));
+
         var materializationRoot = Path.Combine(_cachedRoot, ".source_cache");
+        var discoveryProgress = new Progress<(int Current, int Total, string Message)>(p =>
+        {
+            var fraction = p.Total <= 0 ? 0.0 : p.Current / (double)p.Total;
+            var overall = Math.Clamp((int)Math.Round(fraction * 25.0), 0, 25);
+            progress?.Report((overall, 100, p.Message));
+        });
+
         var discoveredSources = await ModSourceDiscovery.DiscoverAsync(
             _modsRoot,
             materializationRoot,
             _log,
+            discoveryProgress,
             cancellationToken
         );
+
+        progress?.Report((25, 100, "Mod sources discovered. Scanning localization containers..."));
 
         var groups = BuildGroups(discoveredSources);
 
@@ -57,6 +69,8 @@ public sealed class ModScanner
 
         var totalSources = groups.Sum(group => group.Containers.Count);
         var processed = 0;
+
+        var completedGroups = 0;
 
         foreach (var group in groups)
         {
@@ -72,7 +86,17 @@ public sealed class ModScanner
                     ? label
                     : Path.GetFileNameWithoutExtension(utoc);
 
-                progress?.Report((processed, totalSources, containerLabel));
+                var scanFraction = totalSources <= 0 ? 1.0 : processed / (double)totalSources;
+                var scanOverall = 25 + Math.Clamp(
+                    (int)Math.Round(scanFraction * 55.0),
+                    0,
+                    55
+                );
+                progress?.Report((
+                    scanOverall,
+                    100,
+                    $"Scanning {containerLabel}"
+                ));
 
                 try
                 {
@@ -138,7 +162,24 @@ public sealed class ModScanner
                 .Select(language => EditableScanner.FindTranslationFile(_editableRoot, group, language))
                 .FirstOrDefault(path => !string.IsNullOrWhiteSpace(path));
             group.UiStatus = ResolveStatus(group, _buildLanguages.Count);
+
+            completedGroups++;
+            var finalizeFraction = groups.Count == 0
+                ? 1.0
+                : completedGroups / (double)groups.Count;
+            var finalizeOverall = 80 + Math.Clamp(
+                (int)Math.Round(finalizeFraction * 20.0),
+                0,
+                20
+            );
+            progress?.Report((
+                finalizeOverall,
+                100,
+                $"Finalizing {group.ModName}"
+            ));
         }
+
+        progress?.Report((100, 100, "MODS scan complete"));
 
         return groups
             .OrderBy(x => x.ModName, StringComparer.CurrentCultureIgnoreCase)
