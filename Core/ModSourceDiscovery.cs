@@ -11,6 +11,10 @@ namespace STALKER2LocalizationTool.Core;
 public static class ModSourceDiscovery
 {
     private static readonly string[] ArchiveExtensions = [".zip", ".7z", ".rar"];
+    private static readonly HashSet<string> IgnoredSourceDirectories = new(
+        new[] { ".archive_cache", ".source_cache", ".scan_cache" },
+        StringComparer.OrdinalIgnoreCase
+    );
 
     public sealed class SourceGroup
     {
@@ -71,11 +75,13 @@ public static class ModSourceDiscovery
 
         var looseUtocs = Directory
             .EnumerateFiles(modsRoot, "*.utoc", SearchOption.AllDirectories)
+            .Where(path => !IsInsideIgnoredSourceDirectory(modsRoot, path))
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         var archivePaths = Directory
             .EnumerateFiles(modsRoot, "*", SearchOption.AllDirectories)
+            .Where(path => !IsInsideIgnoredSourceDirectory(modsRoot, path))
             .Where(IsSupportedArchive)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -135,9 +141,8 @@ public static class ModSourceDiscovery
             }
         }
 
-        // A normal source should be unique by physical source + inferred container
-        // family. Keep grouping deterministic even when two archives use the same name.
-        return groups
+        // First enforce unique physical source identity.
+        var uniqueGroups = groups
             .GroupBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
             .Select(group =>
             {
@@ -147,6 +152,61 @@ public static class ModSourceDiscovery
                     );
                 return group.Single();
             })
+            .ToList();
+
+        // If the user has both an original Nexus archive and an extracted/loose
+        // copy of the exact same IoStore containers, scan the loose copy only.
+        // Keep the archive filename as the user-facing display name because it
+        // usually carries the useful mod name + version information.
+        var archiveBySignature = uniqueGroups
+            .Where(group => string.Equals(group.Kind, "archive", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(ContainerSignature, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group
+                    .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+                    .First(),
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        var reconciled = new List<SourceGroup>();
+        foreach (var group in uniqueGroups)
+        {
+            if (string.Equals(group.Kind, "archive", StringComparison.OrdinalIgnoreCase))
+            {
+                var signature = ContainerSignature(group);
+                var matchingLoose = uniqueGroups.Any(candidate =>
+                    string.Equals(candidate.Kind, "loose", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(
+                        ContainerSignature(candidate),
+                        signature,
+                        StringComparison.OrdinalIgnoreCase
+                    ));
+
+                if (matchingLoose)
+                    continue;
+            }
+
+            if (string.Equals(group.Kind, "loose", StringComparison.OrdinalIgnoreCase)
+                && archiveBySignature.TryGetValue(ContainerSignature(group), out var archiveMetadata))
+            {
+                reconciled.Add(new SourceGroup
+                {
+                    Key = group.Key,
+                    Name = archiveMetadata.Name,
+                    Kind = group.Kind,
+                    Label = group.Label,
+                    Containers = group.Containers,
+                    ContainerLabelsByPath = group.ContainerLabelsByPath,
+                    OriginalSourceFiles = group.OriginalSourceFiles,
+                });
+                continue;
+            }
+
+            reconciled.Add(group);
+        }
+
+        return reconciled
             .OrderBy(group => group.Name, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(group => group.Label, StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -376,6 +436,29 @@ public static class ModSourceDiscovery
             FileOptions.SequentialScan
         );
         input.CopyTo(output);
+    }
+
+    private static string ContainerSignature(SourceGroup group)
+    {
+        return string.Join(
+            "\n",
+            group.ContainerLabelsByPath.Values
+                .Select(value => value.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+        );
+    }
+
+    private static bool IsInsideIgnoredSourceDirectory(string modsRoot, string path)
+    {
+        var relative = Path.GetRelativePath(modsRoot, path);
+        var parts = relative.Split(
+            [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+            StringSplitOptions.RemoveEmptyEntries
+        );
+
+        return parts.Any(part => IgnoredSourceDirectories.Contains(part));
     }
 
     private static bool IsSupportedArchive(string path) =>
