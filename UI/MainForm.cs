@@ -20,9 +20,12 @@ public sealed class MainForm : Form
     private readonly Button _extractButton = new();
     private readonly Button _buildModularButton = new();
     private readonly Button _buildAllInOneButton = new();
-    private readonly StalkerTabControl _tabs = new();
-    private readonly TabPage _gameTab = new();
-    private readonly TabPage _modsTab = new();
+    private readonly Panel _workspaceHost = new();
+    private readonly Panel _gameTab = new();
+    private readonly Panel _modsTab = new();
+    private readonly StalkerNavButton _gameTabButton = new();
+    private readonly StalkerNavButton _modsTabButton = new();
+    private Panel? _activeWorkspaceTab;
     private readonly Label _gameIntro = new();
     private readonly Label _gameStatusLabel = new();
     private readonly Label _gameLocalizationLabel = new();
@@ -93,7 +96,7 @@ public sealed class MainForm : Form
             _watchDebounce.Stop();
             if (_settings.AutoScan && !_busy)
             {
-                if (_tabs.SelectedTab == _gameTab && _game is not null)
+                if (IsGameWorkspace && _game is not null)
                     RefreshGameEditableTranslation();
                 else
                     await ScanModsAsync();
@@ -137,204 +140,257 @@ public sealed class MainForm : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(16, 12, 16, 8),
+            Padding = new Padding(14, 12, 14, 10),
             ColumnCount = 1,
             RowCount = 5,
+            BackColor = StalkerTheme.WindowBackground,
         };
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 105));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         Controls.Add(root);
 
-        var header = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3 };
+        // Header: large tool identity on the left, compact utility actions on the right.
+        var header = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            Margin = new Padding(0, 0, 0, 10),
+        };
         header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var identity = new TableLayoutPanel
+        {
+            AutoSize = true,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(2, 0, 0, 0),
+        };
+        var eyebrow = new Label
+        {
+            Text = "LOCALIZATION WORKBENCH",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+            Tag = StalkerTheme.SectionLabelTag,
+            Margin = new Padding(0, 0, 0, 2),
+        };
         _title.AutoSize = true;
-        _title.Font = new Font("Segoe UI", 17F, FontStyle.Bold);
-        _title.Margin = new Padding(0, 2, 0, 10);
-        _refreshButton.AutoSize = true;
-        _settingsButton.AutoSize = true;
+        _title.Font = new Font("Segoe UI", 19F, FontStyle.Bold);
+        _title.Margin = new Padding(0);
+        identity.Controls.Add(eyebrow, 0, 0);
+        identity.Controls.Add(_title, 0, 1);
+
+        var headerActions = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Anchor = AnchorStyles.Right,
+            Margin = new Padding(0, 8, 0, 0),
+        };
+        ConfigureActionButton(_refreshButton, 94);
+        ConfigureActionButton(_settingsButton, 104);
         _refreshButton.Click += async (_, _) => await ScanActiveAsync();
         _settingsButton.Click += async (_, _) =>
         {
             if (ShowSettings() == DialogResult.OK)
                 await ScanActiveAsync();
         };
-        header.Controls.Add(_title, 0, 0);
-        header.Controls.Add(_refreshButton, 1, 0);
-        header.Controls.Add(_settingsButton, 2, 0);
+        headerActions.Controls.Add(_refreshButton);
+        headerActions.Controls.Add(_settingsButton);
+
+        header.Controls.Add(identity, 0, 0);
+        header.Controls.Add(headerActions, 1, 0);
         root.Controls.Add(header, 0, 0);
 
-        var languages = new TableLayoutPanel
+        // Build languages: a dedicated compact card instead of a raw full-width WinForms list.
+        var languagesCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
-            ColumnCount = 3,
-            RowCount = 1,
+            BackColor = StalkerTheme.Panel,
+            Padding = new Padding(12, 10, 12, 10),
             Margin = new Padding(0, 0, 0, 10),
+            AccentEdge = true,
         };
-        languages.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        languages.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        languages.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        var languagesLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        languagesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        languagesLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        var languagesHeader = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            Margin = new Padding(0),
+        };
+        languagesHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        languagesHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         _buildLanguageLabel.AutoSize = true;
-        _buildLanguageLabel.Margin = new Padding(0, 7, 6, 0);
+        _buildLanguageLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _buildLanguageLabel.Tag = StalkerTheme.SectionLabelTag;
+        _buildLanguageLabel.Margin = new Padding(0, 4, 0, 0);
+        _helpBuildLanguage = MakeHelpButton("help.build_language");
+        _helpBuildLanguage.Margin = new Padding(0);
+        languagesHeader.Controls.Add(_buildLanguageLabel, 0, 0);
+        languagesHeader.Controls.Add(_helpBuildLanguage, 1, 0);
+
         _buildLanguages.Dock = DockStyle.Fill;
-        _buildLanguages.Height = 96;
         _buildLanguages.CheckOnClick = true;
         _buildLanguages.MultiColumn = true;
-        _buildLanguages.ColumnWidth = 225;
+        _buildLanguages.ColumnWidth = 190;
         _buildLanguages.HorizontalScrollbar = false;
         _buildLanguages.IntegralHeight = false;
+        _buildLanguages.Margin = new Padding(0);
         _buildLanguages.ItemCheck += BuildLanguagesItemCheck;
 
-        _helpBuildLanguage = MakeHelpButton("help.build_language");
+        languagesLayout.Controls.Add(languagesHeader, 0, 0);
+        languagesLayout.Controls.Add(_buildLanguages, 0, 1);
+        languagesCard.Controls.Add(languagesLayout);
+        root.Controls.Add(languagesCard, 0, 1);
 
-        languages.Controls.Add(_buildLanguageLabel, 0, 0);
-        languages.Controls.Add(_buildLanguages, 1, 0);
-        languages.Controls.Add(_helpBuildLanguage, 2, 0);
-        root.Controls.Add(languages, 0, 1);
-
-        _tabs.Dock = DockStyle.Fill;
-        _tabs.Controls.Add(_gameTab);
-        _tabs.Controls.Add(_modsTab);
-        _tabs.SelectedIndexChanged += async (_, _) =>
-        {
-            if (_shownOnce && !_busy)
-                await ScanActiveAsync();
-        };
-        root.Controls.Add(_tabs, 0, 2);
-
-        BuildGameTab();
-
-        var modsLayout = new TableLayoutPanel
+        // Workspace: custom TCD tab bar + content host. No native TabControl chrome.
+        var workspaceCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(4),
-            ColumnCount = 1,
-            RowCount = 3,
+            BackColor = StalkerTheme.Panel,
+            Padding = new Padding(0),
+            Margin = new Padding(0, 0, 0, 10),
         };
-        modsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        modsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        modsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        _modsTab.Controls.Add(modsLayout);
+        var workspaceLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+            BackColor = StalkerTheme.Panel,
+        };
+        workspaceLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+        workspaceLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var topActions = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3 };
-        topActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        topActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        topActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        var tabStrip = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+        _gameTabButton.Width = 154;
+        _modsTabButton.Width = 154;
+        _gameTabButton.Click += async (_, _) =>
+        {
+            SetWorkspace(_gameTab);
+            if (_shownOnce && !_busy) await ScanActiveAsync();
+        };
+        _modsTabButton.Click += async (_, _) =>
+        {
+            SetWorkspace(_modsTab);
+            if (_shownOnce && !_busy) await ScanActiveAsync();
+        };
+        tabStrip.Controls.Add(_gameTabButton);
+        tabStrip.Controls.Add(_modsTabButton);
 
-        var modsSummary = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true };
-        _modsHeader.AutoSize = true;
-        _modsHeader.Font = new Font(Font, FontStyle.Bold);
-        _modsHeader.Margin = new Padding(0, 7, 6, 0);
-        _helpMods = MakeHelpButton("help.mods");
-        _modsFound.AutoSize = true;
-        _modsFound.Margin = new Padding(16, 7, 8, 0);
-        _localizationFound.AutoSize = true;
-        _localizationFound.Margin = new Padding(8, 7, 8, 0);
-        _changedFound.AutoSize = true;
-        _changedFound.Margin = new Padding(8, 7, 8, 0);
-        modsSummary.Controls.Add(_modsHeader);
-        modsSummary.Controls.Add(_helpMods);
-        modsSummary.Controls.Add(_modsFound);
-        modsSummary.Controls.Add(_localizationFound);
-        modsSummary.Controls.Add(_changedFound);
+        _workspaceHost.Dock = DockStyle.Fill;
+        _workspaceHost.Margin = new Padding(0);
+        _workspaceHost.Padding = new Padding(0);
+        _workspaceHost.BackColor = StalkerTheme.WindowBackground;
 
-        _extractButton.AutoSize = true;
-        _extractButton.Padding = new Padding(14, 7, 14, 7);
-        _extractButton.Font = new Font(Font, FontStyle.Bold);
-        _extractButton.Click += async (_, _) => await ExtractAsync();
-        _helpExtract = MakeHelpButton("help.extract");
-        _helpExtract.Margin = new Padding(6, 7, 0, 0);
+        _gameTab.Dock = DockStyle.Fill;
+        _gameTab.Margin = new Padding(0);
+        _gameTab.Padding = new Padding(0);
+        _modsTab.Dock = DockStyle.Fill;
+        _modsTab.Margin = new Padding(0);
+        _modsTab.Padding = new Padding(0);
 
-        topActions.Controls.Add(modsSummary, 0, 0);
-        topActions.Controls.Add(_extractButton, 1, 0);
-        topActions.Controls.Add(_helpExtract, 2, 0);
-        modsLayout.Controls.Add(topActions, 0, 0);
+        BuildGameTab();
+        BuildModsTab();
 
-        ConfigureGrid();
-        modsLayout.Controls.Add(_grid, 0, 1);
+        _workspaceHost.Controls.Add(_modsTab);
+        _workspaceHost.Controls.Add(_gameTab);
+        workspaceLayout.Controls.Add(tabStrip, 0, 0);
+        workspaceLayout.Controls.Add(_workspaceHost, 0, 1);
+        workspaceCard.Controls.Add(workspaceLayout);
+        root.Controls.Add(workspaceCard, 0, 2);
+        SetWorkspace(_gameTab);
 
-        var editableActions = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 5, Margin = new Padding(0, 10, 0, 8) };
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-        var editableSummary = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true };
-        _editableHeader.AutoSize = true;
-        _editableHeader.Font = new Font(Font, FontStyle.Bold);
-        _editableHeader.Margin = new Padding(0, 7, 6, 0);
-        _helpEditable = MakeHelpButton("help.editable");
-        _availableFound.AutoSize = true;
-        _availableFound.Margin = new Padding(16, 7, 8, 0);
-        _missingFound.AutoSize = true;
-        _missingFound.Margin = new Padding(8, 7, 8, 0);
-        _editableHint.AutoSize = true;
-        _editableHint.Margin = new Padding(16, 7, 8, 0);
-        _editableHint.ForeColor = SystemColors.GrayText;
-        _toolTip.SetToolTip(_editableHint, _l.T("help.editable_hint"));
-        editableSummary.Controls.Add(_editableHeader);
-        editableSummary.Controls.Add(_helpEditable);
-        editableSummary.Controls.Add(_availableFound);
-        editableSummary.Controls.Add(_missingFound);
-        editableSummary.Controls.Add(_editableHint);
-
-        _buildModularButton.AutoSize = true;
-        _buildModularButton.Padding = new Padding(14, 7, 14, 7);
-        _buildModularButton.Font = new Font(Font, FontStyle.Bold);
-        _buildModularButton.Tag = StalkerTheme.PrimaryButtonTag;
-        _buildModularButton.Click += async (_, _) => await BuildAsync(BuildMode.Modular);
-        _helpBuildModular = MakeHelpButton("help.build_modular");
-        _helpBuildModular.Margin = new Padding(6, 7, 10, 0);
-
-        _buildAllInOneButton.AutoSize = true;
-        _buildAllInOneButton.Padding = new Padding(14, 7, 14, 7);
-        _buildAllInOneButton.Font = new Font(Font, FontStyle.Bold);
-        _buildAllInOneButton.Tag = StalkerTheme.PrimaryButtonTag;
-        _buildAllInOneButton.Click += async (_, _) => await BuildAsync(BuildMode.AllInOne);
-        _helpBuildAllInOne = MakeHelpButton("help.build_all_in_one");
-        _helpBuildAllInOne.Margin = new Padding(6, 7, 0, 0);
-
-        editableActions.Controls.Add(editableSummary, 0, 0);
-        editableActions.Controls.Add(_buildModularButton, 1, 0);
-        editableActions.Controls.Add(_helpBuildModular, 2, 0);
-        editableActions.Controls.Add(_buildAllInOneButton, 3, 0);
-        editableActions.Controls.Add(_helpBuildAllInOne, 4, 0);
-        modsLayout.Controls.Add(editableActions, 0, 2);
-
-        var logPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
-        logPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        logPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        // Log card.
+        var logCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = StalkerTheme.Panel,
+            Padding = new Padding(10, 8, 10, 10),
+            Margin = new Padding(0, 0, 0, 8),
+        };
+        var logLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        logLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+        logLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         _logLabel.AutoSize = true;
-        _logLabel.Font = new Font(Font, FontStyle.Bold);
+        _logLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _logLabel.Tag = StalkerTheme.SectionLabelTag;
+        _logLabel.Margin = new Padding(0, 2, 0, 0);
         _logBox.Dock = DockStyle.Fill;
         _logBox.Multiline = true;
         _logBox.ReadOnly = true;
         _logBox.ScrollBars = ScrollBars.Vertical;
         _logBox.Font = new Font("Consolas", 8.5F);
-        _logBox.BackColor = SystemColors.Window;
-        logPanel.Controls.Add(_logLabel, 0, 0);
-        logPanel.Controls.Add(_logBox, 0, 1);
-        root.Controls.Add(logPanel, 0, 3);
+        _logBox.Margin = new Padding(0);
+        logLayout.Controls.Add(_logLabel, 0, 0);
+        logLayout.Controls.Add(_logBox, 0, 1);
+        logCard.Controls.Add(logLayout);
+        root.Controls.Add(logCard, 0, 3);
 
-        var footer = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 2 };
+        // Utility footer: progress remains visually separate from the scrolling log.
+        var footerCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(10, 8, 10, 8),
+            Margin = new Padding(0),
+        };
+        var footer = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            Margin = new Padding(0),
+        };
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
         _progress.Dock = DockStyle.Fill;
         _progress.Minimum = 0;
         _progress.Maximum = 100;
-        _progress.Height = 18;
+        _progress.Height = 12;
+        _progress.Margin = new Padding(0, 9, 12, 8);
 
-        var openButtons = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
-        _openJsons.AutoSize = true;
-        _openOutput.AutoSize = true;
+        var openButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+        };
+        ConfigureActionButton(_openJsons, 132);
+        ConfigureActionButton(_openOutput, 132);
         _openJsons.Click += (_, _) => OpenFolder(
-            _tabs.SelectedTab == _gameTab
+            IsGameWorkspace
                 ? Path.Combine(_settings.EditableFolder, "Game")
                 : _settings.EditableFolder
         );
@@ -344,8 +400,10 @@ public sealed class MainForm : Form
 
         footer.Controls.Add(_progress, 0, 0);
         footer.Controls.Add(openButtons, 1, 0);
-        root.Controls.Add(footer, 0, 4);
+        footerCard.Controls.Add(footer);
+        root.Controls.Add(footerCard, 0, 4);
 
+        _statusStrip.Dock = DockStyle.Bottom;
         _statusStrip.Items.Add(_statusText);
         Controls.Add(_statusStrip);
         _statusStrip.BringToFront();
@@ -356,80 +414,327 @@ public sealed class MainForm : Form
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(18),
+            Padding = new Padding(14, 12, 14, 14),
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 5,
+            Margin = new Padding(0),
         };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _gameTab.Controls.Add(layout);
 
         _gameIntro.AutoSize = true;
-        _gameIntro.MaximumSize = new Size(1000, 0);
-        _gameIntro.Margin = new Padding(0, 0, 0, 18);
+        _gameIntro.MaximumSize = new Size(1120, 0);
+        _gameIntro.Font = new Font("Segoe UI", 9F);
+        _gameIntro.Tag = StalkerTheme.MutedLabelTag;
+        _gameIntro.Margin = new Padding(2, 0, 0, 12);
         layout.Controls.Add(_gameIntro, 0, 0);
 
-        var statusCard = new TableLayoutPanel
+        var statusGrid = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            BackColor = SystemColors.ControlLight,
-            Padding = new Padding(16),
-            ColumnCount = 2,
-            RowCount = 3,
-            Margin = new Padding(0, 0, 0, 18),
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = new Padding(0, 0, 0, 12),
         };
-        statusCard.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
-        statusCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        _gameStatusLabel.AutoSize = true;
-        _gameStatusLabel.Font = new Font(Font, FontStyle.Bold);
-        _gameLocalizationLabel.AutoSize = true;
-        _gameDetailsLabel.AutoSize = true;
-        statusCard.Controls.Add(_gameStatusLabel, 0, 0);
-        statusCard.Controls.Add(_gameLocalizationLabel, 1, 0);
-        statusCard.Controls.Add(new Label { Text = _l.T("ui.localization_types"), AutoSize = true, Font = new Font(Font, FontStyle.Bold) }, 0, 1);
-        statusCard.Controls.Add(_gameDetailsLabel, 1, 1);
-        _gameAvailabilityTitleLabel.AutoSize = true;
-        _gameAvailabilityTitleLabel.Font = new Font(Font, FontStyle.Bold);
-        statusCard.Controls.Add(_gameAvailabilityTitleLabel, 0, 2);
-        statusCard.Controls.Add(_gameAvailabilityLabel, 1, 2);
-        layout.Controls.Add(statusCard, 0, 1);
+        statusGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        statusGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        statusGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34F));
 
+        _gameStatusLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _gameAvailabilityTitleLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        var localizationTitle = new Label
+        {
+            Text = _l.T("ui.localization_types"),
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+        };
+
+        statusGrid.Controls.Add(CreateGameMetricCard(_gameStatusLabel, _gameLocalizationLabel, new Padding(0, 0, 6, 0)), 0, 0);
+        statusGrid.Controls.Add(CreateGameMetricCard(localizationTitle, _gameDetailsLabel, new Padding(3, 0, 3, 0)), 1, 0);
+        statusGrid.Controls.Add(CreateGameMetricCard(_gameAvailabilityTitleLabel, _gameAvailabilityLabel, new Padding(6, 0, 0, 0)), 2, 0);
+        layout.Controls.Add(statusGrid, 0, 1);
+
+        var workflowCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(14, 10, 14, 11),
+            Margin = new Padding(0, 0, 0, 12),
+            AccentEdge = true,
+        };
+        var workflow = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        var workflowTitle = new Label
+        {
+            Text = "BASE GAME WORKFLOW",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+            Tag = StalkerTheme.SectionLabelTag,
+            Margin = new Padding(0, 0, 0, 5),
+        };
         var explanation = new Label
         {
             AutoSize = true,
-            MaximumSize = new Size(1000, 0),
-            Text = "1. Scan the base game.  2. Extract all language JSON files.  3. Edit them directly in Editable\\Game.  4. Build the selected languages.",
-            ForeColor = SystemColors.GrayText,
+            MaximumSize = new Size(1120, 0),
+            Text = "1  Scan the base game     2  Extract all language JSON files     3  Edit them in Editable\\Game     4  Build the selected languages",
+            Font = new Font("Segoe UI", 8.5F),
+            Tag = StalkerTheme.MutedLabelTag,
+            Margin = new Padding(0),
         };
-        layout.Controls.Add(explanation, 0, 2);
+        workflow.Controls.Add(workflowTitle, 0, 0);
+        workflow.Controls.Add(explanation, 0, 1);
+        workflowCard.Controls.Add(workflow);
+        layout.Controls.Add(workflowCard, 0, 2);
 
+        var actionsCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(10),
+            Margin = new Padding(0),
+        };
         var actions = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
+            Margin = new Padding(0),
         };
-        foreach (var button in new[] { _scanGameButton, _extractGameButton, _buildGameButton })
-        {
-            button.AutoSize = true;
-            button.Padding = new Padding(14, 7, 14, 7);
-            button.Font = new Font(Font, FontStyle.Bold);
-        }
-        _buildGameButton.Tag = StalkerTheme.PrimaryButtonTag;
+        ConfigureActionButton(_scanGameButton, 145);
+        ConfigureActionButton(_extractGameButton, 205);
+        ConfigureActionButton(_buildGameButton, 190, primary: true);
         _scanGameButton.Click += async (_, _) => await ScanGameAsync();
         _extractGameButton.Click += async (_, _) => await ExtractGameAsync();
         _buildGameButton.Click += async (_, _) => await BuildGameAsync();
         _helpGame = MakeHelpButton("help.game_workflow");
-        _helpGame.Margin = new Padding(6, 7, 0, 0);
+        _helpGame.Margin = new Padding(6, 6, 0, 0);
         actions.Controls.Add(_scanGameButton);
         actions.Controls.Add(_extractGameButton);
         actions.Controls.Add(_buildGameButton);
         actions.Controls.Add(_helpGame);
-        layout.Controls.Add(actions, 0, 3);
+        actionsCard.Controls.Add(actions);
+        layout.Controls.Add(actionsCard, 0, 4);
+    }
+
+    private void BuildModsTab()
+    {
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(14, 12, 14, 14),
+            ColumnCount = 1,
+            RowCount = 4,
+            Margin = new Padding(0),
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 64));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _modsTab.Controls.Add(layout);
+
+        var header = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            Margin = new Padding(0, 0, 0, 8),
+        };
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        _modsHeader.AutoSize = true;
+        _modsHeader.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _modsHeader.Tag = StalkerTheme.SectionLabelTag;
+        _modsHeader.Margin = new Padding(0, 4, 0, 0);
+        _helpMods = MakeHelpButton("help.mods");
+        _helpMods.Margin = new Padding(0);
+        header.Controls.Add(_modsHeader, 0, 0);
+        header.Controls.Add(_helpMods, 1, 0);
+        layout.Controls.Add(header, 0, 0);
+
+        var metrics = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 5,
+            RowCount = 1,
+            Margin = new Padding(0, 0, 0, 10),
+        };
+        for (var i = 0; i < 5; i++)
+            metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+
+        metrics.Controls.Add(CreateSummaryCard(_modsFound, new Padding(0, 0, 4, 0)), 0, 0);
+        metrics.Controls.Add(CreateSummaryCard(_localizationFound, new Padding(2, 0, 2, 0)), 1, 0);
+        metrics.Controls.Add(CreateSummaryCard(_changedFound, new Padding(2, 0, 2, 0)), 2, 0);
+        metrics.Controls.Add(CreateSummaryCard(_availableFound, new Padding(2, 0, 2, 0)), 3, 0);
+        metrics.Controls.Add(CreateSummaryCard(_missingFound, new Padding(4, 0, 0, 0)), 4, 0);
+        layout.Controls.Add(metrics, 0, 1);
+
+        ConfigureGrid();
+        _grid.Margin = new Padding(0, 0, 0, 10);
+        layout.Controls.Add(_grid, 0, 2);
+
+        var actionCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(10),
+            Margin = new Padding(0),
+        };
+        var actionLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            Margin = new Padding(0),
+        };
+        actionLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        actionLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var editableSummary = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = true,
+            Margin = new Padding(0, 7, 12, 0),
+        };
+        _editableHeader.AutoSize = true;
+        _editableHeader.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        _editableHeader.Tag = StalkerTheme.SectionLabelTag;
+        _editableHeader.Margin = new Padding(0, 2, 6, 0);
+        _helpEditable = MakeHelpButton("help.editable");
+        _helpEditable.Margin = new Padding(0, 0, 12, 0);
+        _availableFound.AutoSize = true;
+        _availableFound.Margin = new Padding(0, 2, 10, 0);
+        _missingFound.AutoSize = true;
+        _missingFound.Margin = new Padding(0, 2, 10, 0);
+        _editableHint.AutoSize = true;
+        _editableHint.Tag = StalkerTheme.MutedLabelTag;
+        _editableHint.Margin = new Padding(0, 2, 0, 0);
+        _toolTip.SetToolTip(_editableHint, _l.T("help.editable_hint"));
+        editableSummary.Controls.Add(_editableHeader);
+        editableSummary.Controls.Add(_helpEditable);
+        editableSummary.Controls.Add(_availableFound);
+        editableSummary.Controls.Add(_missingFound);
+        editableSummary.Controls.Add(_editableHint);
+
+        var actionButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+        };
+        ConfigureActionButton(_extractButton, 128);
+        ConfigureActionButton(_buildModularButton, 164, primary: true);
+        ConfigureActionButton(_buildAllInOneButton, 176);
+        _extractButton.Click += async (_, _) => await ExtractAsync();
+        _buildModularButton.Click += async (_, _) => await BuildAsync(BuildMode.Modular);
+        _buildAllInOneButton.Click += async (_, _) => await BuildAsync(BuildMode.AllInOne);
+
+        _helpExtract = MakeHelpButton("help.extract");
+        _helpBuildModular = MakeHelpButton("help.build_modular");
+        _helpBuildAllInOne = MakeHelpButton("help.build_all_in_one");
+        _helpExtract.Margin = new Padding(3, 6, 7, 0);
+        _helpBuildModular.Margin = new Padding(3, 6, 7, 0);
+        _helpBuildAllInOne.Margin = new Padding(3, 6, 0, 0);
+
+        actionButtons.Controls.Add(_extractButton);
+        actionButtons.Controls.Add(_helpExtract);
+        actionButtons.Controls.Add(_buildModularButton);
+        actionButtons.Controls.Add(_helpBuildModular);
+        actionButtons.Controls.Add(_buildAllInOneButton);
+        actionButtons.Controls.Add(_helpBuildAllInOne);
+
+        actionLayout.Controls.Add(editableSummary, 0, 0);
+        actionLayout.Controls.Add(actionButtons, 1, 0);
+        actionCard.Controls.Add(actionLayout);
+        layout.Controls.Add(actionCard, 0, 3);
+    }
+
+    private StalkerCardPanel CreateGameMetricCard(Label caption, Label value, Padding margin)
+    {
+        var card = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(12, 10, 12, 10),
+            Margin = margin,
+        };
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        caption.AutoSize = true;
+        caption.Tag = StalkerTheme.MutedLabelTag;
+        caption.Margin = new Padding(0, 0, 0, 5);
+
+        value.AutoSize = true;
+        value.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
+        value.Tag = StalkerTheme.AccentValueTag;
+        value.Margin = new Padding(0);
+
+        layout.Controls.Add(caption, 0, 0);
+        layout.Controls.Add(value, 0, 1);
+        card.Controls.Add(layout);
+        return card;
+    }
+
+    private StalkerCardPanel CreateSummaryCard(Label value, Padding margin)
+    {
+        var card = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(8),
+            Margin = margin,
+        };
+        value.AutoSize = false;
+        value.Dock = DockStyle.Fill;
+        value.TextAlign = ContentAlignment.MiddleCenter;
+        value.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        value.Margin = new Padding(0);
+        card.Controls.Add(value);
+        return card;
+    }
+
+    private static void ConfigureActionButton(Button button, int width, bool primary = false)
+    {
+        button.AutoSize = false;
+        button.Width = width;
+        button.Height = 36;
+        button.Padding = new Padding(10, 5, 10, 5);
+        button.Margin = new Padding(0, 0, 6, 0);
+        button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+        button.Tag = primary ? StalkerTheme.PrimaryButtonTag : null;
+    }
+
+    private void SetWorkspace(Panel tab)
+    {
+        _activeWorkspaceTab = tab;
+        _gameTab.Visible = ReferenceEquals(tab, _gameTab);
+        _modsTab.Visible = ReferenceEquals(tab, _modsTab);
+        _gameTabButton.Selected = ReferenceEquals(tab, _gameTab);
+        _modsTabButton.Selected = ReferenceEquals(tab, _modsTab);
+        tab.BringToFront();
     }
 
     private void ConfigureGrid()
@@ -444,8 +749,10 @@ public sealed class MainForm : Form
         _grid.MultiSelect = false;
         _grid.AutoGenerateColumns = false;
         _grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
-        _grid.BackgroundColor = SystemColors.Window;
-        _grid.BorderStyle = BorderStyle.Fixed3D;
+        _grid.BackgroundColor = StalkerTheme.WindowBackground;
+        _grid.BorderStyle = BorderStyle.FixedSingle;
+        _grid.ColumnHeadersHeight = 34;
+        _grid.RowTemplate.Height = 30;
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Mod", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 52 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Localization", Width = 155 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", Width = 180 });
@@ -475,8 +782,9 @@ public sealed class MainForm : Form
             Text = "?",
             Width = 26,
             Height = 26,
-            FlatStyle = FlatStyle.System,
+            FlatStyle = FlatStyle.Flat,
             Margin = new Padding(2, 2, 2, 2),
+            Font = new Font("Segoe UI", 8F, FontStyle.Bold),
             TabStop = false,
             Tag = helpKey,
         };
@@ -489,8 +797,8 @@ public sealed class MainForm : Form
     {
         Text = AppConstants.AppName;
         _title.Text = _l.T("app.title");
-        _gameTab.Text = _l.T("ui.tab_game");
-        _modsTab.Text = _l.T("ui.tab_mods");
+        _gameTabButton.Text = _l.T("ui.tab_game");
+        _modsTabButton.Text = _l.T("ui.tab_mods");
         _gameIntro.Text = _l.T("ui.game_intro");
         _gameStatusLabel.Text = _l.T("ui.status");
         _gameAvailabilityTitleLabel.Text = _l.T("ui.available");
@@ -540,7 +848,7 @@ public sealed class MainForm : Form
         if (!_busy) _statusText.Text = _l.T("ui.idle");
     }
 
-    private Task ScanActiveAsync() => _tabs.SelectedTab == _gameTab ? ScanGameAsync() : ScanModsAsync();
+    private Task ScanActiveAsync() => IsGameWorkspace ? ScanGameAsync() : ScanModsAsync();
 
     private async Task ScanModsAsync()
     {
