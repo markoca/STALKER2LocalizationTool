@@ -41,6 +41,7 @@ public sealed class ModScanner
         progress?.Report((0, 100, "Starting MODS scan..."));
 
         var materializationRoot = Path.Combine(_cachedRoot, ".source_cache");
+        var scanCacheRoot = Path.Combine(_cachedRoot, ".scan_cache");
         var discoveryProgress = new Progress<(int Current, int Total, string Message)>(p =>
         {
             var fraction = p.Total <= 0 ? 0.0 : p.Current / (double)p.Total;
@@ -76,6 +77,7 @@ public sealed class ModScanner
         {
             var aliases = new List<LocalizationAlias>();
             var errors = new List<string>();
+            var fingerprintLines = new List<string>();
 
             foreach (var utoc in group.Containers)
             {
@@ -92,21 +94,58 @@ public sealed class ModScanner
                     0,
                     55
                 );
-                progress?.Report((
-                    scanOverall,
-                    100,
-                    $"Scanning {containerLabel}"
-                ));
 
                 try
                 {
-                    aliases.AddRange(
-                        await _retoc.ListLocalizationAssetsAsync(
+                    // Match the launch.py cache contract: UTOC is the authoritative
+                    // change detector for one IoStore container. It is tiny compared
+                    // with PAK/UCAS, so refreshes stay fast even for large mods.
+                    progress?.Report((
+                        scanOverall,
+                        100,
+                        $"Checking {containerLabel}"
+                    ));
+
+                    var utocHash = await HashUtil.Sha256FileAsync(utoc, cancellationToken);
+                    fingerprintLines.Add(containerLabel + "|" + utocHash);
+
+                    var cachedAliases = TryLoadContainerScanCache(
+                        scanCacheRoot,
+                        group,
+                        utoc,
+                        containerLabel,
+                        utocHash
+                    );
+
+                    if (cachedAliases is not null)
+                    {
+                        aliases.AddRange(cachedAliases);
+                        _log?.Invoke($"Scan cache reused: {group.ModName} :: {containerLabel}");
+                    }
+                    else
+                    {
+                        progress?.Report((
+                            scanOverall,
+                            100,
+                            $"Scanning {containerLabel}"
+                        ));
+
+                        var scannedAliases = await _retoc.ListLocalizationAssetsAsync(
                             utoc,
                             _modsRoot,
                             cancellationToken
-                        )
-                    );
+                        );
+                        aliases.AddRange(scannedAliases);
+
+                        SaveContainerScanCache(
+                            scanCacheRoot,
+                            group,
+                            utoc,
+                            containerLabel,
+                            utocHash,
+                            scannedAliases
+                        );
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -116,6 +155,17 @@ public sealed class ModScanner
                     );
                 }
             }
+
+            // Source identity is derived from the ordered UTOC hashes, just like the
+            // launch pipeline. Do not hash large PAK/UCAS payloads on every refresh.
+            group.SourceFingerprint = fingerprintLines.Count == 0
+                ? string.Empty
+                : HashUtil.Sha256Text(
+                    string.Join(
+                        "\n",
+                        fingerprintLines.OrderBy(line => line, StringComparer.OrdinalIgnoreCase)
+                    )
+                );
 
             var aliasGrouping = LocalizationAliasGrouper.Group(aliases);
             group.Assets = aliasGrouping.Assets;
@@ -132,28 +182,6 @@ public sealed class ModScanner
             group.ScanError = errors.Count > 0
                 ? string.Join(Environment.NewLine, errors)
                 : null;
-
-            if (group.HasLocalization)
-            {
-                // Fingerprint the physical source, not the materialized archive cache.
-                // For loose sources this covers each complete pak/utoc/ucas trio;
-                // for archive sources this hashes the original ZIP/7z/RAR itself.
-                var fingerprintLines = new List<string>();
-
-                foreach (var path in group.OriginalSourceFiles
-                             .Distinct(StringComparer.OrdinalIgnoreCase)
-                             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var hash = await HashUtil.Sha256FileAsync(path, cancellationToken);
-                    var relative = Path.GetRelativePath(_modsRoot, path).Replace('\\', '/');
-                    fingerprintLines.Add(relative + "|" + hash);
-                }
-
-                group.SourceFingerprint = HashUtil.Sha256Text(
-                    string.Join("\n", fingerprintLines)
-                );
-            }
 
             var manifestPath = Path.Combine(_cachedRoot, group.ModId, "manifest.json");
             group.NeedsExtraction = group.HasLocalization
@@ -230,6 +258,120 @@ public sealed class ModScanner
         }
 
         return results;
+    }
+
+    private sealed class ContainerScanCache
+    {
+        public int Version { get; set; } = 1;
+        public string SourceKind { get; set; } = string.Empty;
+        public string SourceLabel { get; set; } = string.Empty;
+        public string ContainerLabel { get; set; } = string.Empty;
+        public string UtocSha256 { get; set; } = string.Empty;
+        public List<LocalizationAlias> Aliases { get; set; } = new();
+    }
+
+    private static List<LocalizationAlias>? TryLoadContainerScanCache(
+        string cacheRoot,
+        ModScanResult group,
+        string utoc,
+        string containerLabel,
+        string utocHash)
+    {
+        var cachePath = ContainerScanCachePath(
+            cacheRoot,
+            group,
+            containerLabel
+        );
+
+        if (!File.Exists(cachePath))
+            return null;
+
+        try
+        {
+            var cache = JsonUtil.Load<ContainerScanCache>(cachePath);
+            if (cache.Version != 1
+                || !string.Equals(cache.SourceKind, group.SourceKind, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(cache.SourceLabel, group.SourceLabel, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(cache.ContainerLabel, containerLabel, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(cache.UtocSha256, utocHash, StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            foreach (var alias in cache.Aliases)
+            {
+                alias.SourceUtoc = utoc;
+                alias.SourceUtocRelative = Path.GetRelativePath(group.ModSourceRoot, utoc);
+            }
+
+            return cache.Aliases;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void SaveContainerScanCache(
+        string cacheRoot,
+        ModScanResult group,
+        string utoc,
+        string containerLabel,
+        string utocHash,
+        IReadOnlyList<LocalizationAlias> aliases)
+    {
+        try
+        {
+            var cachePath = ContainerScanCachePath(
+                cacheRoot,
+                group,
+                containerLabel
+            );
+
+            var copy = aliases.Select(alias => new LocalizationAlias
+            {
+                ZenChunkId = alias.ZenChunkId,
+                VirtualPath = alias.VirtualPath,
+                SourceUtoc = utoc,
+                SourceUtocRelative = alias.SourceUtocRelative,
+            }).ToList();
+
+            JsonUtil.Save(
+                cachePath,
+                new ContainerScanCache
+                {
+                    Version = 1,
+                    SourceKind = group.SourceKind,
+                    SourceLabel = group.SourceLabel,
+                    ContainerLabel = containerLabel,
+                    UtocSha256 = utocHash,
+                    Aliases = copy,
+                }
+            );
+        }
+        catch
+        {
+            // Scan cache is purely an optimization. Never fail a scan because
+            // the cache directory is unavailable or a cache write is interrupted.
+        }
+    }
+
+    private static string ContainerScanCachePath(
+        string cacheRoot,
+        ModScanResult group,
+        string containerLabel)
+    {
+        var identity = string.Join(
+            "|",
+            group.SourceKind,
+            group.SourceLabel,
+            containerLabel
+        );
+
+        return Path.Combine(
+            cacheRoot,
+            HashUtil.Sha256Text(identity) + ".json"
+        );
     }
 
     private static bool ManifestMatches(string manifestPath, string fingerprint)
