@@ -1455,22 +1455,20 @@ public sealed class MainForm : Form
 
     private bool NeedsInitialSetup() => GetInitialSetupProblems().Count > 0;
 
+    private bool IsGamePathValid()
+    {
+        return !string.IsNullOrWhiteSpace(_settings.GamePaksFolder)
+               && Directory.Exists(_settings.GamePaksFolder)
+               && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc"))
+               && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas"));
+    }
+
     private List<string> GetInitialSetupProblems()
     {
         var problems = new List<string>();
 
-        if (string.IsNullOrWhiteSpace(_settings.GamePaksFolder)
-            || !Directory.Exists(_settings.GamePaksFolder))
-        {
+        if (!IsGamePathValid())
             problems.Add("Game Paks folder");
-        }
-        else
-        {
-            if (!File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc")))
-                problems.Add("global.utoc");
-            if (!File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas")))
-                problems.Add("global.ucas");
-        }
 
         var requiredTools = new (string Label, string Path)[]
         {
@@ -1494,15 +1492,29 @@ public sealed class MainForm : Form
     {
         var problems = GetInitialSetupProblems();
         var toolsFolder = Path.Combine(AppContext.BaseDirectory, "tools");
+        var missingTools = problems
+            .Where(problem => !string.Equals(problem, "Game Paks folder", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var gamePathMissing = problems.Any(problem =>
+            string.Equals(problem, "Game Paks folder", StringComparison.OrdinalIgnoreCase));
 
         var message = new StringBuilder();
-        message.AppendLine(_l.T("ui.setup_required"));
-        message.AppendLine();
-        message.AppendLine($"Tools folder: {toolsFolder}");
-        message.AppendLine();
-        message.AppendLine("Missing / invalid:");
-        foreach (var problem in problems)
-            message.AppendLine($"  • {problem}");
+
+        if (missingTools.Count > 0)
+        {
+            message.AppendLine("Required tool files could not be found.");
+            message.AppendLine($"Put the required files in the tools folder:");
+            message.AppendLine(toolsFolder);
+        }
+
+        if (gamePathMissing)
+        {
+            if (message.Length > 0)
+                message.AppendLine();
+
+            message.AppendLine("The game path could not be found or is not valid.");
+            message.AppendLine("Set the Game Paks folder in Settings.");
+        }
 
         return message.ToString().TrimEnd();
     }
