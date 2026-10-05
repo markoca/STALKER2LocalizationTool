@@ -18,8 +18,8 @@ public sealed class SettingsForm : Form
 
         Text = _l.T("ui.settings") + " - " + AppConstants.AppName;
         StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = new Size(860, 600);
-        Size = new Size(940, 690);
+        MinimumSize = new Size(920, 700);
+        Size = new Size(980, 740);
         Font = new Font("Segoe UI", 9F);
 
         BuildUi();
@@ -47,7 +47,7 @@ public sealed class SettingsForm : Form
         var body = new Panel
         {
             Dock = DockStyle.Fill,
-            AutoScroll = true,
+            AutoScroll = false,
             Margin = new Padding(0, 0, 0, 10),
             BackColor = StalkerTheme.WindowBackground,
         };
