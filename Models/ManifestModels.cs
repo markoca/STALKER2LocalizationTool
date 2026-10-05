@@ -7,6 +7,7 @@ public sealed class ExtractedManifest
     public string ModName { get; set; } = string.Empty;
     public DateTime ExtractedAtUtc { get; set; }
     public string SourceFingerprint { get; set; } = string.Empty;
+    public List<string> SourceContainerLabels { get; set; } = new();
     public List<SourceFileFingerprint> SourceFiles { get; set; } = new();
     public List<ExtractedAssetManifest> Assets { get; set; } = new();
     public List<ExtractedLocresManifest> LocresAssets { get; set; } = new();
