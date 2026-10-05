@@ -580,10 +580,9 @@ public sealed class ExtractionService
         if (File.Exists(sourcePak))
             FileLinker.LinkOrCopy(sourcePak, Path.Combine(input, Path.GetFileName(sourcePak)));
 
+        RequireValidGamePaksFolder();
         var globalUtoc = Path.Combine(_settings.GamePaksFolder, "global.utoc");
         var globalUcas = Path.Combine(_settings.GamePaksFolder, "global.ucas");
-        RequireFile(globalUtoc, "game global.utoc");
-        RequireFile(globalUcas, "game global.ucas");
         FileLinker.LinkOrCopy(globalUtoc, Path.Combine(input, "global.utoc"));
         FileLinker.LinkOrCopy(globalUcas, Path.Combine(input, "global.ucas"));
     }
@@ -610,13 +609,25 @@ public sealed class ExtractionService
             RequireFile(_settings.RetocPath, "retoc.exe");
             RequireFile(_settings.UAssetGuiPath, "UAssetGUI.exe");
             RequireFile(_settings.MappingsPath, "Mappings.usmap");
-            RequireFile(Path.Combine(_settings.GamePaksFolder, "global.utoc"), "game global.utoc");
-            RequireFile(Path.Combine(_settings.GamePaksFolder, "global.ucas"), "game global.ucas");
+            RequireValidGamePaksFolder();
         }
 
         if (mods.Any(x => string.Equals(x.ModId, "Game", StringComparison.OrdinalIgnoreCase)
                           && x.LocresAssets.Count > 0))
             RequireFile(_settings.RepakPath, "repak.exe");
+    }
+
+    private void RequireValidGamePaksFolder()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.GamePaksFolder)
+            || !Directory.Exists(_settings.GamePaksFolder)
+            || !File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc"))
+            || !File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas")))
+        {
+            throw new InvalidOperationException(
+                "Game Paks folder is not valid. Set the Game Paks folder in Settings."
+            );
+        }
     }
 
     private static void RequireFile(string path, string label)
