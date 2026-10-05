@@ -1453,7 +1453,22 @@ public sealed class MainForm : Form
         return result;
     }
 
-    private bool NeedsInitialSetup() => GetInitialSetupProblems().Count > 0;
+    private bool NeedsInitialSetup() =>
+        !AreRequiredToolsAvailable() || !IsGamePathValid();
+
+    private bool AreRequiredToolsAvailable()
+    {
+        return !string.IsNullOrWhiteSpace(_settings.RetocPath)
+               && File.Exists(_settings.RetocPath)
+               && !string.IsNullOrWhiteSpace(_settings.UAssetGuiPath)
+               && File.Exists(_settings.UAssetGuiPath)
+               && !string.IsNullOrWhiteSpace(_settings.MappingsPath)
+               && File.Exists(_settings.MappingsPath)
+               && !string.IsNullOrWhiteSpace(_settings.RepakPath)
+               && File.Exists(_settings.RepakPath)
+               && !string.IsNullOrWhiteSpace(_settings.S2HocmmPath)
+               && File.Exists(_settings.S2HocmmPath);
+    }
 
     private bool IsGamePathValid()
     {
@@ -1463,60 +1478,38 @@ public sealed class MainForm : Form
                && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas"));
     }
 
-    private List<string> GetInitialSetupProblems()
-    {
-        var problems = new List<string>();
-
-        if (!IsGamePathValid())
-            problems.Add("Game Paks folder");
-
-        var requiredTools = new (string Label, string Path)[]
-        {
-            ("retoc.exe", _settings.RetocPath),
-            ("UAssetGUI.exe", _settings.UAssetGuiPath),
-            ("Mappings.usmap", _settings.MappingsPath),
-            ("repak.exe", _settings.RepakPath),
-            ("S2HOCMM.exe", _settings.S2HocmmPath),
-        };
-
-        foreach (var tool in requiredTools)
-        {
-            if (string.IsNullOrWhiteSpace(tool.Path) || !File.Exists(tool.Path))
-                problems.Add(tool.Label);
-        }
-
-        return problems;
-    }
-
     private string InitialSetupMessage()
     {
-        var problems = GetInitialSetupProblems();
+        var toolsMissing = !AreRequiredToolsAvailable();
+        var gamePathMissing = !IsGamePathValid();
         var toolsFolder = Path.Combine(AppContext.BaseDirectory, "tools");
-        var missingTools = problems
-            .Where(problem => !string.Equals(problem, "Game Paks folder", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        var gamePathMissing = problems.Any(problem =>
-            string.Equals(problem, "Game Paks folder", StringComparison.OrdinalIgnoreCase));
 
-        var message = new StringBuilder();
-
-        if (missingTools.Count > 0)
+        if (toolsMissing && gamePathMissing)
         {
-            message.AppendLine("Required tool files could not be found.");
-            message.AppendLine($"Put the required files in the tools folder:");
-            message.AppendLine(toolsFolder);
+            return
+                "Required tool files could not be found.\r\n" +
+                "Put the required files in the tools folder:\r\n" +
+                toolsFolder + "\r\n\r\n" +
+                "The game path could not be found or is not valid.\r\n" +
+                "Set the Game Paks folder in Settings.";
+        }
+
+        if (toolsMissing)
+        {
+            return
+                "Required tool files could not be found.\r\n" +
+                "Put the required files in the tools folder:\r\n" +
+                toolsFolder;
         }
 
         if (gamePathMissing)
         {
-            if (message.Length > 0)
-                message.AppendLine();
-
-            message.AppendLine("The game path could not be found or is not valid.");
-            message.AppendLine("Set the Game Paks folder in Settings.");
+            return
+                "The game path could not be found or is not valid.\r\n" +
+                "Set the Game Paks folder in Settings.";
         }
 
-        return message.ToString().TrimEnd();
+        return string.Empty;
     }
 
     private bool ValidateExtractionPaths()
