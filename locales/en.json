@@ -10,8 +10,8 @@
   "ui.tab_mods": "MODS",
   "ui.game_intro": "Extract every supported language from the base game, edit the JSON files directly in Editable\\Game, then build one or more selected languages.",
   "ui.scan_game": "SCAN GAME",
-  "ui.extract_game": "EXTRACT ALL LANGUAGES",
-  "ui.build_game": "BUILD GAME PACKAGE",
+  "ui.extract_game": "EXTRACT",
+  "ui.build_game": "BUILD",
   "ui.scanning_game": "Scanning base game...",
   "ui.extracting_game": "Extracting all game languages...",
   "ui.building_game": "Building game localization package...",
@@ -62,7 +62,6 @@
   "ui.close": "Close",
   "ui.select_folder": "Select folder",
   "ui.select_file": "Select file",
-  "ui.editable_hint": "Editable JSONs can be built",
   "ui.last_result": "Last result: {0}",
   "status.no_localization": "No supported localization",
   "status.needs_extraction": "Needs extraction",
@@ -74,7 +73,7 @@
   "help.build_language": "Check one or more languages to build. Only checked languages are built; with none checked, build actions are disabled.",
   "help.mods": "The MODS tab scans complete IoStore .pak/.utoc/.ucas triplets from loose folders and ZIP/7z/RAR archives, then detects LocalizationDatabase assets by content. Game.locres remains GAME-only.",
   "help.extract": "Reads text from all new or updated sources. Cached keeps the rebuild source; if that mod has no Editable folder yet, an identical editable copy is created there. Existing Editable folders are never overwritten.",
-  "help.editable": "Editable JSONs can be built. Extraction creates this mod folder only when it does not already exist, so your edits are never overwritten.",
+  "help.editable": "Extraction creates this mod folder only when it does not already exist, so your edits are never overwritten.",
   "help.build_modular": "Builds a separate LocalizationDatabase / IoStore localization package for every available mod. LOCRES is never built from MODS.",
   "help.build_all_in_one": "Combine all mod localizations in one package",
   "help.game_workflow": "Scans the original game packages, creates one editable JSON per supported language in Editable\\Game, and builds only the checked languages directly from those files.",
@@ -93,7 +92,6 @@
   "help.mappings": "Mappings.usmap lets UAssetGUI read assets from the current game version.",
   "help.repak": "repak is used by the GAME workflow to extract and package Game.locres PAKs with the required V11, mount-point and path-hash-seed settings.",
   "help.s2hocmm": "S2HOCMM serializes and verifies Game.locres for the GAME workflow. It is not used for MODS LocalizationDatabase builds.",
-  "help.editable_hint": "Editable JSONs can be built",
   "language.arabic": "Arabic",
   "language.chinese_simplified": "Chinese (Simplified)",
   "language.chinese_traditional": "Chinese (Traditional)",
@@ -123,5 +121,6 @@
   "ui.build_summary_output": "Output: {0}",
   "ui.all_jsons": "All JSONs",
   "ui.json_count": "{0} / {1} JSONs",
-  "ui.open_jsons_folder": "Open JSONs"
+  "ui.open_jsons_folder": "Open JSONs",
+  "ui.setup_required": "Required tools or the game path could not be found. Put the required tool files in the tools folder, then verify the Game Paks folder in Settings."
 }
