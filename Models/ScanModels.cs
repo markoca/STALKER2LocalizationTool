@@ -40,7 +40,15 @@ public sealed class ModScanResult
     public string ModId { get; set; } = string.Empty;
     public string ModName { get; set; } = string.Empty;
     public string ModSourceRoot { get; set; } = string.Empty;
+    public string SourceKind { get; set; } = "loose";
+    public string SourceLabel { get; set; } = string.Empty;
     public List<string> Containers { get; set; } = new();
+    public List<string> ContainerLabels { get; set; } = new();
+    public List<string> OriginalSourceFiles { get; set; } = new();
+
+    [JsonIgnore]
+    public Dictionary<string, string> ContainerLabelsByPath { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
     public List<string> PakFiles { get; set; } = new();
     public List<LocalizationAssetGroup> Assets { get; set; } = new();
     public List<LocresSource> LocresAssets { get; set; } = new();
