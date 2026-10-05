@@ -222,7 +222,7 @@ internal static class StalkerTheme
     private static void ThemeGrid(DataGridView grid)
     {
         grid.EnableHeadersVisualStyles = false;
-        grid.BackgroundColor = WindowBackground;
+        grid.BackgroundColor = Panel;
         grid.BorderStyle = BorderStyle.FixedSingle;
         grid.GridColor = Border;
         grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
@@ -596,7 +596,6 @@ internal sealed class StalkerProgressBar : ProgressBar
 /// </summary>
 internal sealed class StalkerLanguageSelector : Panel
 {
-    private readonly TableLayoutPanel _grid = new();
     private readonly List<StalkerLanguageCheckBox> _items = new();
     private bool _loading;
 
@@ -606,14 +605,15 @@ internal sealed class StalkerLanguageSelector : Panel
     {
         BackColor = StalkerTheme.PanelAlt;
         ForeColor = StalkerTheme.Text;
-        Padding = new Padding(6, 4, 6, 4);
+        Padding = new Padding(4, 2, 4, 2);
         Margin = new Padding(0);
 
-        _grid.Dock = DockStyle.Fill;
-        _grid.Margin = new Padding(0);
-        _grid.Padding = new Padding(0);
-        _grid.BackColor = StalkerTheme.PanelAlt;
-        Controls.Add(_grid);
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
     }
 
     public IReadOnlyCollection<int> CheckedIds =>
@@ -622,42 +622,26 @@ internal sealed class StalkerLanguageSelector : Panel
     public void SetLanguages(IEnumerable<(int Id, string Name, bool Checked)> languages)
     {
         var values = languages.ToList();
+
         _loading = true;
         SuspendLayout();
-        _grid.SuspendLayout();
-
         try
         {
+            foreach (var item in _items)
+                item.Dispose();
+
             _items.Clear();
-            _grid.Controls.Clear();
-            _grid.ColumnStyles.Clear();
-            _grid.RowStyles.Clear();
+            Controls.Clear();
 
-            const int columns = 5;
-            var rows = Math.Max(1, (int)Math.Ceiling(values.Count / (double)columns));
-
-            _grid.ColumnCount = columns;
-            _grid.RowCount = rows;
-
-            for (var column = 0; column < columns; column++)
-                _grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F / columns));
-            for (var row = 0; row < rows; row++)
-                _grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100F / rows));
-
-            for (var index = 0; index < values.Count; index++)
+            foreach (var option in values)
             {
-                var option = values[index];
-                var column = index / rows;
-                var row = index % rows;
-
                 var check = new StalkerLanguageCheckBox
                 {
                     LanguageId = option.Id,
                     Text = option.Name,
                     Checked = option.Checked,
-                    Dock = DockStyle.Fill,
-                    Margin = new Padding(0),
                 };
+
                 check.CheckedChanged += (_, _) =>
                 {
                     if (!_loading)
@@ -665,14 +649,58 @@ internal sealed class StalkerLanguageSelector : Panel
                 };
 
                 _items.Add(check);
-                _grid.Controls.Add(check, column, row);
+                Controls.Add(check);
             }
+
+            LayoutItems();
         }
         finally
         {
-            _grid.ResumeLayout(true);
             ResumeLayout(true);
             _loading = false;
+        }
+    }
+
+    protected override void OnResize(EventArgs eventargs)
+    {
+        base.OnResize(eventargs);
+        LayoutItems();
+        Invalidate();
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        e.Graphics.Clear(StalkerTheme.PanelAlt);
+    }
+
+    private void LayoutItems()
+    {
+        if (_items.Count == 0 || ClientSize.Width <= 0 || ClientSize.Height <= 0)
+            return;
+
+        const int columns = 5;
+        var rows = Math.Max(1, (int)Math.Ceiling(_items.Count / (double)columns));
+
+        var contentLeft = Padding.Left;
+        var contentTop = Padding.Top;
+        var contentWidth = Math.Max(1, ClientSize.Width - Padding.Horizontal);
+        var contentHeight = Math.Max(1, ClientSize.Height - Padding.Vertical);
+
+        for (var index = 0; index < _items.Count; index++)
+        {
+            var column = index / rows;
+            var row = index % rows;
+
+            var left = contentLeft + (int)Math.Round(contentWidth * column / (double)columns);
+            var right = contentLeft + (int)Math.Round(contentWidth * (column + 1) / (double)columns);
+            var top = contentTop + (int)Math.Round(contentHeight * row / (double)rows);
+            var bottom = contentTop + (int)Math.Round(contentHeight * (row + 1) / (double)rows);
+
+            _items[index].Bounds = new Rectangle(
+                left,
+                top,
+                Math.Max(1, right - left),
+                Math.Max(1, bottom - top));
         }
     }
 }
