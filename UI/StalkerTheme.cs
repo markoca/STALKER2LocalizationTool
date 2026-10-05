@@ -168,6 +168,8 @@ internal static class StalkerTheme
                 control.ForeColor = Text;
                 break;
         }
+
+        TryApplyDarkNativeScrollbarTheme(control);
     }
 
     private static void ThemeButton(Button button, Form owner)
@@ -325,6 +327,44 @@ internal static class StalkerTheme
         graphics.FillEllipse(accent, core);
     }
 
+    private static void TryApplyDarkNativeScrollbarTheme(Control control)
+    {
+        var mayOwnNativeScrollbars =
+            control is TextBoxBase
+            || control is ListBox
+            || control is CheckedListBox
+            || control is DataGridView
+            || control is ScrollBar
+            || (control is Panel panel && panel.AutoScroll);
+
+        if (!mayOwnNativeScrollbars)
+            return;
+
+        void Apply()
+        {
+            if (!OperatingSystem.IsWindows())
+                return;
+
+            try
+            {
+                // "DarkMode_Explorer" asks Windows common controls to render their
+                // native chrome (including scrollbars) with dark-mode metrics/colors.
+                // Wine may emulate this; unsupported builds simply ignore the call.
+                _ = SetWindowTheme(control.Handle, "DarkMode_Explorer", null);
+                _ = SendMessage(control.Handle, WmThemeChanged, IntPtr.Zero, IntPtr.Zero);
+            }
+            catch
+            {
+                // Presentation enhancement only.
+            }
+        }
+
+        if (control.IsHandleCreated)
+            Apply();
+        else
+            control.HandleCreated += (_, _) => Apply();
+    }
+
     private static void TryEnableDarkTitleBar(Form form)
     {
         void ApplyDarkChrome()
@@ -368,9 +408,24 @@ internal static class StalkerTheme
             form.HandleCreated += (_, _) => ApplyDarkChrome();
     }
 
+    private const int WmThemeChanged = 0x031A;
+
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const int DwmwaBorderColor = 34;
     private const int DwmwaCaptionColor = 35;
+
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetWindowTheme(
+        IntPtr hwnd,
+        string? pszSubAppName,
+        string? pszSubIdList);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(
+        IntPtr hWnd,
+        int msg,
+        IntPtr wParam,
+        IntPtr lParam);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(
