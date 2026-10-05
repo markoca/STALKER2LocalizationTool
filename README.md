@@ -1,4 +1,4 @@
-# The STALKER2 Localization Tool
+# Localization Workbench
 
 **Version:** `1.0.0-rc.6`
 
