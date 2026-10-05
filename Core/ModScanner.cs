@@ -38,27 +38,22 @@ public sealed class ModScanner
         if (!Directory.Exists(_modsRoot))
             return new List<ModScanResult>();
 
-        var allUtocs = Directory.EnumerateFiles(_modsRoot, "*.utoc", SearchOption.AllDirectories)
-            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        // MODS is LocalizationDatabase-only. Traditional Game.locres PAKs belong
-        // exclusively to the GAME workflow and are never opened or inspected here.
-        // A companion .pak next to a selected .utoc may still be copied later as
-        // retoc input, but its contents are not scanned as localization.
-        var utocs = allUtocs
-            .Where(PathUtil.IsSupportedModLocalizationContainer)
-            .ToList();
-
-        var ignoredSourceCount = allUtocs.Count - utocs.Count;
-        _log?.Invoke(
-            $"MODS source filter: {utocs.Count} IoStore eligible; " +
-            $"ignored {ignoredSourceCount} unrelated .utoc file(s). " +
-            "NewContent and OverrideContent partners are scanned together so exact package aliases can be resolved. " +
-            "LOCRES/PAK scanning is disabled for MODS."
+        var materializationRoot = Path.Combine(_cachedRoot, ".source_cache");
+        var discoveredSources = await ModSourceDiscovery.DiscoverAsync(
+            _modsRoot,
+            materializationRoot,
+            _log,
+            cancellationToken
         );
 
-        var groups = BuildGroups(utocs);
+        var groups = BuildGroups(discoveredSources);
+
+        _log?.Invoke(
+            $"MODS source discovery: {groups.Count} source group(s), " +
+            $"{groups.Sum(group => group.Containers.Count)} complete IoStore triplet(s). " +
+            "Loose/extracted trees and ZIP/7z/RAR archives are supported; " +
+            "container filename suffixes are no longer used as a localization whitelist."
+        );
 
         var totalSources = groups.Sum(group => group.Containers.Count);
         var processed = 0;
@@ -72,19 +67,31 @@ public sealed class ModScanner
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 processed++;
-                progress?.Report((processed, totalSources, Path.GetFileName(utoc)));
+
+                var containerLabel = group.ContainerLabelsByPath.TryGetValue(utoc, out var label)
+                    ? label
+                    : Path.GetFileNameWithoutExtension(utoc);
+
+                progress?.Report((processed, totalSources, containerLabel));
 
                 try
                 {
-                    aliases.AddRange(await _retoc.ListLocalizationAssetsAsync(utoc, _modsRoot, cancellationToken));
+                    aliases.AddRange(
+                        await _retoc.ListLocalizationAssetsAsync(
+                            utoc,
+                            _modsRoot,
+                            cancellationToken
+                        )
+                    );
                 }
                 catch (Exception ex)
                 {
-                    errors.Add($"{Path.GetFileName(utoc)}: {ex.Message}");
-                    _log?.Invoke($"IoStore scan failed for {utoc}: {ex.Message}");
+                    errors.Add($"{containerLabel}: {ex.Message}");
+                    _log?.Invoke(
+                        $"IoStore scan failed for {group.SourceLabel} :: {containerLabel}: {ex.Message}"
+                    );
                 }
             }
-
 
             var aliasGrouping = LocalizationAliasGrouper.Group(aliases);
             group.Assets = aliasGrouping.Assets;
@@ -92,36 +99,41 @@ public sealed class ModScanner
             if (aliasGrouping.ExactChunkAliasesCollapsed > 0)
             {
                 _log?.Invoke(
-                    $"{group.ModName}: ignored {aliasGrouping.ExactChunkAliasesCollapsed} duplicate localization alias(es) for identical Zen chunks."
+                    $"{group.ModName}: ignored {aliasGrouping.ExactChunkAliasesCollapsed} " +
+                    "duplicate localization alias(es) for identical full Zen chunks."
                 );
             }
 
             group.LocresAssets.Clear(); // LOCRES is GAME-only.
-
-            group.ScanError = errors.Count > 0 ? string.Join(Environment.NewLine, errors) : null;
+            group.ScanError = errors.Count > 0
+                ? string.Join(Environment.NewLine, errors)
+                : null;
 
             if (group.HasLocalization)
             {
-                // Fingerprint every container that actually exposed a localization alias.
-                // NewContent/OverrideContent partners are both part of the source identity.
-                var relevantFiles = aliases
-                    .Select(x => x.SourceUtoc)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
+                // Fingerprint the physical source, not the materialized archive cache.
+                // For loose sources this covers each complete pak/utoc/ucas trio;
+                // for archive sources this hashes the original ZIP/7z/RAR itself.
                 var fingerprintLines = new List<string>();
-                foreach (var path in relevantFiles)
+
+                foreach (var path in group.OriginalSourceFiles
+                             .Distinct(StringComparer.OrdinalIgnoreCase)
+                             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var hash = await HashUtil.Sha256FileAsync(path, cancellationToken);
-                    fingerprintLines.Add(Path.GetRelativePath(_modsRoot, path).Replace('\\', '/') + "|" + hash);
+                    var relative = Path.GetRelativePath(_modsRoot, path).Replace('\\', '/');
+                    fingerprintLines.Add(relative + "|" + hash);
                 }
-                group.SourceFingerprint = HashUtil.Sha256Text(string.Join("\n", fingerprintLines));
+
+                group.SourceFingerprint = HashUtil.Sha256Text(
+                    string.Join("\n", fingerprintLines)
+                );
             }
 
             var manifestPath = Path.Combine(_cachedRoot, group.ModId, "manifest.json");
-            group.NeedsExtraction = group.HasLocalization && !ManifestMatches(manifestPath, group.SourceFingerprint);
+            group.NeedsExtraction = group.HasLocalization
+                                    && !ManifestMatches(manifestPath, group.SourceFingerprint);
             group.EditableTranslationFile = _buildLanguages
                 .Select(language => EditableScanner.FindTranslationFile(_editableRoot, group, language))
                 .FirstOrDefault(path => !string.IsNullOrWhiteSpace(path));
@@ -133,53 +145,50 @@ public sealed class ModScanner
             .ToList();
     }
 
-    private List<ModScanResult> BuildGroups(List<string> utocs)
+    private List<ModScanResult> BuildGroups(
+        IReadOnlyList<ModSourceDiscovery.SourceGroup> sources)
     {
-        var map = new Dictionary<string, ModScanResult>(StringComparer.OrdinalIgnoreCase);
+        var results = new List<ModScanResult>();
         var assignedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var path in utocs.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+        foreach (var source in sources
+                     .OrderBy(item => item.Name, StringComparer.CurrentCultureIgnoreCase)
+                     .ThenBy(item => item.Label, StringComparer.OrdinalIgnoreCase))
         {
-            var relative = Path.GetRelativePath(_modsRoot, path);
-            var parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            string modName;
-            string sourceRoot;
-            string groupKey;
+            var baseId = PathUtil.MakeModId(source.Name);
+            var modId = baseId;
+            var collision = 2;
 
-            if (parts.Length > 1)
+            while (!assignedIds.Add(modId))
+                modId = $"{baseId}_{collision++}";
+
+            var sourceRoot = source.Kind == "archive"
+                ? Path.GetDirectoryName(Path.Combine(_modsRoot, source.Label)) ?? _modsRoot
+                : source.Label == "<mods-root>"
+                    ? _modsRoot
+                    : Path.Combine(_modsRoot, source.Label);
+
+            results.Add(new ModScanResult
             {
-                modName = parts[0];
-                sourceRoot = Path.Combine(_modsRoot, parts[0]);
-                groupKey = "folder|" + parts[0];
-            }
-            else
-            {
-                modName = PathUtil.InferModName(_modsRoot, path);
-                sourceRoot = _modsRoot;
-                groupKey = "direct|" + modName;
-            }
-
-            if (!map.TryGetValue(groupKey, out var group))
-            {
-                var baseId = PathUtil.MakeModId(modName);
-                var modId = baseId;
-                var collision = 2;
-                while (!assignedIds.Add(modId))
-                    modId = $"{baseId}_{collision++}";
-
-                group = new ModScanResult
-                {
-                    ModName = modName,
-                    ModSourceRoot = sourceRoot,
-                    ModId = modId,
-                };
-                map[groupKey] = group;
-            }
-
-            group.Containers.Add(path);
+                ModName = source.Name,
+                ModSourceRoot = sourceRoot,
+                ModId = modId,
+                SourceKind = source.Kind,
+                SourceLabel = source.Label,
+                Containers = source.Containers.ToList(),
+                ContainerLabels = source.ContainerLabelsByPath.Values
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                ContainerLabelsByPath = new Dictionary<string, string>(
+                    source.ContainerLabelsByPath,
+                    StringComparer.OrdinalIgnoreCase
+                ),
+                OriginalSourceFiles = source.OriginalSourceFiles.ToList(),
+            });
         }
 
-        return map.Values.ToList();
+        return results;
     }
 
     private static bool ManifestMatches(string manifestPath, string fingerprint)
