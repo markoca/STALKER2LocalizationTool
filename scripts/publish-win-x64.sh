@@ -39,7 +39,7 @@ for tool in "${REQUIRED_TOOLS[@]}"; do
 done
 
 echo "Windows target tool bundle found: tools/win-x64/"
-echo "Cross-publishing The STALKER2 Localization Tool (win-x64, self-contained)..."
+echo "Cross-publishing Localization Workbench (win-x64, self-contained)..."
 echo "Build host: $(uname -s) / $(uname -m)"
 
 dotnet publish "$PROJECT" \
