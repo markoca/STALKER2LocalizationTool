@@ -205,11 +205,25 @@ public static class ModSourceDiscovery
             .Where(entry => !entry.IsDirectory && !string.IsNullOrWhiteSpace(entry.Key))
             .ToList();
 
-        var byNormalizedName = entries.ToDictionary(
-            entry => NormalizeArchivePath(entry.Key!),
-            entry => entry,
-            StringComparer.OrdinalIgnoreCase
-        );
+        var byNormalizedName = entries
+            .GroupBy(
+                entry => NormalizeArchivePath(entry.Key!),
+                StringComparer.OrdinalIgnoreCase
+            )
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    if (group.Count() != 1)
+                    {
+                        throw new InvalidDataException(
+                            $"Archive contains duplicate normalized member path: {group.Key}"
+                        );
+                    }
+                    return group.Single();
+                },
+                StringComparer.OrdinalIgnoreCase
+            );
 
         var triplets = new List<ArchiveTriplet>();
 
@@ -350,6 +364,7 @@ public static class ModSourceDiscovery
             1024 * 1024,
             FileOptions.SequentialScan
         );
-        return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+        using var sha = SHA256.Create();
+        return Convert.ToHexString(sha.ComputeHash(stream)).ToLowerInvariant();
     }
 }
