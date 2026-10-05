@@ -26,6 +26,7 @@ public sealed class MainForm : Form
     private readonly StalkerNavButton _gameTabButton = new();
     private readonly StalkerNavButton _modsTabButton = new();
     private Panel? _activeWorkspaceTab;
+    private bool IsGameWorkspace => ReferenceEquals(_activeWorkspaceTab, _gameTab);
     private readonly Label _gameIntro = new();
     private readonly Label _gameStatusLabel = new();
     private readonly Label _gameLocalizationLabel = new();
