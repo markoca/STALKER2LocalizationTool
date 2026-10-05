@@ -256,6 +256,75 @@ internal static class StalkerTheme
         grid.RowTemplate.Height = Math.Max(grid.RowTemplate.Height, 28);
     }
 
+    public static Icon? CreateWindowIcon()
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+
+        try
+        {
+            using var bitmap = new Bitmap(32, 32);
+            using (var graphics = Graphics.FromImage(bitmap))
+            {
+                graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                graphics.Clear(Color.Transparent);
+                DrawRadiationMark(graphics, new Rectangle(1, 1, 30, 30));
+            }
+
+            var hIcon = bitmap.GetHicon();
+            try
+            {
+                using var temporary = Icon.FromHandle(hIcon);
+                return (Icon)temporary.Clone();
+            }
+            finally
+            {
+                _ = DestroyIcon(hIcon);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    internal static void DrawRadiationMark(Graphics graphics, Rectangle bounds)
+    {
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        var diameter = Math.Min(bounds.Width, bounds.Height);
+        var x = bounds.Left + (bounds.Width - diameter) / 2;
+        var y = bounds.Top + (bounds.Height - diameter) / 2;
+        var circle = new Rectangle(x, y, diameter, diameter);
+
+        using var shell = new SolidBrush(TitleBar);
+        using var accent = new SolidBrush(Accent);
+        using var border = new Pen(Accent, Math.Max(1F, diameter / 18F));
+
+        graphics.FillEllipse(shell, circle);
+        graphics.DrawEllipse(border, circle);
+
+        var blade = Rectangle.Inflate(circle, -(int)Math.Round(diameter * 0.12), -(int)Math.Round(diameter * 0.12));
+        foreach (var angle in new[] { -120F, 0F, 120F })
+            graphics.FillPie(accent, blade, angle, 58F);
+
+        var cutSize = Math.Max(4, (int)Math.Round(diameter * 0.40));
+        var cut = new Rectangle(
+            circle.Left + (circle.Width - cutSize) / 2,
+            circle.Top + (circle.Height - cutSize) / 2,
+            cutSize,
+            cutSize);
+        graphics.FillEllipse(shell, cut);
+
+        var coreSize = Math.Max(3, (int)Math.Round(diameter * 0.16));
+        var core = new Rectangle(
+            circle.Left + (circle.Width - coreSize) / 2,
+            circle.Top + (circle.Height - coreSize) / 2,
+            coreSize,
+            coreSize);
+        graphics.FillEllipse(accent, core);
+    }
+
     private static void TryEnableDarkTitleBar(Form form)
     {
         void ApplyDarkChrome()
@@ -310,6 +379,10 @@ internal static class StalkerTheme
         ref int pvAttribute,
         int cbAttribute);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
+
     private sealed class StalkerToolStripColorTable : ProfessionalColorTable
     {
         public override Color ToolStripGradientBegin => TitleBar;
@@ -318,6 +391,41 @@ internal static class StalkerTheme
         public override Color StatusStripGradientBegin => TitleBar;
         public override Color StatusStripGradientEnd => TitleBar;
         public override Color ToolStripBorder => Border;
+    }
+}
+
+/// <summary>
+/// Compact radiation / Zone mark used by the workbench header.
+/// </summary>
+internal sealed class StalkerBrandMark : Control
+{
+    public StalkerBrandMark()
+    {
+        Width = 44;
+        Height = 44;
+        Margin = new Padding(0, 0, 12, 0);
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.SupportsTransparentBackColor,
+            true);
+        BackColor = Color.Transparent;
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        var size = Math.Min(ClientSize.Width, ClientSize.Height) - 4;
+        if (size <= 0) return;
+
+        var bounds = new Rectangle(
+            (ClientSize.Width - size) / 2,
+            (ClientSize.Height - size) / 2,
+            size,
+            size);
+
+        StalkerTheme.DrawRadiationMark(e.Graphics, bounds);
     }
 }
 
