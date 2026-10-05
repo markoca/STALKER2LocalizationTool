@@ -14,7 +14,7 @@ public sealed class MainForm : Form
 
     private readonly Label _title = new();
     private readonly Label _buildLanguageLabel = new();
-    private readonly StalkerCheckedListBox _buildLanguages = new();
+    private readonly StalkerLanguageSelector _buildLanguages = new();
     private readonly Button _settingsButton = new();
     private readonly Button _refreshButton = new();
     private readonly Button _extractButton = new();
@@ -245,13 +245,8 @@ public sealed class MainForm : Form
         languagesHeader.Controls.Add(_helpBuildLanguage, 1, 0);
 
         _buildLanguages.Dock = DockStyle.Fill;
-        _buildLanguages.CheckOnClick = true;
-        _buildLanguages.MultiColumn = true;
-        _buildLanguages.ColumnWidth = 190;
-        _buildLanguages.HorizontalScrollbar = false;
-        _buildLanguages.IntegralHeight = false;
         _buildLanguages.Margin = new Padding(0);
-        _buildLanguages.ItemCheck += BuildLanguagesItemCheck;
+        _buildLanguages.SelectionChanged += BuildLanguagesSelectionChanged;
 
         languagesLayout.Controls.Add(languagesHeader, 0, 0);
         languagesLayout.Controls.Add(_buildLanguages, 0, 1);
@@ -304,14 +299,16 @@ public sealed class MainForm : Form
         _workspaceHost.Dock = DockStyle.Fill;
         _workspaceHost.Margin = new Padding(0);
         _workspaceHost.Padding = new Padding(0);
-        _workspaceHost.BackColor = StalkerTheme.WindowBackground;
+        _workspaceHost.BackColor = StalkerTheme.Panel;
 
         _gameTab.Dock = DockStyle.Fill;
         _gameTab.Margin = new Padding(0);
         _gameTab.Padding = new Padding(0);
+        _gameTab.BackColor = StalkerTheme.Panel;
         _modsTab.Dock = DockStyle.Fill;
         _modsTab.Margin = new Padding(0);
         _modsTab.Padding = new Padding(0);
+        _modsTab.BackColor = StalkerTheme.Panel;
 
         BuildGameTab();
         BuildModsTab();
@@ -419,6 +416,7 @@ public sealed class MainForm : Form
             ColumnCount = 1,
             RowCount = 5,
             Margin = new Padding(0),
+            BackColor = StalkerTheme.Panel,
         };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
@@ -832,14 +830,13 @@ public sealed class MainForm : Form
         }
 
         _loadingLanguageChecks = true;
-        _buildLanguages.BeginUpdate();
-        _buildLanguages.Items.Clear();
-        foreach (var language in BuildLanguageCatalog.All)
-            _buildLanguages.Items.Add(
-                new BuildLanguageItem(language, _l.LanguageName(language)),
+        _buildLanguages.SetLanguages(
+            BuildLanguageCatalog.All.Select(language => (
+                language.Id,
+                _l.LanguageName(language),
                 _settings.BuildLanguageIds.Contains(language.Id)
-            );
-        _buildLanguages.EndUpdate();
+            ))
+        );
         _loadingLanguageChecks = false;
 
         UpdateSummary();
@@ -1564,22 +1561,14 @@ public sealed class MainForm : Form
         _watchDebounce.Start();
     }
 
-    private void BuildLanguagesItemCheck(object? sender, ItemCheckEventArgs e)
+    private void BuildLanguagesSelectionChanged(object? sender, EventArgs e)
     {
         if (_loadingLanguageChecks) return;
 
-        var ids = _buildLanguages.CheckedItems
-            .Cast<BuildLanguageItem>()
-            .Select(item => item.Language.Id)
-            .ToHashSet();
-        if (_buildLanguages.Items[e.Index] is BuildLanguageItem changed)
-        {
-            if (e.NewValue == CheckState.Checked)
-                ids.Add(changed.Language.Id);
-            else
-                ids.Remove(changed.Language.Id);
-        }
-        _settings.BuildLanguageIds = ids.OrderBy(id => id).ToList();
+        _settings.BuildLanguageIds = _buildLanguages.CheckedIds
+            .OrderBy(id => id)
+            .ToList();
+
         _settingsService.Save(_settings);
 
         BeginInvoke(new Action(() =>
@@ -1641,11 +1630,4 @@ public sealed class MainForm : Form
         base.OnFormClosing(e);
     }
 
-    private sealed class BuildLanguageItem
-    {
-        public BuildLanguage Language { get; }
-        private string Name { get; }
-        public BuildLanguageItem(BuildLanguage language, string name) { Language = language; Name = name; }
-        public override string ToString() => Name;
-    }
 }
