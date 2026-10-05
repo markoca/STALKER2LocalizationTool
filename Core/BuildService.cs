@@ -160,6 +160,7 @@ public sealed class BuildService
         var expectedPackages = new Dictionary<string, ExpectedDatabasePackage>(StringComparer.OrdinalIgnoreCase);
         var pathOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var chunkOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var sourceContainerLabels = new List<string>();
         var scriptObjectsCopied = false;
 
         for (var i = 0; i < available.Count; i++)
@@ -174,6 +175,7 @@ public sealed class BuildService
 
             var cachedRoot = Path.Combine(_settings.CachedFolder, mod.ModId);
             var manifest = LoadAndValidateManifest(mod, cachedRoot);
+            sourceContainerLabels.AddRange(manifest.SourceContainerLabels);
             var translations = LoadTranslations(mod);
 
             foreach (var asset in manifest.Assets)
@@ -267,7 +269,12 @@ public sealed class BuildService
             return results;
         }
 
-        var outputUtoc = Path.Combine(outputRoot, $"{AppConstants.OverlayPrefix}_All_In_One_P.utoc");
+        var allInOnePatchSuffix = PathUtil.GetOverlayPatchSuffix(sourceContainerLabels);
+        var outputUtoc = Path.Combine(
+            outputRoot,
+            $"{AppConstants.OverlayPrefix}_All_In_One{allInOnePatchSuffix}.utoc"
+        );
+        _log?.Invoke($"All-in-One overlay patch suffix: {allInOnePatchSuffix}");
         await _retoc.ToZenAsync(legacyRoot, outputUtoc, cancellationToken);
 
         RequireFile(outputUtoc, "built All-in-One database .utoc");
@@ -402,7 +409,12 @@ public sealed class BuildService
         }
 
         var safe = Regex.Replace(PathUtil.MakeSafeName(manifest.ModName), @"[^A-Za-z0-9._-]+", "_");
-        var outputUtoc = Path.Combine(outputModRoot, $"{AppConstants.OverlayPrefix}_{safe}_P.utoc");
+        var patchSuffix = PathUtil.GetOverlayPatchSuffix(manifest.SourceContainerLabels);
+        var outputUtoc = Path.Combine(
+            outputModRoot,
+            $"{AppConstants.OverlayPrefix}_{safe}{patchSuffix}.utoc"
+        );
+        _log?.Invoke($"{manifest.ModName}: overlay patch suffix {patchSuffix}");
         await _retoc.ToZenAsync(legacyRoot, outputUtoc, cancellationToken);
 
         RequireFile(outputUtoc, "built database .utoc");
