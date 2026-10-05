@@ -38,14 +38,12 @@ public sealed class MainForm : Form
     private readonly Button _buildGameButton = new();
     private readonly Button _openJsons = new();
     private readonly Button _openOutput = new();
-    private readonly Label _modsHeader = new();
     private readonly Label _editableHeader = new();
     private readonly Label _modsFound = new();
     private readonly Label _localizationFound = new();
     private readonly Label _changedFound = new();
     private readonly Label _availableFound = new();
     private readonly Label _missingFound = new();
-    private readonly Label _editableHint = new();
     private readonly DataGridView _grid = new();
     private readonly TextBox _logBox = new();
     private readonly Label _logLabel = new();
@@ -54,7 +52,6 @@ public sealed class MainForm : Form
     private readonly StatusStrip _statusStrip = new();
 
     private Button? _helpBuildLanguage;
-    private Button? _helpMods;
     private Button? _helpExtract;
     private Button? _helpEditable;
     private Button? _helpBuildModular;
@@ -127,7 +124,7 @@ public sealed class MainForm : Form
 
             if (NeedsInitialSetup())
             {
-                MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 if (ShowSettings() != DialogResult.OK)
                 {
                     UpdateButtons();
@@ -546,33 +543,13 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(14, 12, 14, 14),
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 3,
             Margin = new Padding(0),
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _modsTab.Controls.Add(layout);
-
-        var header = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            ColumnCount = 2,
-            Margin = new Padding(0, 0, 0, 8),
-        };
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        _modsHeader.AutoSize = true;
-        _modsHeader.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-        _modsHeader.Tag = StalkerTheme.SectionLabelTag;
-        _modsHeader.Margin = new Padding(0, 4, 0, 0);
-        _helpMods = MakeHelpButton("help.mods");
-        _helpMods.Margin = new Padding(0);
-        header.Controls.Add(_modsHeader, 0, 0);
-        header.Controls.Add(_helpMods, 1, 0);
-        layout.Controls.Add(header, 0, 0);
 
         var metrics = new TableLayoutPanel
         {
@@ -588,11 +565,11 @@ public sealed class MainForm : Form
         metrics.Controls.Add(CreateSummaryCard(_modsFound, new Padding(0, 0, 4, 0)), 0, 0);
         metrics.Controls.Add(CreateSummaryCard(_localizationFound, new Padding(2, 0, 2, 0)), 1, 0);
         metrics.Controls.Add(CreateSummaryCard(_changedFound, new Padding(4, 0, 0, 0)), 2, 0);
-        layout.Controls.Add(metrics, 0, 1);
+        layout.Controls.Add(metrics, 0, 0);
 
         ConfigureGrid();
         _grid.Margin = new Padding(0, 0, 0, 10);
-        layout.Controls.Add(_grid, 0, 2);
+        layout.Controls.Add(_grid, 0, 1);
 
         var actionCard = new StalkerCardPanel
         {
@@ -629,15 +606,10 @@ public sealed class MainForm : Form
         _availableFound.Margin = new Padding(0, 2, 10, 0);
         _missingFound.AutoSize = true;
         _missingFound.Margin = new Padding(0, 2, 10, 0);
-        _editableHint.AutoSize = true;
-        _editableHint.Tag = StalkerTheme.MutedLabelTag;
-        _editableHint.Margin = new Padding(0, 2, 0, 0);
-        _toolTip.SetToolTip(_editableHint, _l.T("help.editable_hint"));
         editableSummary.Controls.Add(_editableHeader);
         editableSummary.Controls.Add(_helpEditable);
         editableSummary.Controls.Add(_availableFound);
         editableSummary.Controls.Add(_missingFound);
-        editableSummary.Controls.Add(_editableHint);
 
         var actionButtons = new FlowLayoutPanel
         {
@@ -670,7 +642,7 @@ public sealed class MainForm : Form
         actionLayout.Controls.Add(editableSummary, 0, 0);
         actionLayout.Controls.Add(actionButtons, 1, 0);
         actionCard.Controls.Add(actionLayout);
-        layout.Controls.Add(actionCard, 0, 3);
+        layout.Controls.Add(actionCard, 0, 2);
     }
 
     private StalkerCardPanel CreateGameMetricCard(Label caption, Label value, Padding margin)
@@ -834,7 +806,6 @@ public sealed class MainForm : Form
         _buildLanguageLabel.Text = _l.T("ui.build_language");
         _settingsButton.Text = _l.T("ui.settings");
         _refreshButton.Text = _l.T("ui.refresh");
-        _modsHeader.Text = _l.T("ui.mods");
         _editableHeader.Text = _l.T("ui.editable_translations");
         _extractButton.Text = _l.T("ui.extract");
         _buildModularButton.Text = _l.T("ui.build_modular");
@@ -843,15 +814,13 @@ public sealed class MainForm : Form
         _openJsons.Text = _l.T("ui.open_jsons_folder");
         _openOutput.Text = _l.T("ui.open_output");
         _logLabel.Text = _l.T("ui.log");
-        _editableHint.Text = _l.T("ui.editable_hint");
-        _toolTip.SetToolTip(_editableHint, _l.T("help.editable_hint"));
 
         _grid.Columns["Mod"].HeaderText = _l.T("ui.mod");
         _grid.Columns["Localization"].HeaderText = _l.T("ui.localization_types");
         _grid.Columns["Status"].HeaderText = _l.T("ui.status");
         _grid.Columns["Details"].HeaderText = _l.T("ui.details");
 
-        foreach (var button in new[] { _helpBuildLanguage, _helpMods, _helpExtract, _helpEditable, _helpBuildModular, _helpBuildAllInOne, _helpGame })
+        foreach (var button in new[] { _helpBuildLanguage, _helpExtract, _helpEditable, _helpBuildModular, _helpBuildAllInOne, _helpGame })
         {
             if (button?.Tag is string key)
                 _toolTip.SetToolTip(button, _l.T(key));
@@ -1484,19 +1453,65 @@ public sealed class MainForm : Form
         return result;
     }
 
-    private bool NeedsInitialSetup()
+    private bool NeedsInitialSetup() => GetInitialSetupProblems().Count > 0;
+
+    private List<string> GetInitialSetupProblems()
     {
-        // MODS scanning itself needs only retoc. Database-specific tools and GAME
-        // repak/S2HOCMM/global prerequisites are checked on demand.
-        return !File.Exists(_settings.RetocPath)
-               || string.IsNullOrWhiteSpace(_settings.ModsFolder);
+        var problems = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(_settings.GamePaksFolder)
+            || !Directory.Exists(_settings.GamePaksFolder))
+        {
+            problems.Add("Game Paks folder");
+        }
+        else
+        {
+            if (!File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc")))
+                problems.Add("global.utoc");
+            if (!File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas")))
+                problems.Add("global.ucas");
+        }
+
+        var requiredTools = new (string Label, string Path)[]
+        {
+            ("retoc.exe", _settings.RetocPath),
+            ("UAssetGUI.exe", _settings.UAssetGuiPath),
+            ("Mappings.usmap", _settings.MappingsPath),
+            ("repak.exe", _settings.RepakPath),
+            ("S2HOCMM.exe", _settings.S2HocmmPath),
+        };
+
+        foreach (var tool in requiredTools)
+        {
+            if (string.IsNullOrWhiteSpace(tool.Path) || !File.Exists(tool.Path))
+                problems.Add(tool.Label);
+        }
+
+        return problems;
+    }
+
+    private string InitialSetupMessage()
+    {
+        var problems = GetInitialSetupProblems();
+        var toolsFolder = Path.Combine(AppContext.BaseDirectory, "tools");
+
+        var message = new StringBuilder();
+        message.AppendLine(_l.T("ui.setup_required"));
+        message.AppendLine();
+        message.AppendLine($"Tools folder: {toolsFolder}");
+        message.AppendLine();
+        message.AppendLine("Missing / invalid:");
+        foreach (var problem in problems)
+            message.AppendLine($"  • {problem}");
+
+        return message.ToString().TrimEnd();
     }
 
     private bool ValidateExtractionPaths()
     {
         if (NeedsInitialSetup())
         {
-            MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return ShowSettings() == DialogResult.OK && !NeedsInitialSetup();
         }
         return true;
@@ -1511,7 +1526,7 @@ public sealed class MainForm : Form
             || !File.Exists(_settings.UAssetGuiPath)
             || !File.Exists(_settings.MappingsPath))
         {
-            MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return ShowSettings() == DialogResult.OK;
         }
         return true;
@@ -1536,7 +1551,7 @@ public sealed class MainForm : Form
 
         if (IsValid()) return true;
 
-        MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
         return ShowSettings() == DialogResult.OK && IsValid();
     }
 
