@@ -37,23 +37,17 @@ GAME output includes the installable PAK and a standalone `Game.locres` copy for
 
 MODS handles `LocalizationDatabase` / IoStore localization only. `Game.locres` is not scanned, extracted, or built from MODS.
 
-RC6 scans paired localization containers together instead of discarding NewContent before package analysis. Recognized conventions include:
+MODS source discovery follows the current release `launch.py` model rather than a filename whitelist. The workbench recursively accepts complete adjacent `.pak/.utoc/.ucas` triplets from loose/extracted trees and can read original `.zip`, `.7z`, and `.rar` mod archives directly. Archive triplets are materialized into the Cached source cache, while the original archive remains the source fingerprint.
 
-```text
-*-NewContent / *-OverrideContent
-*Stalker2-Windows-NewContent / *Stalker2-Windows-OverrideContent
-_NC / _OC / _OC_50
-_N / _O
-A_P / B_P
-```
+Container families are inferred only for grouping physical source partners; whether a container actually carries localization is determined by inspecting it with retoc. This also handles numbered OverrideContent packages such as `...OverrideContent_30_P`.
 
-The complete **24-hex ExportBundleData chunk ID** is the package identity. RC6 never deduplicates different chunks merely because their first 16 hex characters match.
+The complete **24-hex ExportBundleData chunk ID** is the package identity. Different chunks are never deduplicated merely because a prefix matches.
 
 For aliases of the same exact chunk, extraction inspects every alias payload, verifies the SID union, prefers a complete `Stalker2/Content/...` OverrideContent alias when available, and keeps the serializer-visible source/plugin package path as the source FPackageId identity. The output directory alias and source package identity are deliberately separate.
 
 Workflow:
 
-1. Put supported mod files under `Mods`.
+1. Put loose/extracted mod triplets or original ZIP/7z/RAR archives under `Mods`.
 2. Scan MODS. NewContent and OverrideContent partners are kept together until exact package aliases are resolved.
 3. Extract new or changed localization databases. The extraction manifest stores the canonical alias, source package identity, internal UAsset package path, and all discovered aliases.
 4. Edit `Editable\<mod-name>\<language>.json`.
@@ -61,7 +55,9 @@ Workflow:
    - **Modular** — one localization IoStore package per mod; or
    - **All-in-One** — one combined IoStore localization package.
 
-RC6 rebuilds MODS overlays with normal stock `retoc.exe`. The finished package is round-tripped and checked for the canonical virtual path, the complete original 24-hex chunk/FPackageId, and the exact patched RawExport payload. If stock retoc changes a package identity for a future mod, that build fails instead of silently shipping a questionable overlay.
+When a source container uses Unreal numbered patch naming (`_<NN>_P`), the output automatically uses the next patch level (`_<NN+1>_P`) so the localization overlay wins normal load order, matching the current launch pipeline.
+
+MODS overlays are rebuilt with normal stock `retoc.exe`. The finished package is round-tripped and checked for the canonical virtual path, the complete original 24-hex chunk/FPackageId, and the exact patched RawExport payload. If stock retoc changes a package identity for a future mod, that build fails instead of silently shipping a questionable overlay.
 
 ## Workspace layout
 
@@ -222,7 +218,7 @@ The UAssetGUI Wine prefix needs .NET 8 Desktop Runtime.
 
 ## Release-candidate policy
 
-`1.0.0-rc.6` switches MODS packaging to the proven stock-retoc `launch.py` baseline. The NC/OC alias-resolution and complete 24-hex chunk identity rules remain, while custom source-package-map/ContainerHeader handling is removed. Manifest schema remains 13, so RC5 schema-13 caches remain compatible. GAME LOCRES serialization stays on the existing S2HOCMM + repak path.
+`1.0.0-rc.6` switches MODS packaging to the proven stock-retoc `launch.py` baseline. The NC/OC alias-resolution and complete 24-hex chunk identity rules remain, while custom source-package-map/ContainerHeader handling is removed. Manifest schema is 14 because physical source provenance and source container labels are now part of the packaging contract; older MODS caches must be extracted again. GAME LOCRES serialization stays on the existing S2HOCMM + repak path.
 
 The custom `app.manifest` used by RC4 was removed so the .NET SDK supplies the normal Windows apphost manifest. This is part of the Windows Side-by-Side startup investigation; if an older EXE still fails before managed startup, capture `sxstrace` for the exact activation-context dependency.
 
