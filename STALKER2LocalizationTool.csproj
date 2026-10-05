@@ -6,7 +6,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>STALKER2LocalizationTool</AssemblyName>
+    <AssemblyName>Localization Workbench</AssemblyName>
     <RootNamespace>STALKER2LocalizationTool</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
     <Version>1.0.0-rc.7</Version>
