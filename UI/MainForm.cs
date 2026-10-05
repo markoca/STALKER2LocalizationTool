@@ -567,18 +567,17 @@ public sealed class MainForm : Form
         var metrics = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 5,
+            ColumnCount = 3,
             RowCount = 1,
             Margin = new Padding(0, 0, 0, 10),
         };
-        for (var i = 0; i < 5; i++)
-            metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 20F));
+        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
+        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34F));
 
         metrics.Controls.Add(CreateSummaryCard(_modsFound, new Padding(0, 0, 4, 0)), 0, 0);
         metrics.Controls.Add(CreateSummaryCard(_localizationFound, new Padding(2, 0, 2, 0)), 1, 0);
-        metrics.Controls.Add(CreateSummaryCard(_changedFound, new Padding(2, 0, 2, 0)), 2, 0);
-        metrics.Controls.Add(CreateSummaryCard(_availableFound, new Padding(2, 0, 2, 0)), 3, 0);
-        metrics.Controls.Add(CreateSummaryCard(_missingFound, new Padding(4, 0, 0, 0)), 4, 0);
+        metrics.Controls.Add(CreateSummaryCard(_changedFound, new Padding(4, 0, 0, 0)), 2, 0);
         layout.Controls.Add(metrics, 0, 1);
 
         ConfigureGrid();
