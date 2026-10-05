@@ -65,16 +65,24 @@ public sealed class ExtractionService
                 ModName = mod.ModName,
                 ExtractedAtUtc = DateTime.UtcNow,
                 SourceFingerprint = mod.SourceFingerprint,
+                SourceContainerLabels = mod.ContainerLabels
+                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
             };
 
             var isGame = string.Equals(mod.ModId, "Game", StringComparison.OrdinalIgnoreCase);
-            var relevantFiles = mod.Assets
-                .SelectMany(x => x.Aliases)
-                .Select(x => x.SourceUtoc)
-                .Concat(isGame ? mod.LocresAssets.Select(x => x.SourcePak) : Enumerable.Empty<string>())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var relevantFiles = mod.OriginalSourceFiles.Count > 0
+                ? mod.OriginalSourceFiles
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                : mod.Assets
+                    .SelectMany(x => x.Aliases)
+                    .Select(x => x.SourceUtoc)
+                    .Concat(isGame ? mod.LocresAssets.Select(x => x.SourcePak) : Enumerable.Empty<string>())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
             foreach (var source in relevantFiles)
             {
