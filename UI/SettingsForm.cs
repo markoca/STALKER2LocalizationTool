@@ -29,77 +29,251 @@ public sealed class SettingsForm : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(16),
+            Padding = new Padding(14, 12, 14, 12),
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 5,
+            BackColor = StalkerTheme.WindowBackground,
         };
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         Controls.Add(root);
 
+        var header = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(2, 0, 0, 12),
+        };
+        var eyebrow = new Label
+        {
+            Text = "TOOL CONFIGURATION",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+            Tag = StalkerTheme.SectionLabelTag,
+            Margin = new Padding(0, 0, 0, 2),
+        };
         var title = new Label
         {
             AutoSize = true,
             Text = _l.T("ui.settings"),
-            Font = new Font(Font, FontStyle.Bold),
-            Margin = new Padding(0, 0, 0, 12),
+            Font = new Font("Segoe UI", 18F, FontStyle.Bold),
+            Margin = new Padding(0),
         };
-        root.Controls.Add(title, 0, 0);
+        header.Controls.Add(eyebrow, 0, 0);
+        header.Controls.Add(title, 0, 1);
+        root.Controls.Add(header, 0, 0);
 
+        var pathsCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = StalkerTheme.Panel,
+            Padding = new Padding(12, 10, 12, 12),
+            Margin = new Padding(0, 0, 0, 10),
+            AccentEdge = true,
+        };
+        var pathsLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        pathsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        pathsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        pathsLayout.Controls.Add(CreateSectionHeader(_l.T("ui.paths")), 0, 0);
+
+        var pathsGrid = CreateSettingsGrid();
+        AddFolderRow(pathsGrid, "game", _l.T("ui.game_paks"), _settings.GamePaksFolder, "help.game_paks");
+        AddFolderRow(pathsGrid, "mods", _l.T("ui.mods_folder"), _settings.ModsFolder, "help.mods_folder");
+        AddFolderRow(pathsGrid, "cached", _l.T("ui.cached_folder"), _settings.CachedFolder, "help.cached_folder");
+        AddFolderRow(pathsGrid, "editable", _l.T("ui.editable_folder"), _settings.EditableFolder, "help.editable_folder");
+        AddFolderRow(pathsGrid, "output", _l.T("ui.output_folder"), _settings.OutputFolder, "help.output_folder");
+        pathsLayout.Controls.Add(pathsGrid, 0, 1);
+        pathsCard.Controls.Add(pathsLayout);
+        root.Controls.Add(pathsCard, 0, 1);
+
+        var toolsCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = StalkerTheme.Panel,
+            Padding = new Padding(12, 10, 12, 12),
+            Margin = new Padding(0, 0, 0, 10),
+        };
+        var toolsLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        toolsLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+        toolsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        toolsLayout.Controls.Add(CreateSectionHeader(_l.T("ui.tools")), 0, 0);
+
+        var toolsGrid = CreateSettingsGrid();
+        AddFileRow(toolsGrid, "retoc", _l.T("ui.retoc"), _settings.RetocPath, "help.retoc", "Executable (*.exe)|*.exe|All files (*.*)|*.*");
+        AddFileRow(toolsGrid, "uassetgui", _l.T("ui.uassetgui"), _settings.UAssetGuiPath, "help.uassetgui", "Executable (*.exe)|*.exe|All files (*.*)|*.*");
+        AddFileRow(toolsGrid, "mappings", _l.T("ui.mappings"), _settings.MappingsPath, "help.mappings", "USMAP (*.usmap)|*.usmap|All files (*.*)|*.*");
+        AddFileRow(toolsGrid, "repak", _l.T("ui.repak"), _settings.RepakPath, "help.repak", "Executable (*.exe)|*.exe|All files (*.*)|*.*");
+        AddFileRow(toolsGrid, "s2hocmm", _l.T("ui.s2hocmm"), _settings.S2HocmmPath, "help.s2hocmm", "Executable (*.exe)|*.exe|All files (*.*)|*.*");
+        toolsLayout.Controls.Add(toolsGrid, 0, 1);
+        toolsCard.Controls.Add(toolsLayout);
+        root.Controls.Add(toolsCard, 0, 2);
+
+        var optionCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(12, 10, 12, 10),
+            Margin = new Padding(0, 0, 0, 10),
+        };
+        var optionLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            Margin = new Padding(0),
+        };
+        optionLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        optionLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        var optionText = new TableLayoutPanel
+        {
+            AutoSize = true,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        var optionTitle = new Label
+        {
+            Text = _l.T("ui.auto_scan"),
+            AutoSize = true,
+            Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+            Margin = new Padding(0, 0, 0, 2),
+        };
+        var optionHint = new Label
+        {
+            Text = "Automatically refresh GAME / MODS state when watched workspace files change.",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5F),
+            Tag = StalkerTheme.MutedLabelTag,
+            Margin = new Padding(0),
+        };
+        optionText.Controls.Add(optionTitle, 0, 0);
+        optionText.Controls.Add(optionHint, 0, 1);
+
+        _autoScan.Text = string.Empty;
+        _autoScan.Checked = _settings.AutoScan;
+        _autoScan.AutoSize = true;
+        _autoScan.Margin = new Padding(0, 4, 0, 0);
+        optionLayout.Controls.Add(optionText, 0, 0);
+        optionLayout.Controls.Add(_autoScan, 1, 0);
+        optionCard.Controls.Add(optionLayout);
+        root.Controls.Add(optionCard, 0, 3);
+
+        var footerCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            BackColor = StalkerTheme.Panel,
+            Padding = new Padding(10),
+            Margin = new Padding(0),
+        };
+        var buttons = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            Margin = new Padding(0),
+        };
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        buttons.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var resetWorkspace = new Button
+        {
+            Text = _l.T("ui.reset_workspace_paths"),
+            AutoSize = false,
+            Width = 180,
+            Height = 36,
+            Padding = new Padding(10, 5, 10, 5),
+            Margin = new Padding(0),
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+        };
+
+        var rightActions = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+        };
+        var cancel = new Button
+        {
+            Text = _l.T("ui.cancel"),
+            AutoSize = false,
+            Width = 104,
+            Height = 36,
+            Padding = new Padding(10, 5, 10, 5),
+            Margin = new Padding(0, 0, 6, 0),
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+        };
+        var save = new Button
+        {
+            Text = _l.T("ui.save"),
+            AutoSize = false,
+            Width = 116,
+            Height = 36,
+            Padding = new Padding(10, 5, 10, 5),
+            Margin = new Padding(0),
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+            Tag = StalkerTheme.PrimaryButtonTag,
+        };
+
+        save.Click += (_, _) => SaveAndClose();
+        cancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
+        resetWorkspace.Click += (_, _) => ResetWorkspacePaths();
+
+        rightActions.Controls.Add(cancel);
+        rightActions.Controls.Add(save);
+        buttons.Controls.Add(resetWorkspace, 0, 0);
+        buttons.Controls.Add(rightActions, 1, 0);
+        footerCard.Controls.Add(buttons);
+        root.Controls.Add(footerCard, 0, 4);
+
+        AcceptButton = save;
+        CancelButton = cancel;
+    }
+
+    private static TableLayoutPanel CreateSettingsGrid()
+    {
         var grid = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
             ColumnCount = 4,
             RowCount = 0,
+            Margin = new Padding(0),
         };
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 170));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 165));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34));
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 92));
-        root.Controls.Add(grid, 0, 1);
-
-        AddSection(grid, _l.T("ui.paths"));
-        AddFolderRow(grid, "game", _l.T("ui.game_paks"), _settings.GamePaksFolder, "help.game_paks");
-        AddFolderRow(grid, "mods", _l.T("ui.mods_folder"), _settings.ModsFolder, "help.mods_folder");
-        AddFolderRow(grid, "cached", _l.T("ui.cached_folder"), _settings.CachedFolder, "help.cached_folder");
-        AddFolderRow(grid, "editable", _l.T("ui.editable_folder"), _settings.EditableFolder, "help.editable_folder");
-        AddFolderRow(grid, "output", _l.T("ui.output_folder"), _settings.OutputFolder, "help.output_folder");
-
-        AddSection(grid, _l.T("ui.tools"));
-        AddFileRow(grid, "retoc", _l.T("ui.retoc"), _settings.RetocPath, "help.retoc", "Executable (*.exe)|*.exe|All files (*.*)|*.*");
-        AddFileRow(grid, "uassetgui", _l.T("ui.uassetgui"), _settings.UAssetGuiPath, "help.uassetgui", "Executable (*.exe)|*.exe|All files (*.*)|*.*");
-        AddFileRow(grid, "mappings", _l.T("ui.mappings"), _settings.MappingsPath, "help.mappings", "USMAP (*.usmap)|*.usmap|All files (*.*)|*.*");
-        AddFileRow(grid, "repak", _l.T("ui.repak"), _settings.RepakPath, "help.repak", "Executable (*.exe)|*.exe|All files (*.*)|*.*");
-        AddFileRow(grid, "s2hocmm", _l.T("ui.s2hocmm"), _settings.S2HocmmPath, "help.s2hocmm", "Executable (*.exe)|*.exe|All files (*.*)|*.*");
-
-        _autoScan.Text = _l.T("ui.auto_scan");
-        _autoScan.Checked = _settings.AutoScan;
-        _autoScan.AutoSize = true;
-        _autoScan.Margin = new Padding(0, 12, 0, 12);
-        root.Controls.Add(_autoScan, 0, 2);
-
-        var buttons = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.RightToLeft,
-            AutoSize = true,
-        };
-        var save = new Button { Text = _l.T("ui.save"), AutoSize = true, Padding = new Padding(14, 5, 14, 5), Tag = StalkerTheme.PrimaryButtonTag };
-        var cancel = new Button { Text = _l.T("ui.cancel"), AutoSize = true, Padding = new Padding(14, 5, 14, 5) };
-        var resetWorkspace = new Button { Text = _l.T("ui.reset_workspace_paths"), AutoSize = true, Padding = new Padding(14, 5, 14, 5) };
-        save.Click += (_, _) => SaveAndClose();
-        cancel.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
-        resetWorkspace.Click += (_, _) => ResetWorkspacePaths();
-        buttons.Controls.Add(save);
-        buttons.Controls.Add(cancel);
-        buttons.Controls.Add(resetWorkspace);
-        root.Controls.Add(buttons, 0, 3);
-        AcceptButton = save;
-        CancelButton = cancel;
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 96));
+        return grid;
     }
+
+    private static Label CreateSectionHeader(string text) => new()
+    {
+        Text = text.ToUpperInvariant(),
+        AutoSize = true,
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold),
+        Tag = StalkerTheme.SectionLabelTag,
+        Margin = new Padding(0, 3, 0, 0),
+    };
 
     private void AddSection(TableLayoutPanel grid, string text)
     {
@@ -110,6 +284,7 @@ public sealed class SettingsForm : Form
             Text = text,
             AutoSize = true,
             Font = new Font(Font, FontStyle.Bold),
+            Tag = StalkerTheme.SectionLabelTag,
             Margin = new Padding(0, 14, 0, 6),
         };
         grid.Controls.Add(label, 0, row);
@@ -138,12 +313,32 @@ public sealed class SettingsForm : Form
         var row = grid.RowCount++;
         grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        var label = new Label { Text = labelText, AutoSize = true, Anchor = AnchorStyles.Left, Margin = new Padding(0, 8, 8, 8) };
-        var box = new TextBox { Text = value, Dock = DockStyle.Fill, Margin = new Padding(0, 5, 6, 5) };
+        var label = new Label
+        {
+            Text = labelText,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 7, 10, 7),
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+        };
+        var box = new TextBox
+        {
+            Text = value,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0, 4, 6, 4),
+        };
         _boxes[key] = box;
 
         var help = MakeHelpButton(_l.T(helpKey));
-        var browse = new Button { Text = _l.T("ui.browse"), AutoSize = true, Margin = new Padding(4, 4, 0, 4) };
+        var browse = new Button
+        {
+            Text = _l.T("ui.browse"),
+            AutoSize = false,
+            Width = 88,
+            Height = 30,
+            Margin = new Padding(4, 3, 0, 3),
+            Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+        };
         browse.Click += (_, _) =>
         {
             if (folder)
@@ -184,8 +379,9 @@ public sealed class SettingsForm : Form
             Text = "?",
             Width = 26,
             Height = 26,
-            FlatStyle = FlatStyle.System,
-            Margin = new Padding(2, 4, 2, 4),
+            FlatStyle = FlatStyle.Flat,
+            Margin = new Padding(2, 3, 2, 3),
+            Font = new Font("Segoe UI", 8F, FontStyle.Bold),
             TabStop = false,
         };
         _toolTip.SetToolTip(button, tooltip);
