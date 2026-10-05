@@ -50,14 +50,23 @@ public static class PathUtil
         if (parts.Length > 1)
             return parts[0];
 
+        return InferContainerFamilyName(sourcePath);
+    }
+
+    public static string InferContainerFamilyName(string sourcePath)
+    {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
+
+        // Order matters: numbered Unreal patch suffixes are removed first so a
+        // name such as ...OverrideContent_30_P can then collapse to the same
+        // family as its NewContent partner.
         var patterns = new[]
         {
-            // ZoneKit / common paired localization container conventions.
+            @"(?i)_\d+_P$",
             @"(?i)Stalker2-Windows-(NewContent|OverrideContent)$",
             @"(?i)-Windows-(NewContent|OverrideContent)$",
             @"(?i)[_-](NewContent|OverrideContent)$",
-            @"(?i)_OC_50$",
+            @"(?i)_OC_\d+$",
             @"(?i)_OC$",
             @"(?i)_NC$",
             @"(?i)-OverrideContent$",
@@ -65,11 +74,41 @@ public static class PathUtil
             @"(?i)_O$",
             @"(?i)_N$",
             @"(?i)[AB]_P$",
+            @"(?i)_P$",
         };
+
         foreach (var pattern in patterns)
             stem = Regex.Replace(stem, pattern, string.Empty);
+
         stem = stem.TrimEnd('_', '-', ' ');
-        return string.IsNullOrWhiteSpace(stem) ? Path.GetFileNameWithoutExtension(sourcePath) : stem;
+        return string.IsNullOrWhiteSpace(stem)
+            ? Path.GetFileNameWithoutExtension(sourcePath)
+            : stem;
+    }
+
+    public static string GetOverlayPatchSuffix(IEnumerable<string> sourceContainerLabels)
+    {
+        var priorities = new List<int>();
+
+        foreach (var rawLabel in sourceContainerLabels)
+        {
+            if (string.IsNullOrWhiteSpace(rawLabel))
+                continue;
+
+            var label = rawLabel;
+            var separator = label.LastIndexOf("::", StringComparison.Ordinal);
+            if (separator >= 0)
+                label = label[(separator + 2)..].Trim();
+
+            var stem = Path.GetFileNameWithoutExtension(label.Replace('/', Path.DirectorySeparatorChar));
+            var match = Regex.Match(stem, @"_(\d+)_P$", RegexOptions.IgnoreCase);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var priority))
+                priorities.Add(priority);
+        }
+
+        return priorities.Count == 0
+            ? "_P"
+            : $"_{priorities.Max() + 1}_P";
     }
 
     public static bool IsSupportedModLocalizationContainer(string sourcePath)
@@ -174,7 +213,8 @@ public static class PathUtil
     public static bool IsPluginContentAlias(string virtualPath)
     {
         var p = NormalizeVirtualPathForComparison(virtualPath);
-        return p.StartsWith("Stalker2/Mods/", StringComparison.OrdinalIgnoreCase);
+        return p.StartsWith("Stalker2/Mods/", StringComparison.OrdinalIgnoreCase)
+               || p.StartsWith("Stalker2/Plugins/", StringComparison.OrdinalIgnoreCase);
     }
 
     public static string DirectoryAliasPackagePathFromVirtualPath(string virtualPath)
@@ -192,22 +232,31 @@ public static class PathUtil
             return "/Game/" + tail;
         }
 
-        const string modsPrefix = "Stalker2/Mods/";
-        if (value.StartsWith(modsPrefix, StringComparison.OrdinalIgnoreCase))
+        foreach (var prefix in new[] { "Stalker2/Mods/", "Stalker2/Plugins/" })
         {
-            var rest = value[modsPrefix.Length..];
+            if (!value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var rest = value[prefix.Length..];
             const string marker = "/Content/";
             var markerIndex = rest.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
             if (markerIndex <= 0)
                 throw new InvalidOperationException($"Invalid mod/plugin virtual package path: {virtualPath}");
 
-            var plugin = rest[..markerIndex];
+            var pluginLocation = rest[..markerIndex].TrimEnd('/');
+            var plugin = pluginLocation
+                .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .LastOrDefault();
             var tail = rest[(markerIndex + marker.Length)..];
+
             if (string.IsNullOrWhiteSpace(plugin) || string.IsNullOrWhiteSpace(tail))
                 throw new InvalidOperationException($"Invalid mod/plugin virtual package path: {virtualPath}");
+
             return $"/{plugin}/{tail}";
         }
 
-        throw new InvalidOperationException($"Cannot derive Unreal package path from LocalizationDatabase path: {virtualPath}");
+        throw new InvalidOperationException(
+            $"Cannot derive Unreal package path from LocalizationDatabase path: {virtualPath}"
+        );
     }
 }
