@@ -130,10 +130,11 @@ public static class PathUtil
     public static bool IsOverrideModLocalizationContainer(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
-        return stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase)
+        return Regex.IsMatch(
+                   stem,
+                   @"(?i)(?:OverrideContent|_OC)(?:_\d+_P)?$"
+               )
+               || stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)
                || stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)
                || stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase);
     }
@@ -141,6 +142,7 @@ public static class PathUtil
     public static int GetModLocalizationContainerPriority(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
+        if (Regex.IsMatch(stem, @"(?i)(?:OverrideContent|_OC)_\d+_P$")) return 0;
         if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)) return 0;
         if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)) return 1;
         if (stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase)) return 1;
@@ -158,6 +160,7 @@ public static class PathUtil
     public static string GetModLocalizationContainerKind(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
+        if (Regex.IsMatch(stem, @"(?i)(?:OverrideContent|_OC)_\d+_P$")) return "OverrideContent (numbered patch)";
         if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)) return "OverrideContent (_OC_50)";
         if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)
             || stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase))
