@@ -14,13 +14,13 @@ public sealed class MainForm : Form
 
     private readonly Label _title = new();
     private readonly Label _buildLanguageLabel = new();
-    private readonly CheckedListBox _buildLanguages = new();
+    private readonly StalkerCheckedListBox _buildLanguages = new();
     private readonly Button _settingsButton = new();
     private readonly Button _refreshButton = new();
     private readonly Button _extractButton = new();
     private readonly Button _buildModularButton = new();
     private readonly Button _buildAllInOneButton = new();
-    private readonly TabControl _tabs = new();
+    private readonly StalkerTabControl _tabs = new();
     private readonly TabPage _gameTab = new();
     private readonly TabPage _modsTab = new();
     private readonly Label _gameIntro = new();
@@ -45,7 +45,7 @@ public sealed class MainForm : Form
     private readonly DataGridView _grid = new();
     private readonly TextBox _logBox = new();
     private readonly Label _logLabel = new();
-    private readonly ProgressBar _progress = new();
+    private readonly StalkerProgressBar _progress = new();
     private readonly ToolStripStatusLabel _statusText = new();
     private readonly StatusStrip _statusStrip = new();
 
@@ -84,6 +84,7 @@ public sealed class MainForm : Form
 
         BuildUi();
         ApplyLocalization();
+        StalkerTheme.Apply(this);
         WorkspaceCleanup.RemoveStaleTransientDirectories(_settings, AppendLog);
         ConfigureWatchers();
 
@@ -286,6 +287,7 @@ public sealed class MainForm : Form
         _buildModularButton.AutoSize = true;
         _buildModularButton.Padding = new Padding(14, 7, 14, 7);
         _buildModularButton.Font = new Font(Font, FontStyle.Bold);
+        _buildModularButton.Tag = StalkerTheme.PrimaryButtonTag;
         _buildModularButton.Click += async (_, _) => await BuildAsync(BuildMode.Modular);
         _helpBuildModular = MakeHelpButton("help.build_modular");
         _helpBuildModular.Margin = new Padding(6, 7, 10, 0);
@@ -293,6 +295,7 @@ public sealed class MainForm : Form
         _buildAllInOneButton.AutoSize = true;
         _buildAllInOneButton.Padding = new Padding(14, 7, 14, 7);
         _buildAllInOneButton.Font = new Font(Font, FontStyle.Bold);
+        _buildAllInOneButton.Tag = StalkerTheme.PrimaryButtonTag;
         _buildAllInOneButton.Click += async (_, _) => await BuildAsync(BuildMode.AllInOne);
         _helpBuildAllInOne = MakeHelpButton("help.build_all_in_one");
         _helpBuildAllInOne.Margin = new Padding(6, 7, 0, 0);
@@ -416,6 +419,7 @@ public sealed class MainForm : Form
             button.Padding = new Padding(14, 7, 14, 7);
             button.Font = new Font(Font, FontStyle.Bold);
         }
+        _buildGameButton.Tag = StalkerTheme.PrimaryButtonTag;
         _scanGameButton.Click += async (_, _) => await ScanGameAsync();
         _extractGameButton.Click += async (_, _) => await ExtractGameAsync();
         _buildGameButton.Click += async (_, _) => await BuildGameAsync();
