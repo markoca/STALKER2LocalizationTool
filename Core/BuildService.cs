@@ -776,8 +776,7 @@ public sealed class BuildService
             RequireFile(_settings.RetocPath, "retoc.exe");
             RequireFile(_settings.UAssetGuiPath, "UAssetGUI.exe");
             RequireFile(_settings.MappingsPath, "Mappings.usmap");
-            RequireFile(Path.Combine(_settings.GamePaksFolder, "global.utoc"), "game global.utoc");
-            RequireFile(Path.Combine(_settings.GamePaksFolder, "global.ucas"), "game global.ucas");
+            RequireValidGamePaksFolder();
         }
 
         if (mode == BuildMode.Modular
@@ -786,6 +785,19 @@ public sealed class BuildService
         {
             RequireFile(_settings.RepakPath, "repak.exe");
             RequireFile(_settings.S2HocmmPath, "S2HOCMM.exe");
+        }
+    }
+
+    private void RequireValidGamePaksFolder()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.GamePaksFolder)
+            || !Directory.Exists(_settings.GamePaksFolder)
+            || !File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc"))
+            || !File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas")))
+        {
+            throw new InvalidOperationException(
+                "Game Paks folder is not valid. Set the Game Paks folder in Settings."
+            );
         }
     }
 
