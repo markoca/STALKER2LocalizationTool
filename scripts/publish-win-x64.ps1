@@ -111,7 +111,7 @@ The publish script never downloads or compiles retoc.
 try {
     Assert-ProjectToolBundle
 
-    Write-Host "Publishing The STALKER2 Localization Tool (win-x64, self-contained)..."
+    Write-Host "Publishing Localization Workbench (win-x64, self-contained)..."
     dotnet publish $Project `
       -c Release `
       -r win-x64 `
