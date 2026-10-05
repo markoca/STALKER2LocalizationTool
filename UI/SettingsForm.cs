@@ -9,7 +9,7 @@ public sealed class SettingsForm : Form
     private readonly Localizer _l;
     private readonly ToolTip _toolTip = new();
     private readonly Dictionary<string, TextBox> _boxes = new();
-    private readonly CheckBox _autoScan = new();
+    private readonly StalkerToggleCheckBox _autoScan = new();
 
     public SettingsForm(AppSettings settings, Localizer localizer)
     {
@@ -21,6 +21,7 @@ public sealed class SettingsForm : Form
         Size = new Size(900, 620);
         Font = new Font("Segoe UI", 9F);
         BuildUi();
+        StalkerTheme.Apply(this);
     }
 
     private void BuildUi()
@@ -86,7 +87,7 @@ public sealed class SettingsForm : Form
             FlowDirection = FlowDirection.RightToLeft,
             AutoSize = true,
         };
-        var save = new Button { Text = _l.T("ui.save"), AutoSize = true, Padding = new Padding(14, 5, 14, 5) };
+        var save = new Button { Text = _l.T("ui.save"), AutoSize = true, Padding = new Padding(14, 5, 14, 5), Tag = StalkerTheme.PrimaryButtonTag };
         var cancel = new Button { Text = _l.T("ui.cancel"), AutoSize = true, Padding = new Padding(14, 5, 14, 5) };
         var resetWorkspace = new Button { Text = _l.T("ui.reset_workspace_paths"), AutoSize = true, Padding = new Padding(14, 5, 14, 5) };
         save.Click += (_, _) => SaveAndClose();
