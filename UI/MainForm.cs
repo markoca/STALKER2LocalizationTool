@@ -350,7 +350,13 @@ public sealed class MainForm : Form
         _logBox.Dock = DockStyle.Fill;
         _logBox.Multiline = true;
         _logBox.ReadOnly = true;
-        _logBox.ScrollBars = ScrollBars.Vertical;
+        // Windows is the primary target: keep the native vertical scrollbar there
+        // and let the Windows dark common-control theme render it. Wine currently
+        // ignores that scrollbar theme, so hide only the Wine scrollbar chrome;
+        // the multiline TextBox still scrolls normally with wheel/keyboard.
+        _logBox.ScrollBars = StalkerTheme.IsWine
+            ? ScrollBars.None
+            : ScrollBars.Vertical;
         _logBox.Font = new Font("Consolas", 8.5F);
         _logBox.Margin = new Padding(0);
         logLayout.Controls.Add(_logLabel, 0, 0);
