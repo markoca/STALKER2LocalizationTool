@@ -16,7 +16,7 @@
   "ui.extracting_game": "Extracting all game languages...",
   "ui.building_game": "Building game localization package...",
   "ui.not_scanned": "Not scanned",
-  "ui.game_paths_missing": "Set the game Paks folder and verify the bundled tools before scanning the base game.",
+  "ui.game_paths_missing": "The game path could not be found or is not valid. Set the Game Paks folder in Settings.",
   "ui.settings": "Settings",
   "ui.refresh": "Refresh",
   "ui.open_cached": "Open cached",
