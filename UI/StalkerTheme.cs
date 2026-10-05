@@ -11,6 +11,9 @@ namespace STALKER2LocalizationTool.UI;
 internal static class StalkerTheme
 {
     public const string PrimaryButtonTag = "stalker-primary";
+    public const string SectionLabelTag = "stalker-section";
+    public const string MutedLabelTag = "stalker-muted";
+    public const string AccentValueTag = "stalker-accent-value";
 
     public static readonly Color WindowBackground = Color.FromArgb(0x10, 0x11, 0x0F);
     public static readonly Color TitleBar = Color.FromArgb(0x0B, 0x0C, 0x0B);
@@ -53,6 +56,14 @@ internal static class StalkerTheme
     {
         switch (control)
         {
+            case StalkerCardPanel:
+                control.ForeColor = Text;
+                break;
+
+            case StalkerNavButton:
+                control.ForeColor = Text;
+                break;
+
             case StalkerProgressBar:
             case StalkerCheckedListBox:
             case StalkerToggleCheckBox:
@@ -107,9 +118,13 @@ internal static class StalkerTheme
                 break;
 
             case Label label:
-                if (label.ForeColor.ToArgb() == SystemColors.GrayText.ToArgb())
+                if (Equals(label.Tag, SectionLabelTag))
+                    label.ForeColor = Accent;
+                else if (Equals(label.Tag, MutedLabelTag)
+                         || label.ForeColor.ToArgb() == SystemColors.GrayText.ToArgb())
                     label.ForeColor = MutedText;
-                else if (label.Font.Size >= 15F && label.Font.Bold)
+                else if (Equals(label.Tag, AccentValueTag)
+                         || (label.Font.Size >= 15F && label.Font.Bold))
                     label.ForeColor = Accent;
                 else
                     label.ForeColor = Text;
@@ -125,18 +140,18 @@ internal static class StalkerTheme
                 }
                 else
                 {
-                    table.BackColor = WindowBackground;
+                    table.BackColor = table.Parent?.BackColor ?? WindowBackground;
                 }
                 table.ForeColor = Text;
                 break;
 
             case FlowLayoutPanel flow:
-                flow.BackColor = WindowBackground;
+                flow.BackColor = flow.Parent?.BackColor ?? WindowBackground;
                 flow.ForeColor = Text;
                 break;
 
             case Panel panel:
-                panel.BackColor = WindowBackground;
+                panel.BackColor = panel.Parent?.BackColor ?? WindowBackground;
                 panel.ForeColor = Text;
                 break;
 
@@ -301,6 +316,150 @@ internal static class StalkerTheme
         public override Color StatusStripGradientBegin => TitleBar;
         public override Color StatusStripGradientEnd => TitleBar;
         public override Color ToolStripBorder => Border;
+    }
+}
+
+/// <summary>
+/// Bordered graphite surface used to group related controls into TCD-style cards.
+/// </summary>
+internal sealed class StalkerCardPanel : Panel
+{
+    public bool AccentEdge { get; set; }
+
+    public StalkerCardPanel()
+    {
+        BackColor = StalkerTheme.Panel;
+        ForeColor = StalkerTheme.Text;
+        Padding = new Padding(14);
+        Margin = new Padding(0);
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+
+        var rect = ClientRectangle;
+        if (rect.Width <= 0 || rect.Height <= 0)
+            return;
+
+        using var border = new Pen(StalkerTheme.Border);
+        e.Graphics.DrawRectangle(border, 0, 0, rect.Width - 1, rect.Height - 1);
+
+        if (AccentEdge)
+        {
+            using var accent = new SolidBrush(StalkerTheme.Accent);
+            e.Graphics.FillRectangle(accent, 0, 0, 3, rect.Height);
+        }
+    }
+}
+
+/// <summary>
+/// Native-chrome-free navigation button used for the GAME / MODS workspace switcher.
+/// </summary>
+internal sealed class StalkerNavButton : Button
+{
+    private bool _selected;
+    private bool _hovered;
+    private bool _pressed;
+
+    public bool Selected
+    {
+        get => _selected;
+        set
+        {
+            if (_selected == value) return;
+            _selected = value;
+            Invalidate();
+        }
+    }
+
+    public StalkerNavButton()
+    {
+        FlatStyle = FlatStyle.Flat;
+        FlatAppearance.BorderSize = 0;
+        UseVisualStyleBackColor = false;
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.MutedText;
+        Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        Height = 38;
+        Width = 150;
+        Margin = new Padding(0);
+        Cursor = Cursors.Hand;
+        TabStop = false;
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hovered = false;
+        _pressed = false;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs mevent)
+    {
+        _pressed = true;
+        Invalidate();
+        base.OnMouseDown(mevent);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs mevent)
+    {
+        _pressed = false;
+        Invalidate();
+        base.OnMouseUp(mevent);
+    }
+
+    protected override void OnPaint(PaintEventArgs pevent)
+    {
+        var background = _pressed
+            ? StalkerTheme.PanelPressed
+            : _selected
+                ? StalkerTheme.Panel
+                : _hovered
+                    ? StalkerTheme.PanelHover
+                    : StalkerTheme.TitleBar;
+
+        pevent.Graphics.Clear(background);
+
+        var foreground = _selected
+            ? StalkerTheme.Accent
+            : _hovered
+                ? StalkerTheme.Text
+                : StalkerTheme.MutedText;
+
+        TextRenderer.DrawText(
+            pevent.Graphics,
+            Text,
+            Font,
+            ClientRectangle,
+            foreground,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+        if (_selected)
+        {
+            using var accent = new SolidBrush(StalkerTheme.Accent);
+            pevent.Graphics.FillRectangle(accent, 0, Height - 3, Width, 3);
+        }
     }
 }
 
@@ -474,7 +633,7 @@ internal sealed class StalkerCheckedListBox : CheckedListBox
         var textBounds = new Rectangle(
             box.Right + 8,
             e.Bounds.Top,
-            Math.Max(0, e.Bounds.Width - box.Right - 12),
+            Math.Max(0, e.Bounds.Right - box.Right - 12),
             e.Bounds.Height);
 
         TextRenderer.DrawText(
