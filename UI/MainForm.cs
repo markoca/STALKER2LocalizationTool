@@ -40,11 +40,6 @@ public sealed class MainForm : Form
     private readonly ToolStripStatusLabel _statusText = new();
     private readonly StatusStrip _statusStrip = new();
 
-    private Button? _helpBuildLanguage;
-    private Button? _helpExtract;
-    private Button? _helpBuildModular;
-    private Button? _helpBuildAllInOne;
-    private Button? _helpGame;
 
     private List<ModScanResult> _mods = new();
     private ModScanResult? _game;
@@ -215,19 +210,15 @@ public sealed class MainForm : Form
         var languagesHeader = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
+            ColumnCount = 1,
             Margin = new Padding(0),
         };
         languagesHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        languagesHeader.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         _buildLanguageLabel.AutoSize = true;
         _buildLanguageLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         _buildLanguageLabel.Tag = StalkerTheme.SectionLabelTag;
         _buildLanguageLabel.Margin = new Padding(0, 4, 0, 0);
-        _helpBuildLanguage = MakeHelpButton("help.build_language");
-        _helpBuildLanguage.Margin = new Padding(0);
         languagesHeader.Controls.Add(_buildLanguageLabel, 0, 0);
-        languagesHeader.Controls.Add(_helpBuildLanguage, 1, 0);
 
         _buildLanguages.Dock = DockStyle.Fill;
         _buildLanguages.Margin = new Padding(0);
@@ -473,12 +464,9 @@ public sealed class MainForm : Form
         _scanGameButton.Click += async (_, _) => await ScanGameAsync();
         _extractGameButton.Click += async (_, _) => await ExtractGameAsync();
         _buildGameButton.Click += async (_, _) => await BuildGameAsync();
-        _helpGame = MakeHelpButton("help.game_workflow");
-        _helpGame.Margin = new Padding(6, 6, 0, 0);
         actions.Controls.Add(_scanGameButton);
         actions.Controls.Add(_extractGameButton);
         actions.Controls.Add(_buildGameButton);
-        actions.Controls.Add(_helpGame);
         actionsCard.Controls.Add(actions);
         layout.Controls.Add(actionsCard, 0, 2);
     }
@@ -533,19 +521,10 @@ public sealed class MainForm : Form
         _buildModularButton.Click += async (_, _) => await BuildAsync(BuildMode.Modular);
         _buildAllInOneButton.Click += async (_, _) => await BuildAsync(BuildMode.AllInOne);
 
-        _helpExtract = MakeHelpButton("help.extract");
-        _helpBuildModular = MakeHelpButton("help.build_modular");
-        _helpBuildAllInOne = MakeHelpButton("help.build_all_in_one");
-        _helpExtract.Margin = new Padding(3, 6, 7, 0);
-        _helpBuildModular.Margin = new Padding(3, 6, 7, 0);
-        _helpBuildAllInOne.Margin = new Padding(3, 6, 0, 0);
 
         actionButtons.Controls.Add(_extractButton);
-        actionButtons.Controls.Add(_helpExtract);
         actionButtons.Controls.Add(_buildModularButton);
-        actionButtons.Controls.Add(_helpBuildModular);
         actionButtons.Controls.Add(_buildAllInOneButton);
-        actionButtons.Controls.Add(_helpBuildAllInOne);
 
         actionLayout.Controls.Add(actionButtons, 1, 0);
         actionCard.Controls.Add(actionLayout);
@@ -613,24 +592,6 @@ public sealed class MainForm : Form
         };
     }
 
-    private Button MakeHelpButton(string helpKey)
-    {
-        var button = new Button
-        {
-            Text = "?",
-            Width = 26,
-            Height = 26,
-            FlatStyle = FlatStyle.Flat,
-            Margin = new Padding(2, 2, 2, 2),
-            Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-            TabStop = false,
-            Tag = helpKey,
-        };
-        button.Click += (_, _) => MessageBox.Show(this, _l.T(helpKey), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-        _toolTip.SetToolTip(button, _l.T(helpKey));
-        return button;
-    }
-
     private void ApplyLocalization()
     {
         Text = AppConstants.AppName;
@@ -655,12 +616,6 @@ public sealed class MainForm : Form
         _grid.Columns["Localization"].HeaderText = _l.T("ui.localization_types");
         _grid.Columns["Status"].HeaderText = _l.T("ui.status");
         _grid.Columns["Details"].HeaderText = _l.T("ui.details");
-
-        foreach (var button in new[] { _helpBuildLanguage, _helpExtract, _helpBuildModular, _helpBuildAllInOne, _helpGame })
-        {
-            if (button?.Tag is string key)
-                _toolTip.SetToolTip(button, _l.T(key));
-        }
 
         _loadingLanguageChecks = true;
         _buildLanguages.SetLanguages(
