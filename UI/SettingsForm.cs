@@ -203,16 +203,16 @@ public sealed class SettingsForm : Form
 
     private void SaveAndClose()
     {
-        _settings.GamePaksFolder = NormalizeUserPath(_boxes["game"].Text);
-        _settings.ModsFolder = NormalizeUserPath(_boxes["mods"].Text);
-        _settings.CachedFolder = NormalizeUserPath(_boxes["cached"].Text);
-        _settings.EditableFolder = NormalizeUserPath(_boxes["editable"].Text);
-        _settings.OutputFolder = NormalizeUserPath(_boxes["output"].Text);
-        _settings.RetocPath = NormalizeUserPath(_boxes["retoc"].Text);
-        _settings.UAssetGuiPath = NormalizeUserPath(_boxes["uassetgui"].Text);
-        _settings.MappingsPath = NormalizeUserPath(_boxes["mappings"].Text);
-        _settings.RepakPath = NormalizeUserPath(_boxes["repak"].Text);
-        _settings.S2HocmmPath = NormalizeUserPath(_boxes["s2hocmm"].Text);
+        _settings.GamePaksFolder = _boxes["game"].Text.Trim();
+        _settings.ModsFolder = _boxes["mods"].Text.Trim();
+        _settings.CachedFolder = _boxes["cached"].Text.Trim();
+        _settings.EditableFolder = _boxes["editable"].Text.Trim();
+        _settings.OutputFolder = _boxes["output"].Text.Trim();
+        _settings.RetocPath = _boxes["retoc"].Text.Trim();
+        _settings.UAssetGuiPath = _boxes["uassetgui"].Text.Trim();
+        _settings.MappingsPath = _boxes["mappings"].Text.Trim();
+        _settings.RepakPath = _boxes["repak"].Text.Trim();
+        _settings.S2HocmmPath = _boxes["s2hocmm"].Text.Trim();
         _settings.AutoScan = _autoScan.Checked;
 
         foreach (var path in new[] { _settings.ModsFolder, _settings.CachedFolder, _settings.EditableFolder, _settings.OutputFolder })
@@ -227,28 +227,4 @@ public sealed class SettingsForm : Form
         Close();
     }
 
-    private static string NormalizeUserPath(string value)
-    {
-        var path = value.Trim();
-
-        if (path.Length >= 2
-            && ((path[0] == '"' && path[^1] == '"')
-                || (path[0] == '\'' && path[^1] == '\'')))
-        {
-            path = path[1..^1].Trim();
-        }
-
-        // The release is a Windows executable, but it is also commonly run under Wine.
-        // A Linux path pasted into Settings (for example /home/user/.../Paks) is not a
-        // valid Win32 path inside the app. Wine exposes the Linux filesystem through Z:,
-        // so translate pasted absolute Unix paths automatically. Paths selected through
-        // the browse dialog already arrive as Z:\... and are left untouched.
-        if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("WINEPREFIX"))
-            && path.StartsWith("/", StringComparison.Ordinal))
-        {
-            path = "Z:" + path.Replace('/', '\\');
-        }
-
-        return path;
-    }
 }
