@@ -1,4 +1,6 @@
-# Release candidate publish and test
+# Localization Workbench v2.0.0-rc.1
+
+**Release candidate:** `2.0.0-rc.1`
 
 Localization Workbench has one supported application target: **Windows x64**.
 
