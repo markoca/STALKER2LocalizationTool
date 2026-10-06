@@ -1014,6 +1014,7 @@ internal sealed class StalkerNavButton : Button
         ForeColor = StalkerTheme.MutedText;
         Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
         Height = 44;
+        MinimumSize = new Size(0, 44);
         Width = 150;
         Margin = new Padding(0);
         Cursor = Cursors.Hand;
