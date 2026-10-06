@@ -591,14 +591,7 @@ internal sealed class StalkerTitleBar : Panel
         if (rect.Width <= 0 || rect.Height <= 0)
             return;
 
-        using (var background = new LinearGradientBrush(
-                   rect,
-                   StalkerTheme.TitleBar,
-                   Color.FromArgb(0x1A, 0x17, 0x10),
-                   LinearGradientMode.Horizontal))
-        {
-            e.Graphics.FillRectangle(background, rect);
-        }
+        e.Graphics.Clear(StalkerTheme.TitleBar);
 
         using var border = new Pen(StalkerTheme.Border);
         e.Graphics.DrawLine(border, 0, Height - 1, Width, Height - 1);
