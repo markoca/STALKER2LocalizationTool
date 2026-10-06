@@ -761,8 +761,10 @@ public sealed class MainForm : Form
             var mod = _mods[e.RowIndex];
             if (e.ColumnIndex == _grid.Columns["Status"].Index)
                 e.ToolTipText = StatusHelp(mod.UiStatus);
-            else if (e.ColumnIndex == _grid.Columns["Details"].Index && !string.IsNullOrWhiteSpace(mod.ScanError))
-                e.ToolTipText = mod.ScanError;
+            else if (e.ColumnIndex == _grid.Columns["Details"].Index)
+                e.ToolTipText = !string.IsNullOrWhiteSpace(mod.ScanError)
+                    ? mod.ScanError
+                    : BuildModDetailsTooltip(mod);
         };
         _grid.CellDoubleClick += (_, e) =>
         {
@@ -1258,22 +1260,81 @@ public sealed class MainForm : Form
         _grid.Rows.Clear();
         foreach (var mod in _mods)
         {
-            var details = mod.ScanError;
-            if (string.IsNullOrWhiteSpace(details) && mod.Assets.Count > 0)
-                details = string.Format(_l.T("details.database"), mod.Assets.Count);
+            var details = !string.IsNullOrWhiteSpace(mod.ScanError)
+                ? mod.ScanError
+                : BuildModDetails(mod);
 
             _grid.Rows.Add(
                 mod.ModName,
                 LocalizationKindText(mod),
                 StatusText(mod.UiStatus),
-                details ?? string.Empty
+                details
             );
         }
     }
 
 
     private string LocalizationKindText(ModScanResult mod) =>
-        mod.Assets.Count > 0 ? $"{_l.T("type.database")} {mod.Assets.Count}" : "—";
+        mod.Assets.Count > 0 ? _l.T("ui.available") : "—";
+
+    private static string BuildModDetails(ModScanResult mod)
+    {
+        if (mod.Assets.Count == 0)
+            return string.Empty;
+
+        var parts = new List<string>
+        {
+            string.Equals(mod.SourceKind, "archive", StringComparison.OrdinalIgnoreCase)
+                ? "Archive"
+                : "Loose",
+            $"{mod.Containers.Count} container{(mod.Containers.Count == 1 ? string.Empty : "s")}",
+        };
+
+        var hasNew = mod.ContainerLabels.Any(PathUtil.IsNewContentContainer);
+        var hasOverride = mod.ContainerLabels.Any(PathUtil.IsOverrideContentContainer);
+
+        if (hasNew && hasOverride)
+            parts.Add("New + Override");
+        else if (hasOverride)
+            parts.Add("Override");
+        else if (hasNew)
+            parts.Add("New");
+
+        var numberedPatch = mod.ContainerLabels
+            .Select(label => Regex.Match(
+                Path.GetFileNameWithoutExtension(label),
+                @"_(\d+)_P$",
+                RegexOptions.IgnoreCase))
+            .Where(match => match.Success)
+            .Select(match => int.Parse(match.Groups[1].Value))
+            .DefaultIfEmpty(-1)
+            .Max();
+
+        if (numberedPatch >= 0)
+            parts.Add($"Patch {numberedPatch}");
+
+        return string.Join(" • ", parts);
+    }
+
+    private static string BuildModDetailsTooltip(ModScanResult mod)
+    {
+        var lines = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(mod.SourceLabel))
+            lines.Add($"Source: {mod.SourceLabel}");
+
+        if (mod.ContainerLabels.Count > 0)
+        {
+            lines.Add("Containers:");
+            lines.AddRange(
+                mod.ContainerLabels
+                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                    .Select(value => "  " + value)
+            );
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
 
     private void UpdateSummary()
     {
