@@ -47,9 +47,10 @@ public sealed class BuildService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var mod = available[i];
-            progress?.Report((i + 1, available.Count, mod.ModName));
+            progress?.Report((i, available.Count, $"Building {mod.ModName}"));
             _log?.Invoke($"=== Building {mod.ModName} ===");
             results.Add(await BuildOneAsync(mod, targetLanguageId, cancellationToken));
+            progress?.Report((i + 1, available.Count, $"Built {mod.ModName}"));
         }
         return results;
     }
@@ -157,6 +158,7 @@ public sealed class BuildService
         Directory.CreateDirectory(legacyRoot);
 
         var results = new List<ModBuildResult>();
+        var progressTotal = Math.Max(1, available.Count + 2);
         var expectedPackages = new Dictionary<string, ExpectedDatabasePackage>(StringComparer.OrdinalIgnoreCase);
         var pathOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var chunkOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -167,7 +169,7 @@ public sealed class BuildService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var mod = available[i];
-            progress?.Report((i + 1, available.Count, mod.ModName));
+            progress?.Report((i, progressTotal, $"Adding {mod.ModName}"));
             _log?.Invoke($"=== Adding {mod.ModName} to All-in-One ===");
 
             var result = new ModBuildResult { ModId = mod.ModId, ModName = mod.ModName };
@@ -256,6 +258,8 @@ public sealed class BuildService
                 expectedPackages[identityPath] = ExpectedDatabasePackage.From(asset, patch.Payload, mod.ModName);
                 result.AssetsPatched++;
             }
+
+            progress?.Report((i + 1, progressTotal, $"Added {mod.ModName}"));
         }
 
         if (expectedPackages.Count == 0)
@@ -275,18 +279,21 @@ public sealed class BuildService
             $"{AppConstants.OverlayPrefix}_All_In_One{allInOnePatchSuffix}.utoc"
         );
         _log?.Invoke($"All-in-One overlay patch suffix: {allInOnePatchSuffix}");
+        progress?.Report((available.Count, progressTotal, "Packaging All-in-One"));
         await _retoc.ToZenAsync(legacyRoot, outputUtoc, cancellationToken);
 
         RequireFile(outputUtoc, "built All-in-One database .utoc");
         RequireFile(Path.ChangeExtension(outputUtoc, ".ucas"), "built All-in-One database .ucas");
         RequireFile(Path.ChangeExtension(outputUtoc, ".pak"), "built All-in-One database .pak");
 
+        progress?.Report((available.Count + 1, progressTotal, "Verifying All-in-One"));
         await VerifyFinishedPackagesAsync(
             outputUtoc,
             expectedPackages,
             Path.Combine(workRoot, "database"),
             cancellationToken
         );
+        progress?.Report((progressTotal, progressTotal, "All-in-One verified"));
 
         var sharedFiles = new[]
         {
