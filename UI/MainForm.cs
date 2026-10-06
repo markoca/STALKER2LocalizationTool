@@ -541,7 +541,7 @@ public sealed class MainForm : Form
         {
             AutoSize = true,
             MaximumSize = new Size(1120, 0),
-            Text = "1  Scan the base game     2  Extract all language JSON files     3  Edit in /Editable/Game     4  Build the selected languages",
+            Text = "1. Scan the game     2. Extract all language JSON files     3. Edit JSONs in /Editable/Game     4. Build for selected languages",
             Font = new Font("Segoe UI", 8.5F),
             Tag = StalkerTheme.MutedLabelTag,
             Margin = new Padding(0),
