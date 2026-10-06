@@ -1691,10 +1691,13 @@ public sealed class MainForm : Form
 
         RefreshGrid();
         UpdateButtons();
+
+        _statusText.Text = "READY FOR EXTRACTION";
         AppendLog(
             "Cache deleted: GAME and MODS extraction data was removed; "
-            + "existing scan results remain in memory and require extraction."
+            + "existing scan results remain in memory."
         );
+        AppendLog("READY FOR EXTRACTION");
     }
 
     private bool NeedsInitialSetup() =>
