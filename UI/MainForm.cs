@@ -13,6 +13,7 @@ public sealed class MainForm : Form
     private readonly ToolTip _toolTip = new();
 
     private readonly Label _title = new();
+    private readonly StalkerBrandMark _brandMark = new();
     private readonly Label _buildLanguageLabel = new();
     private readonly StalkerLanguageSelector _buildLanguages = new();
     private readonly Button _settingsButton = new();
@@ -82,9 +83,7 @@ public sealed class MainForm : Form
         MinimumSize = new Size(1180, 720);
         Size = new Size(1360, 820);
         Font = new Font("Segoe UI", 9F);
-        var windowIcon = StalkerTheme.CreateWindowIcon();
-        if (windowIcon is not null)
-            Icon = windowIcon;
+        ShowIcon = false;
 
         BuildUi();
         ApplyLocalization();
@@ -174,17 +173,14 @@ public sealed class MainForm : Form
         identity.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 54));
         identity.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        var brandMark = new StalkerBrandMark
-        {
-            Anchor = AnchorStyles.Left | AnchorStyles.Top,
-            Margin = new Padding(0, 0, 10, 0),
-        };
+        _brandMark.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+        _brandMark.Margin = new Padding(0, 0, 10, 0);
         _title.AutoSize = true;
         _title.Font = new Font("Segoe UI", 19F, FontStyle.Bold);
         _title.Margin = new Padding(0, 7, 0, 0);
         _title.Anchor = AnchorStyles.Left | AnchorStyles.Top;
 
-        identity.Controls.Add(brandMark, 0, 0);
+        identity.Controls.Add(_brandMark, 0, 0);
         identity.Controls.Add(_title, 1, 0);
 
         var headerActions = new FlowLayoutPanel
@@ -854,6 +850,7 @@ public sealed class MainForm : Form
         }
 
         SetBusy(true, _l.T("ui.scanning"));
+        _brandMark.Spinning = true;
         _operationCts = new CancellationTokenSource();
 
         try
@@ -896,6 +893,7 @@ public sealed class MainForm : Form
         {
             _operationCts.Dispose();
             _operationCts = null;
+            _brandMark.Spinning = false;
             SetBusy(false, _l.T("ui.idle"));
         }
     }
@@ -915,6 +913,7 @@ public sealed class MainForm : Form
         }
 
         SetBusy(true, _l.T("ui.scanning_game"));
+        _brandMark.Spinning = true;
         _operationCts = new CancellationTokenSource();
         try
         {
@@ -950,6 +949,7 @@ public sealed class MainForm : Form
         {
             _operationCts.Dispose();
             _operationCts = null;
+            _brandMark.Spinning = false;
             SetBusy(false, _l.T("ui.idle"));
         }
     }
