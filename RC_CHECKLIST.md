@@ -24,7 +24,7 @@
 - [ ] Before the first MODS scan in a session, entering the MODS tab shows **MODS FOUND** and **READY TO SCAN** once when mod sources are present; tab switching does not duplicate the banners.
 - [ ] MODS scanning starts only when the user clicks **SCAN MODS**.
 - [ ] SCAN MODS discovers loose and ZIP/7z/RAR sources.
-- [ ] NewContent containers are ignored and OverrideContent is used.
+- [ ] MODS localization uses supported OverrideContent-side containers only.
 - [ ] Nexus download IDs are not shown in mod display names and detected versions are normalized.
 - [ ] New/changed mods show **Needs extraction**.
 - [ ] Successful extraction changes the status to **Extracted** without an automatic second scan.
