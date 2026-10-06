@@ -1,7 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$Project = Join-Path $Root "STALKER2LocalizationTool.csproj"
+$Project = Get-ChildItem -LiteralPath $Root -Filter *.csproj -File | Select-Object -First 1 -ExpandProperty FullName
+if (-not $Project) { throw "No .csproj found in project root: $Root" }
 $ToolsRoot = Join-Path $Root "tools\win-x64"
 $PublishRoot = Join-Path $Root "publish"
 $Out = Join-Path $PublishRoot "win-x64"
@@ -10,7 +11,7 @@ $Preserve = Join-Path $PublishRoot (".win-x64-preserve-" + [guid]::NewGuid().ToS
 
 # User data survives republishing. Runtime tools/locales do NOT: source-tree files
 # are authoritative and are refreshed on every deployment.
-$PreservedNames = @("settings.json", "Mods", "Cached", "Editable", "Output", "Extracted", "Ready")
+$PreservedNames = @("Mods", "Cached", "Editable", "Output", "Extracted", "Ready")
 $RequiredTools = @("retoc.exe", "repak.exe", "UAssetGUI.exe", "Mappings.usmap", "S2HOCMM.exe")
 $PinnedUAssetGuiSha256 = "b7d75c0893f1a60e565853ae638bc21f2416cd12c2d9d854e297abb87ceb3263"
 $KnownBadUAssetGuiSha256 = "e9b953245fd3716545558d751a8855d14490cd0e9e377a828e5ab4e0f34e7109"
@@ -143,6 +144,8 @@ try {
     # because the csproj marks them as publish content.
     Copy-Item (Join-Path $Stage "*") $Out -Recurse -Force
 
+    Remove-Item (Join-Path $Out "settings.json") -Force -ErrorAction SilentlyContinue
+
     foreach ($Name in @("Mods", "Cached", "Editable", "Output")) {
         New-Item -ItemType Directory -Force (Join-Path $Out $Name) | Out-Null
     }
@@ -158,7 +161,7 @@ try {
     Write-Host "Runtime: $Out"
     Write-Host "No Git, Rust/cargo, dependency download, or retoc compilation was used."
     Write-Host "Project tools\ is authoritative and was copied into the runtime."
-    Write-Host "Existing settings and workspace data were preserved."
+    Write-Host "Workspace data was preserved. No settings.json is used or preserved."
 }
 finally {
     Restore-RuntimeData
