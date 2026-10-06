@@ -945,7 +945,10 @@ public sealed class MainForm : Form
                 ),
                 extractionToken
             );
+            _game!.NeedsExtraction = false;
+            RefreshGameEditableTranslation();
             CompleteProgress(_l.T("ui.done"));
+            LogGameWorkflowReady();
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -963,7 +966,6 @@ public sealed class MainForm : Form
             _operationCts = null;
             SetBusy(false, _l.T("ui.idle"));
         }
-        await ScanGameAsync();
     }
 
     private async Task BuildGameAsync()
@@ -1113,7 +1115,13 @@ public sealed class MainForm : Form
                 ),
                 extractionToken
             );
+            foreach (var mod in targets)
+                mod.NeedsExtraction = false;
+
+            RefreshModEditableStatuses();
+            SaveModsSnapshot();
             CompleteProgress(_l.T("ui.done"));
+            LogModsWorkflowReady();
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -1132,7 +1140,6 @@ public sealed class MainForm : Form
             SetBusy(false, _l.T("ui.idle"));
         }
 
-        await ScanModsAsync();
     }
 
     private async Task BuildAsync(BuildMode mode)
