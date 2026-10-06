@@ -21,7 +21,7 @@ public sealed class MainForm : Form
     private readonly Label _buildLanguageLabel = new();
     private readonly StalkerLanguageSelector _buildLanguages = new();
     private readonly Button _settingsButton = new StalkerUtilityButton();
-    private readonly Button _refreshButton = new StalkerUtilityButton();
+    private readonly Button _scanModsButton = new();
     private readonly Button _extractButton = new();
     private readonly Button _buildModularButton = new();
     private readonly Button _buildAllInOneButton = new();
@@ -50,6 +50,8 @@ public sealed class MainForm : Form
     private CancellationTokenSource? _operationCts;
     private bool _busy;
     private bool _progressCompleted;
+    private bool _gameScanSuccessful;
+    private bool _modsScanSuccessful;
     private bool _shownOnce;
     private bool _loadingLanguageChecks;
     private bool _suspendWatcherScan;
@@ -290,9 +292,7 @@ public sealed class MainForm : Form
             BackColor = StalkerTheme.TitleBar,
         };
 
-        ConfigureNavButton(_refreshButton, 92);
         ConfigureNavButton(_settingsButton, 102);
-        _refreshButton.Click += async (_, _) => await ScanActiveAsync();
         _settingsButton.Click += async (_, _) =>
         {
             if (ShowSettings() != DialogResult.OK)
@@ -303,7 +303,6 @@ public sealed class MainForm : Form
 
             await ScanActiveAsync();
         };
-        navActions.Controls.Add(_refreshButton);
         navActions.Controls.Add(_settingsButton);
 
         navLayout.Controls.Add(tabStrip, 0, 0);
@@ -589,7 +588,7 @@ public sealed class MainForm : Form
         };
         ConfigureActionButton(_scanGameButton, 145);
         ConfigureActionButton(_extractGameButton, 205);
-        ConfigureActionButton(_buildGameButton, 190, primary: true);
+        ConfigureActionButton(_buildGameButton, 190);
         _scanGameButton.Click += async (_, _) => await ScanGameAsync();
         _extractGameButton.Click += async (_, _) => await ExtractGameAsync();
         _buildGameButton.Click += async (_, _) => await BuildGameAsync();
@@ -643,14 +642,17 @@ public sealed class MainForm : Form
             WrapContents = false,
             Margin = new Padding(0),
         };
+        ConfigureActionButton(_scanModsButton, 132);
         ConfigureActionButton(_extractButton, 128);
-        ConfigureActionButton(_buildModularButton, 164, primary: true);
+        ConfigureActionButton(_buildModularButton, 164);
         ConfigureActionButton(_buildAllInOneButton, 176);
+        _scanModsButton.Click += async (_, _) => await ScanModsAsync();
         _extractButton.Click += async (_, _) => await ExtractAsync();
         _buildModularButton.Click += async (_, _) => await BuildAsync(BuildMode.Modular);
         _buildAllInOneButton.Click += async (_, _) => await BuildAsync(BuildMode.AllInOne);
 
 
+        actionButtons.Controls.Add(_scanModsButton);
         actionButtons.Controls.Add(_extractButton);
         actionButtons.Controls.Add(_buildModularButton);
         actionButtons.Controls.Add(_buildAllInOneButton);
@@ -660,7 +662,7 @@ public sealed class MainForm : Form
         layout.Controls.Add(actionCard, 0, 1);
     }
 
-    private static void ConfigureActionButton(Button button, int width, bool primary = false)
+    private static void ConfigureActionButton(Button button, int width)
     {
         button.AutoSize = false;
         button.Width = width;
@@ -668,7 +670,6 @@ public sealed class MainForm : Form
         button.Padding = new Padding(10, 5, 10, 5);
         button.Margin = new Padding(0, 0, 6, 0);
         button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-        button.Tag = primary ? StalkerTheme.PrimaryButtonTag : null;
     }
 
     private static void ConfigureNavButton(Button button, int width)
@@ -779,7 +780,7 @@ public sealed class MainForm : Form
         _buildGameButton.Text = _l.T("ui.build_game");
         _buildLanguageLabel.Text = _l.T("ui.build_language");
         _settingsButton.Text = _l.T("ui.settings");
-        _refreshButton.Text = _l.T("ui.refresh");
+        _scanModsButton.Text = _l.T("ui.scan_mods");
         _extractButton.Text = _l.T("ui.extract");
         _buildModularButton.Text = _l.T("ui.build_modular");
         _buildAllInOneButton.Text = _l.T("ui.build_all_in_one");
@@ -820,6 +821,7 @@ public sealed class MainForm : Form
             return;
         }
 
+        _modsScanSuccessful = false;
         SetBusy(true, _l.T("ui.scanning"));
         _operationCts = new CancellationTokenSource();
 
@@ -837,6 +839,7 @@ public sealed class MainForm : Form
             );
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             _mods = await scanner.ScanAsync(progress, _operationCts.Token);
+            _modsScanSuccessful = true;
 
             foreach (var mod in _mods)
             {
@@ -883,6 +886,7 @@ public sealed class MainForm : Form
             return;
         }
 
+        _gameScanSuccessful = false;
         SetBusy(true, _l.T("ui.scanning_game"));
         _operationCts = new CancellationTokenSource();
         try
@@ -899,6 +903,7 @@ public sealed class MainForm : Form
             );
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             _game = await scanner.ScanAsync(progress, _operationCts.Token);
+            _gameScanSuccessful = true;
             if (_settings.BuildLanguageIds.Count > 0
                 && _settings.BuildLanguageIds.All(id => _builtVerifiedThisSession.Contains(BuildSessionKey(_game.ModId, id)))
                 && _game.UiStatus == ModUiStatus.Available)
@@ -1512,20 +1517,93 @@ public sealed class MainForm : Form
 
     private void UpdateButtons()
     {
-        _refreshButton.Enabled = !_busy;
         _settingsButton.Enabled = !_busy;
         _buildLanguages.Enabled = !_busy;
+
         var hasLanguages = _settings.BuildLanguageIds.Count > 0;
-        _extractButton.Enabled = !_busy && _mods.Any(x => x.UiStatus == ModUiStatus.NeedsExtraction);
-        var canBuild = !_busy && hasLanguages && _mods.Any(x => x.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified);
-        _buildModularButton.Enabled = canBuild;
-        _buildAllInOneButton.Enabled = !_busy && _mods.Any(mod =>
-            (mod.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified)
-            && mod.Assets.Count > 0);
+
+        var modsNeedExtraction = _mods.Any(
+            mod => mod.UiStatus == ModUiStatus.NeedsExtraction
+        );
+        var modsCanBuild = !_busy
+            && hasLanguages
+            && _mods.Any(mod =>
+                mod.UiStatus is ModUiStatus.Available
+                    or ModUiStatus.BuiltVerified
+            );
+        var modsCanBuildAllInOne = !_busy
+            && _mods.Any(mod =>
+                (mod.UiStatus is ModUiStatus.Available
+                    or ModUiStatus.BuiltVerified)
+                && mod.Assets.Count > 0
+            );
+
+        _scanModsButton.Enabled = !_busy;
+        _extractButton.Enabled = !_busy && modsNeedExtraction;
+        _buildModularButton.Enabled = modsCanBuild;
+        _buildAllInOneButton.Enabled = modsCanBuildAllInOne;
+
         _scanGameButton.Enabled = !_busy;
-        _extractGameButton.Enabled = !_busy && _game?.UiStatus == ModUiStatus.NeedsExtraction;
-        _buildGameButton.Enabled = !_busy && hasLanguages
-            && _game?.UiStatus is (ModUiStatus.Available or ModUiStatus.BuiltVerified);
+        _extractGameButton.Enabled = !_busy
+            && _game?.UiStatus == ModUiStatus.NeedsExtraction;
+        _buildGameButton.Enabled = !_busy
+            && hasLanguages
+            && _game?.UiStatus is (
+                ModUiStatus.Available
+                or ModUiStatus.BuiltVerified
+            );
+
+        // GAME workflow: SCAN -> EXTRACT -> BUILD.
+        var gameScanPrimary = !_gameScanSuccessful;
+        var gameExtractPrimary = _gameScanSuccessful
+            && _extractGameButton.Enabled;
+        var gameBuildPrimary = _gameScanSuccessful
+            && !gameExtractPrimary
+            && _buildGameButton.Enabled;
+
+        StalkerTheme.SetButtonPrimary(
+            _scanGameButton,
+            this,
+            gameScanPrimary
+        );
+        StalkerTheme.SetButtonPrimary(
+            _extractGameButton,
+            this,
+            gameExtractPrimary
+        );
+        StalkerTheme.SetButtonPrimary(
+            _buildGameButton,
+            this,
+            gameBuildPrimary
+        );
+
+        // MODS workflow: SCAN MODS -> EXTRACT -> choose a build mode.
+        var modsScanPrimary = !_modsScanSuccessful;
+        var modsExtractPrimary = _modsScanSuccessful
+            && _extractButton.Enabled;
+        var modsBuildStage = _modsScanSuccessful
+            && !modsNeedExtraction;
+
+        StalkerTheme.SetButtonPrimary(
+            _scanModsButton,
+            this,
+            modsScanPrimary
+        );
+        StalkerTheme.SetButtonPrimary(
+            _extractButton,
+            this,
+            modsExtractPrimary
+        );
+        StalkerTheme.SetButtonPrimary(
+            _buildModularButton,
+            this,
+            modsBuildStage && _buildModularButton.Enabled
+        );
+        StalkerTheme.SetButtonPrimary(
+            _buildAllInOneButton,
+            this,
+            modsBuildStage && _buildAllInOneButton.Enabled
+        );
     }
 
     private IProgress<(int Current, int Total, string Message)> CreateUiProgress(
@@ -1690,6 +1768,9 @@ public sealed class MainForm : Form
         }
 
         _builtVerifiedThisSession.Clear();
+
+        _gameScanSuccessful = _game is not null && _game.HasLocalization;
+        _modsScanSuccessful = _mods.Any(mod => mod.HasLocalization);
 
         RefreshGrid();
         UpdateButtons();
