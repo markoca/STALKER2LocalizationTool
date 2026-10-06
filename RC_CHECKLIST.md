@@ -11,6 +11,7 @@
 
 ## GAME
 
+- [ ] GAME action buttons are labeled exactly **SCAN GAME**, **EXTRACT**, and **BUILD**.
 - [ ] SCAN GAME reaches **LOCALIZATION READY FOR EXTRACTION** for a new/changed source.
 - [ ] EXTRACT creates `Cached/Game` and `Editable/Game`.
 - [ ] A valid existing extraction reaches **LOCALIZATION READY FOR BUILD** without rescanning after extraction.
