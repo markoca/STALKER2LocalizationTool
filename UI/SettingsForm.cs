@@ -287,6 +287,25 @@ public sealed class SettingsForm : Form
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
+        var leftActions = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+        };
+
+        var clearGameCache = new Button
+        {
+            Text = _l.T("ui.clear_game_cache"),
+            AutoSize = false,
+            Width = 164,
+            Height = 36,
+            Padding = new Padding(10, 5, 10, 5),
+            Margin = new Padding(0, 0, 6, 0),
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+        };
+
         var resetWorkspace = new Button
         {
             Text = _l.T("ui.reset_workspace_paths"),
@@ -335,12 +354,16 @@ public sealed class SettingsForm : Form
             DialogResult = DialogResult.Cancel;
             Close();
         };
+        clearGameCache.Click += (_, _) => ClearGameCache();
         resetWorkspace.Click += (_, _) => ResetWorkspacePaths();
+
+        leftActions.Controls.Add(clearGameCache);
+        leftActions.Controls.Add(resetWorkspace);
 
         rightActions.Controls.Add(cancel);
         rightActions.Controls.Add(save);
 
-        layout.Controls.Add(resetWorkspace, 0, 0);
+        layout.Controls.Add(leftActions, 0, 0);
         layout.Controls.Add(rightActions, 1, 0);
         footer.Controls.Add(layout);
 
@@ -472,6 +495,85 @@ public sealed class SettingsForm : Form
         grid.Controls.Add(label, 0, row);
         grid.Controls.Add(box, 1, row);
         grid.Controls.Add(browse, 2, row);
+    }
+
+    private void ClearGameCache()
+    {
+        var cachedRoot = _boxes.TryGetValue("cached", out var cachedBox)
+            ? cachedBox.Text.Trim()
+            : _settings.CachedFolder.Trim();
+
+        if (string.IsNullOrWhiteSpace(cachedRoot))
+        {
+            MessageBox.Show(
+                this,
+                _l.T("ui.game_cache_path_missing"),
+                AppConstants.AppName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
+            return;
+        }
+
+        var gameCache = Path.Combine(cachedRoot, "Game");
+        var confirmation = MessageBox.Show(
+            this,
+            string.Format(_l.T("ui.clear_game_cache_confirm"), gameCache),
+            AppConstants.AppName,
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2
+        );
+
+        if (confirmation != DialogResult.Yes)
+            return;
+
+        try
+        {
+            var removed = false;
+
+            if (Directory.Exists(gameCache))
+            {
+                Directory.Delete(gameCache, recursive: true);
+                removed = true;
+            }
+
+            if (Directory.Exists(cachedRoot))
+            {
+                foreach (var directory in Directory.EnumerateDirectories(
+                             cachedRoot,
+                             "*",
+                             SearchOption.TopDirectoryOnly))
+                {
+                    var name = Path.GetFileName(directory);
+                    if (!name.StartsWith(".Game.staging.", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    Directory.Delete(directory, recursive: true);
+                    removed = true;
+                }
+            }
+
+            MessageBox.Show(
+                this,
+                removed
+                    ? _l.T("ui.game_cache_cleared")
+                    : _l.T("ui.game_cache_empty"),
+                AppConstants.AppName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                this,
+                string.Format(_l.T("ui.game_cache_clear_failed"), ex.Message),
+                AppConstants.AppName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error
+            );
+        }
     }
 
     private void ResetWorkspacePaths()
