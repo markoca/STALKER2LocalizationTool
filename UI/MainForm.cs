@@ -46,6 +46,7 @@ public sealed class MainForm : Form
     private readonly HashSet<string> _builtVerifiedThisSession = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _operationCts;
     private bool _busy;
+    private bool _progressCompleted;
     private bool _shownOnce;
     private bool _loadingLanguageChecks;
     private bool _suspendWatcherScan;
@@ -1340,13 +1341,19 @@ public sealed class MainForm : Form
         _statusText.Text = message;
 
         if (busy)
+        {
+            _progressCompleted = false;
             _progress.Value = 0;
+        }
 
         UpdateButtons();
     }
 
     private void UpdateProgress(int current, int total, string message)
     {
+        if (_progressCompleted)
+            return;
+
         _statusText.Text = message;
         if (total <= 0)
         {
@@ -1364,6 +1371,9 @@ public sealed class MainForm : Form
 
     private void UpdateProgressFraction(double fraction, string message)
     {
+        if (_progressCompleted)
+            return;
+
         _statusText.Text = message;
         _progress.Value = Math.Clamp(
             (int)Math.Round(Math.Clamp(fraction, 0d, 1d) * 95d),
@@ -1374,9 +1384,11 @@ public sealed class MainForm : Form
 
     private void CompleteProgress(string message)
     {
+        _progressCompleted = true;
         _statusText.Text = message;
         _progress.Value = 100;
-        _progress.Refresh();
+        _progress.Invalidate();
+        _progress.Update();
     }
 
     private void AppendLog(string message)
