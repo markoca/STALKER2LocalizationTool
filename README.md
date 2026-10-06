@@ -50,7 +50,15 @@ tools/
 └── S2HOCMM.exe
 ```
 
-The tested UAssetGUI baseline is **v1.1.0**. `Mappings.usmap` must match the target S.T.A.L.K.E.R. 2 game build.
+Tested tool baselines and download sources:
+
+- **retoc v0.1.5** — https://github.com/trumank/retoc/releases
+- **repak v0.2.3** — https://github.com/trumank/repak/releases
+- **UAssetGUI v1.1.0** — https://github.com/atenfyr/UAssetGUI/releases
+- **S2HOCMM v2.3** — https://www.nexusmods.com/stalker2heartofchornobyl/mods/540 or https://gitlab.com/PatrykPniewski/s2hocmm/-/releases
+- **Mappings.usmap** — must match the installed game version. For the current tested S.T.A.L.K.E.R. 2 **2.0.4** baseline: https://www.nexusmods.com/stalker2heartofchornobyl/mods/2356
+
+If S.T.A.L.K.E.R. 2 is updated, obtain a mapping generated for that game build rather than assuming an older `.usmap` is compatible.
 
 The publish scripts do not download, validate, copy, or redistribute these third-party tools.
 
