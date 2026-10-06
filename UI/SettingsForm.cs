@@ -7,7 +7,6 @@ public sealed class SettingsForm : Form
 {
     private readonly AppSettings _settings;
     private readonly Localizer _l;
-    private readonly ToolTip _toolTip = new();
     private readonly Dictionary<string, TextBox> _boxes = new();
     private readonly StalkerToggleCheckBox _autoScan = new();
 
@@ -115,11 +114,11 @@ public sealed class SettingsForm : Form
         var layout = CreateSectionLayout(_l.T("ui.paths"));
         var grid = CreateSettingsGrid();
 
-        AddFolderRow(grid, "game", _l.T("ui.game_paks"), _settings.GamePaksFolder, "help.game_paks");
-        AddFolderRow(grid, "mods", _l.T("ui.mods_folder"), _settings.ModsFolder, "help.mods_folder");
-        AddFolderRow(grid, "cached", _l.T("ui.cached_folder"), _settings.CachedFolder, "help.cached_folder");
-        AddFolderRow(grid, "editable", _l.T("ui.editable_folder"), _settings.EditableFolder, "help.editable_folder");
-        AddFolderRow(grid, "output", _l.T("ui.output_folder"), _settings.OutputFolder, "help.output_folder");
+        AddFolderRow(grid, "game", _l.T("ui.game_paks"), _settings.GamePaksFolder);
+        AddFolderRow(grid, "mods", _l.T("ui.mods_folder"), _settings.ModsFolder);
+        AddFolderRow(grid, "cached", _l.T("ui.cached_folder"), _settings.CachedFolder);
+        AddFolderRow(grid, "editable", _l.T("ui.editable_folder"), _settings.EditableFolder);
+        AddFolderRow(grid, "output", _l.T("ui.output_folder"), _settings.OutputFolder);
 
         layout.Controls.Add(grid, 0, 1);
         card.Controls.Add(layout);
@@ -137,7 +136,6 @@ public sealed class SettingsForm : Form
             "retoc",
             _l.T("ui.retoc"),
             _settings.RetocPath,
-            "help.retoc",
             "Executable (*.exe)|*.exe|All files (*.*)|*.*"
         );
         AddFileRow(
@@ -145,7 +143,6 @@ public sealed class SettingsForm : Form
             "uassetgui",
             _l.T("ui.uassetgui"),
             _settings.UAssetGuiPath,
-            "help.uassetgui",
             "Executable (*.exe)|*.exe|All files (*.*)|*.*"
         );
         AddFileRow(
@@ -153,7 +150,6 @@ public sealed class SettingsForm : Form
             "mappings",
             _l.T("ui.mappings"),
             _settings.MappingsPath,
-            "help.mappings",
             "USMAP (*.usmap)|*.usmap|All files (*.*)|*.*"
         );
         AddFileRow(
@@ -161,7 +157,6 @@ public sealed class SettingsForm : Form
             "repak",
             _l.T("ui.repak"),
             _settings.RepakPath,
-            "help.repak",
             "Executable (*.exe)|*.exe|All files (*.*)|*.*"
         );
         AddFileRow(
@@ -169,7 +164,6 @@ public sealed class SettingsForm : Form
             "s2hocmm",
             _l.T("ui.s2hocmm"),
             _settings.S2HocmmPath,
-            "help.s2hocmm",
             "Executable (*.exe)|*.exe|All files (*.*)|*.*"
         );
 
@@ -363,7 +357,7 @@ public sealed class SettingsForm : Form
             Dock = DockStyle.Top,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            ColumnCount = 4,
+            ColumnCount = 3,
             RowCount = 0,
             Margin = new Padding(0),
             Padding = new Padding(0),
@@ -371,7 +365,6 @@ public sealed class SettingsForm : Form
 
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 160));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 98));
 
         return grid;
@@ -390,10 +383,9 @@ public sealed class SettingsForm : Form
         TableLayoutPanel grid,
         string key,
         string labelText,
-        string value,
-        string helpKey)
+        string value)
     {
-        AddPathRow(grid, key, labelText, value, helpKey, true, null);
+        AddPathRow(grid, key, labelText, value, true, null);
     }
 
     private void AddFileRow(
@@ -401,10 +393,9 @@ public sealed class SettingsForm : Form
         string key,
         string labelText,
         string value,
-        string helpKey,
         string filter)
     {
-        AddPathRow(grid, key, labelText, value, helpKey, false, filter);
+        AddPathRow(grid, key, labelText, value, false, filter);
     }
 
     private void AddPathRow(
@@ -412,7 +403,6 @@ public sealed class SettingsForm : Form
         string key,
         string labelText,
         string value,
-        string helpKey,
         bool folder,
         string? filter)
     {
@@ -436,8 +426,6 @@ public sealed class SettingsForm : Form
             Margin = new Padding(0, 5, 6, 5),
         };
         _boxes[key] = box;
-
-        var help = MakeHelpButton(_l.T(helpKey));
 
         var browse = new Button
         {
@@ -483,26 +471,7 @@ public sealed class SettingsForm : Form
 
         grid.Controls.Add(label, 0, row);
         grid.Controls.Add(box, 1, row);
-        grid.Controls.Add(help, 2, row);
-        grid.Controls.Add(browse, 3, row);
-    }
-
-    private Control MakeHelpButton(string tooltip)
-    {
-        var button = new Button
-        {
-            Text = "?",
-            Width = 26,
-            Height = 26,
-            Anchor = AnchorStyles.None,
-            FlatStyle = FlatStyle.Flat,
-            Margin = new Padding(2),
-            Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-            TabStop = false,
-        };
-
-        _toolTip.SetToolTip(button, tooltip);
-        return button;
+        grid.Controls.Add(browse, 2, row);
     }
 
     private void ResetWorkspacePaths()
