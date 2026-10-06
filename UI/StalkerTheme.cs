@@ -913,8 +913,51 @@ internal sealed class StalkerTabControl : TabControl
 /// <summary>
 /// Yellow owner-drawn progress bar so progress never falls back to the native Windows/Wine theme.
 /// </summary>
-internal sealed class StalkerProgressBar : ProgressBar
+internal sealed class StalkerProgressBar : Control
 {
+    private int _minimum;
+    private int _maximum = 100;
+    private int _value;
+
+    public int Minimum
+    {
+        get => _minimum;
+        set
+        {
+            _minimum = value;
+            if (_maximum < _minimum)
+                _maximum = _minimum;
+            Value = _value;
+            Invalidate();
+        }
+    }
+
+    public int Maximum
+    {
+        get => _maximum;
+        set
+        {
+            _maximum = Math.Max(value, _minimum);
+            Value = _value;
+            Invalidate();
+        }
+    }
+
+    public int Value
+    {
+        get => _value;
+        set
+        {
+            var next = Math.Clamp(value, _minimum, _maximum);
+            if (_value == next)
+                return;
+
+            _value = next;
+            Invalidate();
+            Update();
+        }
+    }
+
     public StalkerProgressBar()
     {
         SetStyle(
@@ -924,30 +967,40 @@ internal sealed class StalkerProgressBar : ProgressBar
             | ControlStyles.ResizeRedraw,
             true);
 
-        BackColor = StalkerTheme.PanelAlt;
+        BackColor = Color.Transparent;
         ForeColor = StalkerTheme.Accent;
+        MinimumSize = new Size(40, 8);
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        e.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.PanelAlt);
     }
 
     protected override void OnPaint(PaintEventArgs e)
     {
+        base.OnPaint(e);
+
         var rect = ClientRectangle;
         if (rect.Width <= 0 || rect.Height <= 0)
             return;
 
         e.Graphics.SmoothingMode = SmoothingMode.None;
-        e.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.PanelAlt);
 
+        const int railHeight = 6;
+        var actualRailHeight = Math.Min(railHeight, rect.Height);
         var rail = new Rectangle(
             0,
-            Math.Max(0, (rect.Height - 6) / 2),
-            Math.Max(1, rect.Width),
-            Math.Min(6, rect.Height)
+            Math.Max(0, (rect.Height - actualRailHeight) / 2),
+            rect.Width,
+            actualRailHeight
         );
 
         using (var track = new SolidBrush(StalkerTheme.TitleBar))
             e.Graphics.FillRectangle(track, rail);
 
         using (var border = new Pen(StalkerTheme.Border))
+        {
             e.Graphics.DrawRectangle(
                 border,
                 rail.Left,
@@ -955,15 +1008,15 @@ internal sealed class StalkerProgressBar : ProgressBar
                 Math.Max(0, rail.Width - 1),
                 Math.Max(0, rail.Height - 1)
             );
+        }
 
-        var range = Maximum - Minimum;
+        var range = _maximum - _minimum;
         var ratio = range <= 0
             ? 0d
-            : Math.Clamp((Value - Minimum) / (double)range, 0d, 1d);
+            : Math.Clamp((_value - _minimum) / (double)range, 0d, 1d);
 
         var innerWidth = Math.Max(0, rail.Width - 2);
         var fillWidth = (int)Math.Round(innerWidth * ratio);
-
         if (fillWidth <= 0)
             return;
 
@@ -983,7 +1036,6 @@ internal sealed class StalkerProgressBar : ProgressBar
             e.Graphics.FillRectangle(fill, fillRect);
         }
 
-        // Thin highlight keeps the rail sharp at small sizes.
         using (var highlight = new Pen(Color.FromArgb(150, Color.White)))
         {
             e.Graphics.DrawLine(
@@ -995,7 +1047,6 @@ internal sealed class StalkerProgressBar : ProgressBar
             );
         }
 
-        // Bright leading edge makes movement readable without making the bar thicker.
         if (fillRect.Width >= 2)
         {
             using var edge = new Pen(StalkerTheme.AccentHover);
