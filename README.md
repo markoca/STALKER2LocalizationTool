@@ -67,8 +67,7 @@ RC6 rebuilds MODS overlays with normal stock `retoc.exe`. The finished package i
 
 ```text
 LocalizationWorkbench\
-├── LocalizationWorkbench.exe
-├── settings.json
+├── Localization Workbench.exe
 ├── Mods\
 ├── Cached\
 │   ├── Game\
@@ -93,25 +92,19 @@ Do not edit files under `Cached`.
 
 Extraction seeds an Editable workspace only when that destination does not already exist. Re-extraction never overwrites an existing Editable workspace.
 
-## RC2 workspace migration
+## Portable runtime paths
 
-The release-candidate cleanup renamed the two development-era workspace folders:
+Localization Workbench does not use `settings.json`. Internal paths are resolved from the directory containing the running executable on every launch:
 
 ```text
-Extracted -> Cached
-Ready     -> Editable
+<EXE_DIR>\Mods
+<EXE_DIR>\Cached
+<EXE_DIR>\Editable
+<EXE_DIR>\Output
+<EXE_DIR>\tools\...
 ```
 
-The publish scripts and runtime settings loader migrate the old default folders automatically. They also repair older RC settings that already contain `CachedFolder` / `EditableFolder` fields but still point at the legacy default physical paths.
-
-Safe migration rules are deliberately conservative:
-
-- populated legacy + missing new folder -> rename to the new folder;
-- populated legacy + empty new folder -> replace the empty destination safely;
-- empty legacy + existing new folder -> remove the empty legacy folder;
-- populated legacy + populated new folder -> never merge or overwrite; use only the new folder and report the conflict.
-
-After migration, the application never writes new runtime data to the legacy default folders. Custom workspace paths are preserved.
+Moving or renaming the application folder therefore does not leave stale absolute runtime paths behind.
 
 ## GAME status panel
 
@@ -164,22 +157,11 @@ S2HOCMM.exe
 
 `retoc.exe` is the normal upstream stock Windows CLI build; **no `--source-package-map` patch is required**. The publisher only checks that the local retoc can run. UAssetGUI is normally the pinned v1.1.0 binary. `S2HOCMM.exe` is bundled locally for GAME LOCRES serialization.
 
-No Git, Rust/cargo, network download, dependency fetch, or sibling developer checkout is part of deployment. A normal published runtime carries everything it needs under `tools/`; advanced users can still override tool paths in Settings.
+No Git, Rust/cargo, network download, dependency fetch, or sibling developer checkout is part of deployment. A normal published runtime carries everything it needs under `tools/`.
 
-## Settings
+## Session configuration
 
-Settings are stored in `settings.json` beside the executable.
-
-The Settings window is grouped into workspace/game paths and tool paths. **Reset workspace paths** restores the default locations for:
-
-```text
-Mods
-Cached
-Editable
-Output
-```
-
-It does not change the game Paks path or tool executable paths.
+There is no persistent `settings.json`. Internal workspace and tool paths are read-only auto-resolved paths relative to the running executable. External paths such as the game Paks folder can be selected for the current session.
 
 ## Startup cleanup
 
@@ -204,7 +186,7 @@ Windows PowerShell:
 .\scripts\publish-win-x64.ps1
 ```
 
-The publish scripts preserve runtime settings and workspace data, but refresh `tools/` and `locales/` from the source project on every deployment. This prevents stale runtime executables from surviving an upgrade. They also migrate legacy default workspace names when safe to do so.
+The publish scripts preserve workspace data, remove any obsolete `settings.json`, and refresh `tools/` and `locales/` from the source project on every deployment.
 
 ## Linux / Wine
 
@@ -215,7 +197,7 @@ cd ~/s2tools/LocalizationWorkbench/publish/win-x64
 
 WINEPREFIX="$HOME/.wine-uassetgui" \
 WINEDEBUG=-all \
-wine LocalizationWorkbench.exe
+wine "./Localization Workbench.exe"
 ```
 
 The UAssetGUI Wine prefix needs .NET 8 Desktop Runtime.
