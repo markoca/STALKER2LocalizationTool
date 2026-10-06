@@ -270,45 +270,73 @@ public static class ModSourceDiscovery
                      item => item.SourceLabel,
                      StringComparer.OrdinalIgnoreCase))
         {
-            foreach (var familyGroup in sourceGroup.GroupBy(
-                         item => item.Family,
-                         StringComparer.OrdinalIgnoreCase))
+            var retained = sourceGroup
+                .Where(item => !PathUtil.IsNewContentContainer(item.Stem))
+                .OrderBy(item => item.UtocPath, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (retained.Count == 0)
+                continue;
+
+            if (sourceGroup.Key == "<mods-root>")
             {
-                var containers = familyGroup
-                    .Where(item => !PathUtil.IsNewContentContainer(item.Stem))
-                    .OrderBy(item => item.UtocPath, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (containers.Count == 0)
-                    continue;
-
-                var displayName = sourceGroup.Key == "<mods-root>"
-                    ? familyGroup.Key
-                    : sourceGroup.Count() == containers.Count
-                        ? sourceGroup.Key
-                        : $"{sourceGroup.Key} — {familyGroup.Key}";
-
-                yield return new SourceGroup
+                foreach (var familyGroup in retained.GroupBy(
+                             item => item.Family,
+                             StringComparer.OrdinalIgnoreCase))
                 {
-                    Key = $"loose|{sourceGroup.Key}|{familyGroup.Key}",
-                    Name = displayName,
-                    Kind = "loose",
-                    Label = sourceGroup.Key,
-                    Containers = containers.Select(item => item.UtocPath).ToList(),
-                    ContainerLabelsByPath = containers.ToDictionary(
-                        item => item.UtocPath,
-                        item => item.Stem,
-                        StringComparer.OrdinalIgnoreCase
-                    ),
-                    OriginalSourceFiles = containers
-                        .SelectMany(item => new[] { item.PakPath, item.UtocPath, item.UcasPath })
-                        .Distinct(StringComparer.OrdinalIgnoreCase)
-                        .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-                        .ToList(),
-                };
+                    var family = familyGroup.ToList();
+                    yield return new SourceGroup
+                    {
+                        Key = $"loose|<mods-root>|{familyGroup.Key}",
+                        Name = familyGroup.Key,
+                        Kind = "loose",
+                        Label = "<mods-root>",
+                        Containers = family.Select(item => item.UtocPath).ToList(),
+                        ContainerLabelsByPath = family.ToDictionary(
+                            item => item.UtocPath,
+                            item => item.Stem,
+                            StringComparer.OrdinalIgnoreCase
+                        ),
+                        OriginalSourceFiles = family
+                            .SelectMany(item => new[]
+                            {
+                                item.PakPath,
+                                item.UtocPath,
+                                item.UcasPath,
+                            })
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+                            .ToList(),
+                    };
+                }
+
+                continue;
             }
+
+            yield return new SourceGroup
+            {
+                Key = $"loose|{sourceGroup.Key}",
+                Name = PathUtil.ArchiveModDisplayName(sourceGroup.Key),
+                Kind = "loose",
+                Label = sourceGroup.Key,
+                Containers = retained.Select(item => item.UtocPath).ToList(),
+                ContainerLabelsByPath = retained.ToDictionary(
+                    item => item.UtocPath,
+                    item => item.Stem,
+                    StringComparer.OrdinalIgnoreCase
+                ),
+                OriginalSourceFiles = retained
+                    .SelectMany(item => new[]
+                    {
+                        item.PakPath,
+                        item.UtocPath,
+                        item.UcasPath,
+                    })
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(item => item, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+            };
         }
-    }
 
     private static IEnumerable<SourceGroup> DiscoverArchive(
         string modsRoot,
@@ -451,67 +479,61 @@ public static class ModSourceDiscovery
             }
         );
 
-        foreach (var familyGroup in triplets.GroupBy(
-                     item => item.Family,
-                     StringComparer.OrdinalIgnoreCase))
+        var retained = triplets
+            .Where(item => !PathUtil.IsNewContentContainer(item.Stem))
+            .OrderBy(item => item.UtocMember, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (retained.Count == 0)
+            yield break;
+
+        var containers = new List<string>();
+        var labels = new Dictionary<string, string>(
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var triplet in retained)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var family = familyGroup
-                .Where(item => !PathUtil.IsNewContentContainer(item.Stem))
-                .OrderBy(item => item.UtocMember, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (family.Count == 0)
-                continue;
-
-            var displayName = triplets.Count == family.Count
-                ? archiveDisplay
-                : $"{archiveDisplay} — {familyGroup.Key}";
-
-            var containers = new List<string>();
-            var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var triplet in family)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                var targetDir = MaterializedTripletDirectory(
-                    materializationRoot,
-                    archiveDisplay,
-                    archiveHash,
-                    triplet
-                );
-                Directory.CreateDirectory(targetDir);
-
-                var pakTarget = Path.Combine(targetDir, triplet.Stem + ".pak");
-                var utocTarget = Path.Combine(targetDir, triplet.Stem + ".utoc");
-                var ucasTarget = Path.Combine(targetDir, triplet.Stem + ".ucas");
-
-                ExtractIfNeeded(byNormalizedName[triplet.PakMember], pakTarget);
-                ExtractIfNeeded(byNormalizedName[triplet.UtocMember], utocTarget);
-                ExtractIfNeeded(byNormalizedName[triplet.UcasMember], ucasTarget);
-
-                containers.Add(utocTarget);
-                labels[utocTarget] = triplet.Stem;
-            }
-
-            log?.Invoke(
-                $"Archive mod source: {archiveRelative} -> {family.Count} IoStore container(s) after NewContent exclusion [{familyGroup.Key}]"
+            var targetDir = MaterializedTripletDirectory(
+                materializationRoot,
+                archiveDisplay,
+                archiveHash,
+                triplet
             );
+            Directory.CreateDirectory(targetDir);
 
-            yield return new SourceGroup
-            {
-                Key = $"archive|{Path.GetFullPath(archivePath)}|{familyGroup.Key}",
-                Name = displayName,
-                Kind = "archive",
-                Label = archiveRelative,
-                Containers = containers,
-                ContainerLabelsByPath = labels,
-                OriginalSourceFiles = new List<string> { archivePath },
-            };
+            var pakTarget = Path.Combine(targetDir, triplet.Stem + ".pak");
+            var utocTarget = Path.Combine(targetDir, triplet.Stem + ".utoc");
+            var ucasTarget = Path.Combine(targetDir, triplet.Stem + ".ucas");
+
+            ExtractIfNeeded(byNormalizedName[triplet.PakMember], pakTarget);
+            ExtractIfNeeded(byNormalizedName[triplet.UtocMember], utocTarget);
+            ExtractIfNeeded(byNormalizedName[triplet.UcasMember], ucasTarget);
+
+            containers.Add(utocTarget);
+            labels[utocTarget] = triplet.Stem;
         }
-    }
+
+        var displayName = PathUtil.ArchiveModDisplayName(archiveDisplay);
+
+        log?.Invoke(
+            $"Archive mod source: {archiveRelative} -> "
+            + $"{retained.Count} IoStore container(s) after NewContent exclusion "
+            + $"[{displayName}]"
+        );
+
+        yield return new SourceGroup
+        {
+            Key = $"archive|{Path.GetFullPath(archivePath)}",
+            Name = displayName,
+            Kind = "archive",
+            Label = archiveRelative,
+            Containers = containers,
+            ContainerLabelsByPath = labels,
+            OriginalSourceFiles = new List<string> { archivePath },
+        };
 
     private static ArchiveDiscoveryCache? TryLoadArchiveDiscoveryCache(
         string cachePath,
@@ -607,56 +629,46 @@ public static class ModSourceDiscovery
         string materializationRoot,
         ArchiveDiscoveryCache cache)
     {
-        foreach (var familyGroup in cache.Triplets.GroupBy(
-                     item => item.Family,
-                     StringComparer.OrdinalIgnoreCase))
+        var retained = cache.Triplets
+            .Where(item => !PathUtil.IsNewContentContainer(item.Stem))
+            .OrderBy(item => item.UtocMember, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (retained.Count == 0)
+            yield break;
+
+        var containers = new List<string>();
+        var labels = new Dictionary<string, string>(
+            StringComparer.OrdinalIgnoreCase
+        );
+
+        foreach (var triplet in retained)
         {
-            var family = familyGroup
-                .Where(item => !PathUtil.IsNewContentContainer(item.Stem))
-                .OrderBy(item => item.UtocMember, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (family.Count == 0)
-                continue;
-
-            var displayName = cache.Triplets.Count == family.Count
-                ? archiveDisplay
-                : $"{archiveDisplay} — {familyGroup.Key}";
-
-            var containers = new List<string>();
-            var labels = new Dictionary<string, string>(
-                StringComparer.OrdinalIgnoreCase
+            var targetDir = MaterializedTripletDirectory(
+                materializationRoot,
+                archiveDisplay,
+                cache.ArchiveSha256,
+                triplet
+            );
+            var utocTarget = Path.Combine(
+                targetDir,
+                triplet.Stem + ".utoc"
             );
 
-            foreach (var triplet in family)
-            {
-                var targetDir = MaterializedTripletDirectory(
-                    materializationRoot,
-                    archiveDisplay,
-                    cache.ArchiveSha256,
-                    triplet
-                );
-                var utocTarget = Path.Combine(
-                    targetDir,
-                    triplet.Stem + ".utoc"
-                );
-
-                containers.Add(utocTarget);
-                labels[utocTarget] = triplet.Stem;
-            }
-
-            yield return new SourceGroup
-            {
-                Key = $"archive|{Path.GetFullPath(archivePath)}|{familyGroup.Key}",
-                Name = displayName,
-                Kind = "archive",
-                Label = archiveRelative,
-                Containers = containers,
-                ContainerLabelsByPath = labels,
-                OriginalSourceFiles = new List<string> { archivePath },
-            };
+            containers.Add(utocTarget);
+            labels[utocTarget] = triplet.Stem;
         }
-    }
+
+        yield return new SourceGroup
+        {
+            Key = $"archive|{Path.GetFullPath(archivePath)}",
+            Name = PathUtil.ArchiveModDisplayName(archiveDisplay),
+            Kind = "archive",
+            Label = archiveRelative,
+            Containers = containers,
+            ContainerLabelsByPath = labels,
+            OriginalSourceFiles = new List<string> { archivePath },
+        };
 
     private static string MaterializedTripletDirectory(
         string materializationRoot,
