@@ -115,7 +115,8 @@ public sealed class MainForm : Form
                 }
             }
 
-            await ScanModsAsync();
+            if (!TryLoadModsSnapshot())
+                await ScanModsAsync();
         };
     }
 
@@ -680,6 +681,7 @@ public sealed class MainForm : Form
 
             RefreshGrid();
             UpdateButtons();
+            SaveModsSnapshot();
             CompleteProgress(_l.T("ui.done"));
         }
         catch (OperationCanceledException)
@@ -1155,6 +1157,108 @@ public sealed class MainForm : Form
         return string.Join(Environment.NewLine, lines);
     }
 
+    private string ModsSnapshotPath() =>
+        Path.Combine(_settings.CachedFolder, ".workbench", "mods-scan.json");
+
+    private void SaveModsSnapshot()
+    {
+        if (_mods.Count == 0)
+            return;
+
+        try
+        {
+            JsonUtil.Save(
+                ModsSnapshotPath(),
+                new ModScanSnapshot
+                {
+                    Version = 1,
+                    ModsFolder = Path.GetFullPath(_settings.ModsFolder),
+                    SavedAtUtc = DateTime.UtcNow,
+                    Mods = _mods,
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Could not save MODS scan snapshot: {ex.Message}");
+        }
+    }
+
+    private bool TryLoadModsSnapshot()
+    {
+        var path = ModsSnapshotPath();
+        if (!File.Exists(path))
+            return false;
+
+        try
+        {
+            var snapshot = JsonUtil.Load<ModScanSnapshot>(path);
+            if (snapshot.Version != 1
+                || !string.Equals(
+                    Path.GetFullPath(snapshot.ModsFolder),
+                    Path.GetFullPath(_settings.ModsFolder),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            _mods = snapshot.Mods ?? new List<ModScanResult>();
+
+            foreach (var mod in _mods)
+            {
+                var manifestPath = Path.Combine(
+                    _settings.CachedFolder,
+                    mod.ModId,
+                    "manifest.json"
+                );
+
+                mod.NeedsExtraction = mod.HasLocalization
+                                      && !SnapshotManifestMatches(
+                                          manifestPath,
+                                          mod.SourceFingerprint
+                                      );
+            }
+
+            RefreshModEditableStatuses();
+            AppendLog(
+                $"Loaded {_mods.Count} MODS result(s) from previous scan " +
+                $"({snapshot.SavedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss})."
+            );
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Could not load MODS scan snapshot: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool SnapshotManifestMatches(
+        string manifestPath,
+        string fingerprint)
+    {
+        if (!File.Exists(manifestPath)
+            || string.IsNullOrWhiteSpace(fingerprint))
+        {
+            return false;
+        }
+
+        try
+        {
+            var manifest = JsonUtil.Load<ExtractedManifest>(manifestPath);
+            return manifest.SchemaVersion == AppConstants.ManifestSchemaVersion
+                   && string.Equals(
+                       manifest.SourceFingerprint,
+                       fingerprint,
+                       StringComparison.OrdinalIgnoreCase
+                   );
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private void RefreshGameEditableTranslation()
     {
         if (_game is null) return;
@@ -1468,13 +1572,53 @@ public sealed class MainForm : Form
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
             EnableRaisingEvents = true,
         };
-        FileSystemEventHandler changed = (_, _) => QueueWatcherScan();
-        RenamedEventHandler renamed = (_, _) => QueueWatcherScan();
+        FileSystemEventHandler changed = (_, e) =>
+        {
+            if (!IsInternalWorkbenchCachePath(e.FullPath))
+                QueueWatcherScan();
+        };
+        RenamedEventHandler renamed = (_, e) =>
+        {
+            if (!IsInternalWorkbenchCachePath(e.FullPath)
+                && !IsInternalWorkbenchCachePath(e.OldFullPath))
+            {
+                QueueWatcherScan();
+            }
+        };
         watcher.Created += changed;
         watcher.Changed += changed;
         watcher.Deleted += changed;
         watcher.Renamed += renamed;
         return watcher;
+    }
+
+    private bool IsInternalWorkbenchCachePath(string path)
+    {
+        try
+        {
+            var cachedRoot = Path.GetFullPath(_settings.CachedFolder)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+            var fullPath = Path.GetFullPath(path);
+
+            if (!fullPath.StartsWith(cachedRoot, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var relative = Path.GetRelativePath(_settings.CachedFolder, fullPath);
+            var firstPart = relative.Split(
+                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                StringSplitOptions.RemoveEmptyEntries
+            ).FirstOrDefault();
+
+            return firstPart is not null
+                   && (firstPart.Equals(".workbench", StringComparison.OrdinalIgnoreCase)
+                       || firstPart.Equals(".scan_cache", StringComparison.OrdinalIgnoreCase)
+                       || firstPart.Equals(".source_cache", StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void QueueWatcherScan()
