@@ -10,6 +10,13 @@ public sealed class SettingsForm : Form
     private readonly Dictionary<string, TextBox> _boxes = new();
     private readonly StalkerToggleCheckBox _autoScan = new();
 
+    private readonly Label _titleAccent = new();
+    private readonly Label _titleRest = new();
+    private readonly StalkerBrandMark _brandMark = new();
+    private readonly StalkerWindowButton _minimizeButton = new();
+    private readonly StalkerWindowButton _maximizeButton = new();
+    private readonly StalkerWindowButton _closeButton = new() { IsCloseButton = true };
+
     public bool GameCacheCleared { get; private set; }
 
     public SettingsForm(AppSettings settings, Localizer localizer)
@@ -20,11 +27,19 @@ public sealed class SettingsForm : Form
         Text = _l.T("ui.settings") + " - " + AppConstants.AppName;
         StartPosition = FormStartPosition.CenterParent;
         MinimumSize = new Size(920, 700);
-        Size = new Size(980, 740);
+        Size = new Size(980, 800);
         Font = new Font("Segoe UI", 9F);
+        FormBorderStyle = FormBorderStyle.None;
+        ShowIcon = false;
+        Padding = new Padding(1);
+        BackColor = StalkerTheme.Border;
+        DoubleBuffered = true;
 
         BuildUi();
+        ApplyWindowTitle();
         StalkerTheme.Apply(this);
+
+        Resize += (_, _) => UpdateMaximizeButtonGlyph();
     }
 
     private void BuildUi()
@@ -32,18 +47,33 @@ public sealed class SettingsForm : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(14, 12, 14, 12),
+            Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 3,
+            Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // title chrome
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // settings content
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // footer chrome
         Controls.Add(root);
 
-        root.Controls.Add(BuildHeader(), 0, 0);
+        root.Controls.Add(BuildTitleBar(), 0, 0);
+
+        var content = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(14, 12, 14, 12),
+            ColumnCount = 1,
+            RowCount = 3,
+            Margin = new Padding(0),
+            BackColor = StalkerTheme.WindowBackground,
+        };
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        content.Controls.Add(BuildHeader(), 0, 0);
 
         var body = new Panel
         {
@@ -71,10 +101,153 @@ public sealed class SettingsForm : Form
         bodyStack.Controls.Add(BuildToolsCard(), 0, 1);
 
         body.Controls.Add(bodyStack);
-        root.Controls.Add(body, 0, 1);
+        content.Controls.Add(body, 0, 1);
+        content.Controls.Add(BuildAutoScanCard(), 0, 2);
 
-        root.Controls.Add(BuildAutoScanCard(), 0, 2);
-        root.Controls.Add(BuildFooter(), 0, 3);
+        root.Controls.Add(content, 0, 1);
+        root.Controls.Add(BuildFooter(), 0, 2);
+
+        UpdateMaximizeButtonGlyph();
+    }
+
+    private Control BuildTitleBar()
+    {
+        var titleBar = new StalkerTitleBar
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(0, 68),
+            Margin = new Padding(0),
+            Padding = new Padding(14, 8, 10, 8),
+        };
+
+        var titleLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.WindowChrome,
+        };
+        titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var identity = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.WindowChrome,
+        };
+
+        _brandMark.Width = 52;
+        _brandMark.Height = 52;
+        _brandMark.Margin = new Padding(0, 2, 14, 0);
+
+        var titleWords = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0, 12, 0, 0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.WindowChrome,
+        };
+
+        _titleAccent.AutoSize = true;
+        _titleAccent.Font = new Font(
+            "Bahnschrift SemiCondensed",
+            22F,
+            FontStyle.Bold
+        );
+        _titleAccent.Tag = StalkerTheme.SectionLabelTag;
+        _titleAccent.Margin = new Padding(0, 0, 8, 0);
+
+        _titleRest.AutoSize = true;
+        _titleRest.Font = new Font(
+            "Bahnschrift SemiCondensed",
+            22F,
+            FontStyle.Bold
+        );
+        _titleRest.Margin = new Padding(0);
+
+        titleWords.Controls.Add(_titleAccent);
+        titleWords.Controls.Add(_titleRest);
+        identity.Controls.Add(_brandMark);
+        identity.Controls.Add(titleWords);
+
+        var captionButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.WindowChrome,
+        };
+
+        _minimizeButton.Text = "—";
+        _maximizeButton.Text = "□";
+        _closeButton.Text = "×";
+
+        _minimizeButton.Click += (_, _) =>
+            WindowState = FormWindowState.Minimized;
+        _maximizeButton.Click += (_, _) => ToggleMaximize();
+        _closeButton.Click += (_, _) =>
+        {
+            DialogResult = DialogResult.Cancel;
+            Close();
+        };
+
+        captionButtons.Controls.Add(_minimizeButton);
+        captionButtons.Controls.Add(_maximizeButton);
+        captionButtons.Controls.Add(_closeButton);
+
+        titleLayout.Controls.Add(identity, 0, 0);
+        titleLayout.Controls.Add(captionButtons, 1, 0);
+        titleBar.Controls.Add(titleLayout);
+
+        return titleBar;
+    }
+
+    private void ApplyWindowTitle()
+    {
+        var title = _l.T("app.title").Trim();
+        var split = title.Split(
+            ' ',
+            2,
+            StringSplitOptions.RemoveEmptyEntries
+        );
+
+        _titleAccent.Text = split.Length > 0
+            ? split[0].ToUpperInvariant()
+            : "LOCALIZATION";
+        _titleRest.Text = split.Length > 1
+            ? split[1].ToUpperInvariant()
+            : "WORKBENCH";
+    }
+
+    private void ToggleMaximize()
+    {
+        WindowState = WindowState == FormWindowState.Maximized
+            ? FormWindowState.Normal
+            : FormWindowState.Maximized;
+        UpdateMaximizeButtonGlyph();
+    }
+
+    private void UpdateMaximizeButtonGlyph()
+    {
+        _maximizeButton.Text = WindowState == FormWindowState.Maximized
+            ? "❐"
+            : "□";
     }
 
     private Control BuildHeader()
@@ -270,21 +443,26 @@ public sealed class SettingsForm : Form
 
     private Control BuildFooter()
     {
-        var footer = new StalkerCardPanel
+        var footerBar = new StalkerFooterBar
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Bottom,
             AutoSize = true,
-            BackColor = StalkerTheme.Panel,
-            Padding = new Padding(10),
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(0, 48),
             Margin = new Padding(0),
+            Padding = new Padding(14, 7, 10, 7),
         };
 
         var layout = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Bottom,
             AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 2,
+            RowCount = 1,
             Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
         };
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         layout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -295,29 +473,21 @@ public sealed class SettingsForm : Form
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
         };
 
-        var clearGameCache = new Button
-        {
-            Text = _l.T("ui.clear_game_cache"),
-            AutoSize = false,
-            Width = 164,
-            Height = 36,
-            Padding = new Padding(10, 5, 10, 5),
-            Margin = new Padding(0, 0, 6, 0),
-            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-        };
-
-        var resetWorkspace = new Button
+        var resetWorkspace = new StalkerUtilityButton
         {
             Text = _l.T("ui.reset_workspace_paths"),
-            AutoSize = false,
-            Width = 180,
-            Height = 36,
-            Padding = new Padding(10, 5, 10, 5),
-            Margin = new Padding(0),
-            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
         };
+        ConfigureFooterButton(resetWorkspace, 180);
+
+        var clearGameCache = new StalkerUtilityButton
+        {
+            Text = _l.T("ui.clear_game_cache"),
+        };
+        ConfigureFooterButton(clearGameCache, 164);
 
         var rightActions = new FlowLayoutPanel
         {
@@ -325,25 +495,22 @@ public sealed class SettingsForm : Form
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
         };
 
-        var cancel = new Button
+        var cancel = new StalkerUtilityButton
         {
             Text = _l.T("ui.cancel"),
-            AutoSize = false,
-            Width = 104,
-            Height = 36,
-            Padding = new Padding(10, 5, 10, 5),
-            Margin = new Padding(0, 0, 6, 0),
-            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
         };
+        ConfigureFooterButton(cancel, 104);
 
         var save = new Button
         {
             Text = _l.T("ui.save"),
             AutoSize = false,
             Width = 116,
-            Height = 36,
+            Height = 34,
             Padding = new Padding(10, 5, 10, 5),
             Margin = new Padding(0),
             Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
@@ -367,12 +534,22 @@ public sealed class SettingsForm : Form
 
         layout.Controls.Add(leftActions, 0, 0);
         layout.Controls.Add(rightActions, 1, 0);
-        footer.Controls.Add(layout);
+        footerBar.Controls.Add(layout);
 
         AcceptButton = save;
         CancelButton = cancel;
 
-        return footer;
+        return footerBar;
+    }
+
+    private static void ConfigureFooterButton(Button button, int width)
+    {
+        button.AutoSize = false;
+        button.Width = width;
+        button.Height = 34;
+        button.Margin = new Padding(0, 0, 6, 0);
+        button.Padding = new Padding(10, 5, 10, 5);
+        button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
     }
 
     private static TableLayoutPanel CreateSettingsGrid()
@@ -587,6 +764,92 @@ public sealed class SettingsForm : Form
         _boxes["cached"].Text = Path.Combine(baseDir, "Cached");
         _boxes["editable"].Text = Path.Combine(baseDir, "Editable");
         _boxes["output"].Text = Path.Combine(baseDir, "Output");
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        const int WmNcHitTest = 0x0084;
+        const int HtClient = 1;
+        const int HtCaption = 2;
+        const int HtLeft = 10;
+        const int HtRight = 11;
+        const int HtTop = 12;
+        const int HtTopLeft = 13;
+        const int HtTopRight = 14;
+        const int HtBottom = 15;
+        const int HtBottomLeft = 16;
+        const int HtBottomRight = 17;
+
+        base.WndProc(ref m);
+
+        if (m.Msg != WmNcHitTest || (int)m.Result != HtClient)
+            return;
+
+        var raw = m.LParam.ToInt64();
+        var screenPoint = new Point(
+            unchecked((short)(raw & 0xFFFF)),
+            unchecked((short)((raw >> 16) & 0xFFFF))
+        );
+        var point = PointToClient(screenPoint);
+
+        if (WindowState == FormWindowState.Normal)
+        {
+            const int grip = 6;
+            var left = point.X <= grip;
+            var right = point.X >= ClientSize.Width - grip;
+            var top = point.Y <= grip;
+            var bottom = point.Y >= ClientSize.Height - grip;
+
+            if (left && top)
+            {
+                m.Result = (IntPtr)HtTopLeft;
+                return;
+            }
+            if (right && top)
+            {
+                m.Result = (IntPtr)HtTopRight;
+                return;
+            }
+            if (left && bottom)
+            {
+                m.Result = (IntPtr)HtBottomLeft;
+                return;
+            }
+            if (right && bottom)
+            {
+                m.Result = (IntPtr)HtBottomRight;
+                return;
+            }
+            if (left)
+            {
+                m.Result = (IntPtr)HtLeft;
+                return;
+            }
+            if (right)
+            {
+                m.Result = (IntPtr)HtRight;
+                return;
+            }
+            if (top)
+            {
+                m.Result = (IntPtr)HtTop;
+                return;
+            }
+            if (bottom)
+            {
+                m.Result = (IntPtr)HtBottom;
+                return;
+            }
+        }
+
+        // Keep the caption buttons clickable; the rest of the top chrome drags
+        // exactly like the main Localization Workbench window.
+        if (point.Y >= 0
+            && point.Y < 74
+            && point.X < ClientSize.Width - 160)
+        {
+            m.Result = (IntPtr)HtCaption;
+        }
     }
 
     private void SaveAndClose()
