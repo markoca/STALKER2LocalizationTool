@@ -18,6 +18,35 @@ public static class PathUtil
         return MakeSafeName(name);
     }
 
+    public static string ArchiveModDisplayName(string archiveNameOrPath)
+    {
+        var archiveName = Path.GetFileNameWithoutExtension(archiveNameOrPath).Trim();
+        var match = Regex.Match(
+            archiveName,
+            @"^(?<base>.+?)\s+(?<id>\d+)\s+(?<version>\S+)\s+(?<date>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}Z)\s+(?<hash>\S+)$",
+            RegexOptions.CultureInvariant
+        );
+
+        if (!match.Success)
+            return MakeSafeName(archiveName);
+
+        var baseName = match.Groups["base"].Value.Trim();
+        var version = match.Groups["version"].Value.Trim();
+
+        var duplicateVersion = Regex.Match(
+            baseName,
+            @"^(?<name>.+?)(?:[\s_-]+[vV]?" + Regex.Escape(version) + @")$",
+            RegexOptions.CultureInvariant
+        );
+        if (duplicateVersion.Success
+            && !string.IsNullOrWhiteSpace(duplicateVersion.Groups["name"].Value))
+        {
+            baseName = duplicateVersion.Groups["name"].Value.Trim();
+        }
+
+        return MakeSafeName($"{baseName} {version}");
+    }
+
     public static string NormalizeVirtualPath(string virtualPath)
     {
         var value = NormalizeVirtualPathForComparison(virtualPath);
