@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace STALKER2LocalizationTool.Services;
+namespace LocalizationWorkbench.Services;
 
 public static class SteamLocator
 {
