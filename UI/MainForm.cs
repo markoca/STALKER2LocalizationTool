@@ -102,7 +102,7 @@ public sealed class MainForm : Form
             }
         };
 
-        Shown += async (_, _) =>
+        Shown += (_, _) =>
         {
             if (_shownOnce) return;
             _shownOnce = true;
@@ -797,7 +797,6 @@ public sealed class MainForm : Form
         _loadingLanguageChecks = false;
 
         UpdateButtons();
-        UpdateButtons();
         RefreshGrid();
         if (!_busy) _statusText.Text = _l.T("ui.idle");
     }
@@ -878,7 +877,6 @@ public sealed class MainForm : Form
         if (!File.Exists(_settings.RetocPath) || !File.Exists(_settings.RepakPath) || !Directory.Exists(_settings.GamePaksFolder))
         {
             _game = null;
-            UpdateButtons();
             UpdateButtons();
             MessageBox.Show(this, _l.T("ui.game_paths_missing"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             if (ShowSettings() == DialogResult.OK)
