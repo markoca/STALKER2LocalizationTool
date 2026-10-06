@@ -680,7 +680,7 @@ public sealed class MainForm : Form
 
             RefreshGrid();
             UpdateButtons();
-            _statusText.Text = _l.T("ui.done");
+            CompleteProgress(_l.T("ui.done"));
         }
         catch (OperationCanceledException)
         {
@@ -734,7 +734,7 @@ public sealed class MainForm : Form
                 && _game.UiStatus == ModUiStatus.Available)
                 _game.UiStatus = ModUiStatus.BuiltVerified;
             UpdateButtons();
-            _statusText.Text = _l.T("ui.done");
+            CompleteProgress(_l.T("ui.done"));
         }
         catch (OperationCanceledException)
         {
@@ -780,6 +780,7 @@ public sealed class MainForm : Form
             );
             var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
             await service.ExtractAsync(new[] { _game! }, progress, _operationCts.Token);
+            CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -841,8 +842,17 @@ public sealed class MainForm : Form
 
                 _game.EditableTranslationFile = editableFile;
                 _game.UiStatus = ModUiStatus.Available;
-                var languageProgress = new Progress<(int Current, int Total, string Message)>(_ =>
-                    UpdateProgress(builtLanguages + 1, languages.Count, language.EnglishName));
+                var languageProgress = new Progress<(int Current, int Total, string Message)>(p =>
+                {
+                    var inner = p.Total <= 0
+                        ? 0d
+                        : Math.Clamp(p.Current / (double)p.Total, 0d, 1d);
+                    var overall = (builtLanguages + inner) / languages.Count;
+                    UpdateProgressFraction(
+                        overall,
+                        $"{language.EnglishName}: {p.Message}"
+                    );
+                });
                 var results = await builder.BuildAllEditableAsync(
                     new[] { _game! },
                     language.Id,
@@ -874,6 +884,7 @@ public sealed class MainForm : Form
                 summary.AppendLine($"  {name}: {_l.T("status.built_verified")}");
             summary.AppendLine();
             summary.AppendLine(string.Format(_l.T("ui.build_summary_output"), _settings.OutputFolder));
+            CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, summary.ToString().TrimEnd(), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -916,6 +927,7 @@ public sealed class MainForm : Form
             var service = new ExtractionService(_settings, retoc, repak, uasset, AppendLog);
             var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
             await service.ExtractAsync(targets, progress, _operationCts.Token);
+            CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -994,7 +1006,16 @@ public sealed class MainForm : Form
                 }
 
                 var progress = new Progress<(int Current, int Total, string Message)>(p =>
-                    UpdateProgress(languageIndex * availableMods.Count + p.Current, languages.Count * availableMods.Count, $"{language.EnglishName}: {p.Message}"));
+                {
+                    var inner = p.Total <= 0
+                        ? 0d
+                        : Math.Clamp(p.Current / (double)p.Total, 0d, 1d);
+                    var overall = (languageIndex + inner) / languages.Count;
+                    UpdateProgressFraction(
+                        overall,
+                        $"{language.EnglishName}: {p.Message}"
+                    );
+                });
                 var results = await builder.BuildAllEditableAsync(
                     availableMods,
                     language.Id,
@@ -1031,6 +1052,7 @@ public sealed class MainForm : Form
                 summary.AppendLine($"  {item.Language}: {item.Built} built, {item.Skipped} skipped");
             summary.AppendLine();
             summary.AppendLine(string.Format(_l.T("ui.build_summary_output"), _settings.OutputFolder));
+            CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, summary.ToString().TrimEnd(), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -1227,7 +1249,30 @@ public sealed class MainForm : Form
             _progress.Value = 0;
             return;
         }
-        _progress.Value = Math.Clamp((int)Math.Round(current * 100.0 / total), 0, 100);
+
+        var ratio = Math.Clamp(current / (double)total, 0d, 1d);
+        _progress.Value = Math.Clamp(
+            (int)Math.Round(ratio * 95d),
+            0,
+            95
+        );
+    }
+
+    private void UpdateProgressFraction(double fraction, string message)
+    {
+        _statusText.Text = message;
+        _progress.Value = Math.Clamp(
+            (int)Math.Round(Math.Clamp(fraction, 0d, 1d) * 95d),
+            0,
+            95
+        );
+    }
+
+    private void CompleteProgress(string message)
+    {
+        _statusText.Text = message;
+        _progress.Value = 100;
+        _progress.Refresh();
     }
 
     private void AppendLog(string message)
