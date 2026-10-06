@@ -850,7 +850,6 @@ public sealed class MainForm : Form
         }
 
         SetBusy(true, _l.T("ui.scanning"));
-        _brandMark.Spinning = true;
         _operationCts = new CancellationTokenSource();
 
         try
@@ -893,7 +892,6 @@ public sealed class MainForm : Form
         {
             _operationCts.Dispose();
             _operationCts = null;
-            _brandMark.Spinning = false;
             SetBusy(false, _l.T("ui.idle"));
         }
     }
@@ -913,7 +911,6 @@ public sealed class MainForm : Form
         }
 
         SetBusy(true, _l.T("ui.scanning_game"));
-        _brandMark.Spinning = true;
         _operationCts = new CancellationTokenSource();
         try
         {
@@ -949,7 +946,6 @@ public sealed class MainForm : Form
         {
             _operationCts.Dispose();
             _operationCts = null;
-            _brandMark.Spinning = false;
             SetBusy(false, _l.T("ui.idle"));
         }
     }
@@ -1473,9 +1469,10 @@ public sealed class MainForm : Form
     private void SetBusy(bool busy, string message)
     {
         _busy = busy;
+        _brandMark.Spinning = busy;
         _statusText.Text = message;
         _progress.Value = 0;
-        _progress.Style = busy ? ProgressBarStyle.Continuous : ProgressBarStyle.Continuous;
+        _progress.Style = ProgressBarStyle.Continuous;
         UpdateButtons();
     }
 
