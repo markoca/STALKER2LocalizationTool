@@ -281,19 +281,9 @@ public sealed class MainForm : Form
         tabStrip.Controls.Add(_gameTabButton);
         tabStrip.Controls.Add(_modsTabButton);
 
-        var navActions = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = false,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Margin = new Padding(0),
-            Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
-        };
-
         ConfigureNavButton(_settingsButton, 102);
         _settingsButton.Margin = new Padding(0);
+        _settingsButton.Anchor = AnchorStyles.Right;
         _settingsButton.Click += async (_, _) =>
         {
             if (ShowSettings() != DialogResult.OK)
@@ -304,10 +294,9 @@ public sealed class MainForm : Form
 
             await ScanActiveAsync();
         };
-        navActions.Controls.Add(_settingsButton);
 
         navLayout.Controls.Add(tabStrip, 0, 0);
-        navLayout.Controls.Add(navActions, 1, 0);
+        navLayout.Controls.Add(_settingsButton, 1, 0);
         navBar.Controls.Add(navLayout);
         root.Controls.Add(navBar, 0, 1);
 
