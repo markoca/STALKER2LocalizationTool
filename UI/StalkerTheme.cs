@@ -203,51 +203,64 @@ internal static class StalkerTheme
 
     private static void ThemeButton(Button button, Form owner)
     {
-        var primary = Equals(button.Tag, PrimaryButtonTag) || ReferenceEquals(owner.AcceptButton, button);
-
         button.FlatStyle = FlatStyle.Flat;
         button.FlatAppearance.BorderSize = 1;
         button.UseVisualStyleBackColor = false;
         button.Cursor = Cursors.Hand;
 
-        void ApplyState()
+        button.EnabledChanged += (_, _) =>
+            RefreshButtonStyle(button, owner);
+
+        button.MouseEnter += (_, _) =>
         {
             if (!button.Enabled)
-            {
-                button.BackColor = primary ? AccentDark : Panel;
-                button.ForeColor = MutedText;
-                button.FlatAppearance.BorderColor = Border;
                 return;
-            }
 
-            button.BackColor = primary ? Accent : PanelAlt;
-            button.ForeColor = primary ? Color.Black : Text;
-            button.FlatAppearance.BorderColor = primary ? AccentHover : Border;
-        }
+            var primary = IsPrimaryButton(button, owner);
+            button.ForeColor = primary ? Color.Black : Accent;
+        };
 
-        if (primary)
+        button.MouseLeave += (_, _) =>
+            RefreshButtonStyle(button, owner);
+
+        RefreshButtonStyle(button, owner);
+    }
+
+    private static bool IsPrimaryButton(Button button, Form owner) =>
+        Equals(button.Tag, PrimaryButtonTag)
+        || ReferenceEquals(owner.AcceptButton, button);
+
+    internal static void SetButtonPrimary(
+        Button button,
+        Form owner,
+        bool primary)
+    {
+        button.Tag = primary ? PrimaryButtonTag : null;
+        RefreshButtonStyle(button, owner);
+    }
+
+    private static void RefreshButtonStyle(Button button, Form owner)
+    {
+        var primary = IsPrimaryButton(button, owner);
+
+        button.FlatAppearance.MouseOverBackColor = primary
+            ? AccentHover
+            : PanelHover;
+        button.FlatAppearance.MouseDownBackColor = primary
+            ? AccentDark
+            : PanelPressed;
+
+        if (!button.Enabled)
         {
-            button.FlatAppearance.MouseOverBackColor = AccentHover;
-            button.FlatAppearance.MouseDownBackColor = AccentDark;
-        }
-        else
-        {
-            button.FlatAppearance.MouseOverBackColor = PanelHover;
-            button.FlatAppearance.MouseDownBackColor = PanelPressed;
-            button.MouseEnter += (_, _) =>
-            {
-                if (button.Enabled)
-                    button.ForeColor = Accent;
-            };
-            button.MouseLeave += (_, _) =>
-            {
-                if (button.Enabled)
-                    button.ForeColor = Text;
-            };
+            button.BackColor = primary ? AccentDark : Panel;
+            button.ForeColor = MutedText;
+            button.FlatAppearance.BorderColor = Border;
+            return;
         }
 
-        button.EnabledChanged += (_, _) => ApplyState();
-        ApplyState();
+        button.BackColor = primary ? Accent : PanelAlt;
+        button.ForeColor = primary ? Color.Black : Text;
+        button.FlatAppearance.BorderColor = primary ? AccentHover : Border;
     }
 
     private static void ThemeGrid(DataGridView grid)
