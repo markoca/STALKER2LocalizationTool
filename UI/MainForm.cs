@@ -1364,7 +1364,7 @@ public sealed class MainForm : Form
                 ModsSnapshotPath(),
                 new ModScanSnapshot
                 {
-                    Version = 1,
+                    Version = 2,
                     ModsFolder = Path.GetFullPath(_settings.ModsFolder),
                     SavedAtUtc = DateTime.UtcNow,
                     Mods = _mods,
@@ -1386,7 +1386,7 @@ public sealed class MainForm : Form
         try
         {
             var snapshot = JsonUtil.Load<ModScanSnapshot>(path);
-            if (snapshot.Version != 1
+            if (snapshot.Version != 2
                 || !string.Equals(
                     Path.GetFullPath(snapshot.ModsFolder),
                     Path.GetFullPath(_settings.ModsFolder),
