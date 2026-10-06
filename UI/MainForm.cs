@@ -250,23 +250,12 @@ public sealed class MainForm : Form
             Padding = new Padding(14, 0, 14, 0),
         };
 
-        var navLayout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = false,
-            ColumnCount = 2,
-            RowCount = 1,
-            Margin = new Padding(0),
-            Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
-        };
-        navLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        navLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        navLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
-
         var tabStrip = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Left,
+            AutoSize = false,
+            Width = 300,
+            Height = 44,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             Margin = new Padding(0),
@@ -283,7 +272,7 @@ public sealed class MainForm : Form
 
         ConfigureNavButton(_settingsButton, 102);
         _settingsButton.Margin = new Padding(0);
-        _settingsButton.Anchor = AnchorStyles.Right;
+        _settingsButton.Dock = DockStyle.Right;
         _settingsButton.Click += async (_, _) =>
         {
             if (ShowSettings() != DialogResult.OK)
@@ -295,9 +284,11 @@ public sealed class MainForm : Form
             await ScanActiveAsync();
         };
 
-        navLayout.Controls.Add(tabStrip, 0, 0);
-        navLayout.Controls.Add(_settingsButton, 1, 0);
-        navBar.Controls.Add(navLayout);
+        // Keep the navigation geometry deterministic: tabs are physically docked
+        // to the left edge and Settings directly to the right edge of navBar.
+        // No intermediate TableLayoutPanel can reserve extra width around Settings.
+        navBar.Controls.Add(_settingsButton);
+        navBar.Controls.Add(tabStrip);
         root.Controls.Add(navBar, 0, 1);
 
         // Main work area follows the True Custom Difficulty composition:
