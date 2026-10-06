@@ -2,10 +2,11 @@
 
 ## Publish
 
-- [ ] `tools/win-x64/` contains `retoc.exe`, `repak.exe`, `UAssetGUI.exe`, `Mappings.usmap`, and `S2HOCMM.exe`.
-- [ ] Linux `publish-win-x64.sh` succeeds without executing Windows helper binaries.
-- [ ] Windows `publish-win-x64.ps1` succeeds with the same target bundle.
-- [ ] Published runtime contains only the expected `tools/` bundle and no duplicate `tools/win-x64/` nesting.
+- [ ] Source/release does not contain third-party helper-tool binaries.
+- [ ] Linux `publish-win-x64.sh` succeeds without requiring helper tools.
+- [ ] Windows `publish-win-x64.ps1` succeeds without requiring helper tools.
+- [ ] Published runtime creates/preserves `tools/` and includes only the tool provisioning README unless the developer supplied local test tools.
+- [ ] A clean distribution does not contain `retoc.exe`, `repak.exe`, `UAssetGUI.exe`, `Mappings.usmap`, or `S2HOCMM.exe`.
 - [ ] `Localization Workbench.exe` starts on Windows and under the development Wine prefix.
 
 ## GAME
