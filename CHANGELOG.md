@@ -239,4 +239,6 @@
 - Windows runtime bundle moved to `tools/win-x64/`.
 - Linux can cross-publish the self-contained `win-x64` release without Wine and without executing Windows helper tools.
 - The final Windows machine does not require .NET to be installed.
-- `tools/linux-x64/` is reserved for a future native Linux UI port; the current WinForms app has no native Linux target.
+- Removed the unused placeholder `tools/linux-x64/` tree and duplicate root-level helper binaries; `tools/win-x64/` is the only authoritative source bundle.
+- Removed obsolete RC6 publish notes and unused legacy WinForms tab/checked-list controls.
+- Updated RC7 documentation/checklist to match the current Extracted/Cached/Editable workflow and recovery behavior.
