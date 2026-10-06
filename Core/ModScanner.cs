@@ -42,7 +42,7 @@ public sealed class ModScanner
 
         var materializationRoot = Path.Combine(_cachedRoot, ".source_cache");
         var scanCacheRoot = Path.Combine(_cachedRoot, ".scan_cache");
-        var discoveryProgress = new Progress<(int Current, int Total, string Message)>(p =>
+        var discoveryProgress = new InlineProgress<(int Current, int Total, string Message)>(p =>
         {
             var fraction = p.Total <= 0 ? 0.0 : p.Current / (double)p.Total;
             var overall = Math.Clamp((int)Math.Round(fraction * 25.0), 0, 25);
@@ -212,6 +212,18 @@ public sealed class ModScanner
         return groups
             .OrderBy(x => x.ModName, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
+    }
+
+    private sealed class InlineProgress<T> : IProgress<T>
+    {
+        private readonly Action<T> _handler;
+
+        public InlineProgress(Action<T> handler)
+        {
+            _handler = handler;
+        }
+
+        public void Report(T value) => _handler(value);
     }
 
     private List<ModScanResult> BuildGroups(
