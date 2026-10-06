@@ -1079,7 +1079,11 @@ public sealed class MainForm : Form
 
     private async Task ExtractAsync()
     {
-        var targets = _mods.Where(x => x.UiStatus == ModUiStatus.NeedsExtraction).ToList();
+        var targets = _mods
+            .Where(x =>
+                x.UiStatus is ModUiStatus.NeedsExtraction
+                    or ModUiStatus.MissingTranslation)
+            .ToList();
         if (targets.Count == 0)
         {
             MessageBox.Show(this, _l.T("ui.no_extract"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1527,6 +1531,10 @@ public sealed class MainForm : Form
         var modsNeedExtraction = _mods.Any(
             mod => mod.UiStatus == ModUiStatus.NeedsExtraction
         );
+        var modsCanExtract = _mods.Any(
+            mod => mod.UiStatus is ModUiStatus.NeedsExtraction
+                or ModUiStatus.MissingTranslation
+        );
         var modsCanBuild = !_busy
             && hasLanguages
             && _mods.Any(mod =>
@@ -1541,7 +1549,7 @@ public sealed class MainForm : Form
             );
 
         _scanModsButton.Enabled = !_busy;
-        _extractButton.Enabled = !_busy && modsNeedExtraction;
+        _extractButton.Enabled = !_busy && modsCanExtract;
         _buildModularButton.Enabled = modsCanBuild;
         _buildAllInOneButton.Enabled = modsCanBuildAllInOne;
 
