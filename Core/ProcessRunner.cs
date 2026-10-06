@@ -18,7 +18,8 @@ public static class ProcessRunner
         bool throwOnNonZero = true,
         IReadOnlyDictionary<string, string?>? environment = null,
         Action<string>? outputLine = null,
-        bool captureStandardOutput = true)
+        bool captureStandardOutput = true,
+        ProcessPriorityClass? priorityClass = null)
     {
         if (string.IsNullOrWhiteSpace(executable) || !File.Exists(executable))
             throw new FileNotFoundException($"Executable not found: {executable}", executable);
@@ -77,6 +78,19 @@ public static class ProcessRunner
 
         if (!process.Start())
             throw new InvalidOperationException($"Could not start: {executable}");
+
+        if (priorityClass is not null)
+        {
+            try
+            {
+                process.PriorityClass = priorityClass.Value;
+            }
+            catch
+            {
+                // Priority is an optimization only. Wine and restricted Windows
+                // environments may reject priority changes.
+            }
+        }
 
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
