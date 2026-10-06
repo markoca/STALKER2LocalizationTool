@@ -4,47 +4,18 @@ namespace LocalizationWorkbench.Localization;
 
 public sealed class Localizer
 {
-    private readonly Dictionary<string, string> _fallback = BuildFallbackEnglish();
-    private Dictionary<string, string> _strings = new(StringComparer.OrdinalIgnoreCase);
-
-    public Localizer()
-    {
-        Reload();
-    }
+    private readonly Dictionary<string, string> _strings = BuildEnglish();
 
     public string T(string key)
     {
         if (_strings.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
             return value;
-        if (_fallback.TryGetValue(key, out var fallback))
-            return fallback;
         return key;
     }
 
     public string LanguageName(BuildLanguage language) => T($"language.{language.Key}");
 
-    private void Reload()
-    {
-        _strings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var path = Path.Combine(AppContext.BaseDirectory, "locales", "en.json");
-        if (!File.Exists(path))
-            return;
-
-        try
-        {
-            var values = JsonSerializer.Deserialize<Dictionary<string, string>>(
-                File.ReadAllText(path, Encoding.UTF8)
-            );
-            if (values is not null)
-                _strings = new Dictionary<string, string>(values, StringComparer.OrdinalIgnoreCase);
-        }
-        catch
-        {
-            _strings.Clear();
-        }
-    }
-
-    private static Dictionary<string, string> BuildFallbackEnglish() => new(StringComparer.OrdinalIgnoreCase)
+    private static Dictionary<string, string> BuildEnglish() => new(StringComparer.OrdinalIgnoreCase)
     {
         ["app.title"] = AppConstants.AppName,
         ["ui.build_language"] = "Build languages",
@@ -57,6 +28,7 @@ public sealed class Localizer
         ["ui.tab_mods"] = "MODS",
         ["ui.game_intro"] = "Extract every supported language from the base game, edit the JSON files directly in Editable\\Game, then build one or more selected languages.",
         ["ui.scan_game"] = "SCAN GAME",
+        ["ui.scan_mods"] = "SCAN MODS",
         ["ui.extract_game"] = "EXTRACT ALL LANGUAGES",
         ["ui.build_game"] = "BUILD GAME PACKAGE",
         ["ui.scanning_game"] = "Scanning base game...",
@@ -113,6 +85,13 @@ public sealed class Localizer
         ["ui.extract_complete"] = "Extraction finished.",
         ["ui.build_complete"] = "Build finished.",
         ["ui.build_summary_output"] = "Output: {0}",
+        ["ui.delete_cache"] = "DELETE CACHE",
+        ["ui.delete_cache_confirm"] = "Delete all GAME and MODS cache data?\r\n\r\n{0}\r\n\r\nEditable and Output will not be changed.",
+        ["ui.cache_deleted"] = "GAME and MODS cache data deleted. Extraction will be required again.",
+        ["ui.cache_empty"] = "There is no cache data to delete.",
+        ["ui.cache_path_missing"] = "Cached folder is not configured.",
+        ["ui.cache_delete_failed"] = "Could not delete cache:\r\n{0}",
+        ["ui.setup_required"] = "Required tools or the game path could not be found. Put the required tool files in the tools folder, then verify the Game Paks folder in Settings.",
         ["ui.close"] = "Close",
         ["ui.select_folder"] = "Select folder",
         ["ui.select_file"] = "Select file",
@@ -122,6 +101,7 @@ public sealed class Localizer
         ["status.needs_extraction"] = "Needs extraction",
         ["status.missing_translation"] = "Missing translation",
         ["status.available"] = "Available",
+        ["status.extracted"] = "Extracted",
         ["status.built_verified"] = "Built & verified",
         ["status.no_language_selected"] = "No build language selected",
         ["status.error"] = "Error",
@@ -136,6 +116,7 @@ public sealed class Localizer
         ["help.status.needs_extraction"] = "This mod is new or has been updated. Extract it before building a translation.",
         ["help.status.missing_translation"] = "The mod was extracted successfully, but no finished translation was found in the Editable folder.",
         ["help.status.available"] = "The mod is extracted, up to date, and a matching translation is available. It can be built now.",
+        ["help.status.extracted"] = "The mod localization has been extracted and its editable JSON is ready to build.",
         ["help.status.built_verified"] = "The finished package was built and checked successfully.",
         ["help.status.no_language_selected"] = "Check at least one build language. Extraction remains available, but building is disabled.",
         ["help.game_paks"] = "Select the game's Stalker2\\Content\\Paks folder. The app needs the game's global files while extracting and checking mod localization.",
