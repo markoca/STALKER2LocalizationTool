@@ -85,6 +85,7 @@ public sealed class ExtractionService
                     .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
+            var fingerprintTimer = Stopwatch.StartNew();
             foreach (var source in relevantFiles)
             {
                 manifest.SourceFiles.Add(new SourceFileFingerprint
@@ -95,6 +96,11 @@ public sealed class ExtractionService
                         : FileMetadataFingerprint(source),
                 });
             }
+            fingerprintTimer.Stop();
+            _log?.Invoke(
+                $"Source fingerprint metadata for {mod.ModName}: "
+                + $"{fingerprintTimer.Elapsed.TotalSeconds:N1}s"
+            );
 
             var languageDumps = BuildLanguageCatalog.All.ToDictionary(
                 language => language.Id,
@@ -231,16 +237,30 @@ public sealed class ExtractionService
 
                 try
                 {
+                    var inputTimer = Stopwatch.StartNew();
                     await PrepareRetocInputAsync(
                         sourceUtoc,
                         input,
                         cancellationToken
                     );
+                    inputTimer.Stop();
+                    _log?.Invoke(
+                        $"Prepared retoc input for {Path.GetFileName(sourceUtoc)} "
+                        + $"in {inputTimer.Elapsed.TotalSeconds:N1}s"
+                    );
+
+                    var retocTimer = Stopwatch.StartNew();
                     await _retoc.ToLegacyAsync(
                         input,
                         legacy,
                         AppConstants.LocalizationDatabaseNeedle,
                         cancellationToken
+                    );
+                    retocTimer.Stop();
+                    _log?.Invoke(
+                        $"Converted localization assets from "
+                        + $"{Path.GetFileName(sourceUtoc)} in "
+                        + $"{retocTimer.Elapsed.TotalSeconds:N1}s"
                     );
                 }
                 finally
@@ -277,7 +297,18 @@ public sealed class ExtractionService
 
                     var jsonName = $"{assetGroup.ZenChunkId}_{parsedAliases.Count:00}.json";
                     var assetJson = Path.Combine(extracted.JsonRoot, jsonName);
-                    await _uassetGui.ToJsonAsync(extractedUasset, assetJson, cancellationToken);
+
+                    var uassetTimer = Stopwatch.StartNew();
+                    await _uassetGui.ToJsonAsync(
+                        extractedUasset,
+                        assetJson,
+                        cancellationToken
+                    );
+                    uassetTimer.Stop();
+                    _log?.Invoke(
+                        $"UAssetGUI tojson: {Path.GetFileName(extractedUasset)} "
+                        + $"in {uassetTimer.Elapsed.TotalSeconds:N1}s"
+                    );
 
                     var export = UAssetInspector.ReadLocalizationExport(assetJson, alias.VirtualPath);
                     if (!export.ImportsLocalizationDatabaseClass)
