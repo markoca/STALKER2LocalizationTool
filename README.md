@@ -53,7 +53,7 @@ Archive display names are normalized for the UI: Nexus download IDs are omitted 
 
 ```text
 Localization Workbench.exe
-settings.json
+
 Mods/
 Cached/
 ├── Game/
