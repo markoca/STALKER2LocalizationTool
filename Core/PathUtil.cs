@@ -44,7 +44,7 @@ public static class PathUtil
             baseName = duplicateVersion.Groups["name"].Value.Trim();
         }
 
-        return MakeSafeName($"{baseName} {version}");
+        return MakeSafeName($"{baseName} v{version}");
     }
 
     public static string NormalizeVirtualPath(string virtualPath)
