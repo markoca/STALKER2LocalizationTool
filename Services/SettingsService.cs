@@ -45,11 +45,85 @@ public sealed class SettingsService
     public void Save(AppSettings settings)
     {
         Directory.CreateDirectory(SettingsDirectory);
+
+        // Persist only user overrides. Portable/default runtime paths are derived
+        // from AppContext.BaseDirectory on every launch so moving or renaming the
+        // application folder never leaves stale absolute paths in settings.json.
+        var persisted = CreatePersistedSettings(settings);
+
         File.WriteAllText(
             SettingsPath,
-            JsonSerializer.Serialize(settings, JsonOptions),
+            JsonSerializer.Serialize(persisted, JsonOptions),
             new UTF8Encoding(false)
         );
+    }
+
+    private static AppSettings CreatePersistedSettings(AppSettings settings)
+    {
+        var baseDir = AppContext.BaseDirectory;
+
+        return new AppSettings
+        {
+            BuildLanguageIds = settings.BuildLanguageIds.ToList(),
+            BuildLanguageId = null,
+
+            // GAME is an external user-selected location and must be persisted.
+            GamePaksFolder = settings.GamePaksFolder,
+
+            // Portable workspace defaults are never persisted as absolute paths.
+            ModsFolder = PersistOnlyOverride(
+                settings.ModsFolder,
+                Path.Combine(baseDir, "Mods")
+            ),
+            CachedFolder = PersistOnlyOverride(
+                settings.CachedFolder,
+                Path.Combine(baseDir, "Cached")
+            ),
+            EditableFolder = PersistOnlyOverride(
+                settings.EditableFolder,
+                Path.Combine(baseDir, "Editable")
+            ),
+            OutputFolder = PersistOnlyOverride(
+                settings.OutputFolder,
+                Path.Combine(baseDir, "Output")
+            ),
+
+            // Bundled tools are also resolved dynamically from the current runtime.
+            RetocPath = PersistOnlyOverride(
+                settings.RetocPath,
+                Path.Combine(baseDir, "tools", "retoc.exe")
+            ),
+            UAssetGuiPath = PersistOnlyOverride(
+                settings.UAssetGuiPath,
+                Path.Combine(baseDir, "tools", "UAssetGUI.exe")
+            ),
+            MappingsPath = PersistOnlyOverride(
+                settings.MappingsPath,
+                Path.Combine(baseDir, "tools", "Mappings.usmap")
+            ),
+            RepakPath = PersistOnlyOverride(
+                settings.RepakPath,
+                Path.Combine(baseDir, "tools", "repak.exe")
+            ),
+            S2HocmmPath = PersistOnlyOverride(
+                settings.S2HocmmPath,
+                FindS2Hocmm(baseDir)
+            ),
+
+            ExtractedFolder = null,
+            ReadyFolder = null,
+            AutoScan = settings.AutoScan,
+        };
+    }
+
+    private static string PersistOnlyOverride(string? currentValue, string dynamicDefault)
+    {
+        if (string.IsNullOrWhiteSpace(currentValue))
+            return string.Empty;
+
+        return PathsEqual(currentValue, dynamicDefault)
+            ? string.Empty
+            : currentValue;
     }
 
     private static void ApplyDefaultsAndMigrate(AppSettings settings)
