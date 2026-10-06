@@ -61,7 +61,7 @@ try {
         Copy-Item $ToolsReadme (Join-Path $Out "tools\README.txt") -Force
     }
 
-    foreach ($Doc in @("README.md", "CHANGELOG.md", "RC_CHECKLIST.md", "RELEASE_CANDIDATE.md")) {
+    foreach ($Doc in @("README.md", "QUICK_USER_HANDBOOK.md", "CHANGELOG.md", "RC_CHECKLIST.md", "RELEASE_CANDIDATE.md")) {
         $SourceDoc = Join-Path $Root $Doc
         if (Test-Path $SourceDoc) {
             Copy-Item $SourceDoc (Join-Path $Out $Doc) -Force
