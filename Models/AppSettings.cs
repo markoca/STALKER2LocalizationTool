@@ -1,3 +1,5 @@
+using STALKER2LocalizationTool.Services;
+
 namespace STALKER2LocalizationTool.Models;
 
 public sealed class AppSettings
