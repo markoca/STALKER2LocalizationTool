@@ -1358,12 +1358,16 @@ internal sealed class StalkerLanguageSelector : Panel
 
     public override Size GetPreferredSize(Size proposedSize)
     {
-        const int columns = 5;
         const int preferredColumnWidth = 220;
         const int preferredRowHeight = 27;
 
+        var availableWidth = proposedSize.Width > 0
+            ? Math.Max(1, proposedSize.Width - Padding.Horizontal)
+            : Math.Max(1, Width - Padding.Horizontal);
+        var columns = PreferredColumnCount(availableWidth);
         var count = Math.Max(1, _items.Count);
         var rows = Math.Max(1, (int)Math.Ceiling(count / (double)columns));
+
         var preferredWidth = Padding.Horizontal + columns * preferredColumnWidth;
         var preferredHeight = Padding.Vertical + rows * preferredRowHeight;
 
@@ -1371,6 +1375,15 @@ internal sealed class StalkerLanguageSelector : Panel
             preferredWidth = Math.Min(preferredWidth, proposedSize.Width);
 
         return new Size(preferredWidth, preferredHeight);
+    }
+
+    private static int PreferredColumnCount(int availableWidth)
+    {
+        if (availableWidth < 520)
+            return 2;
+        if (availableWidth < 800)
+            return 3;
+        return 5;
     }
 
     public void SetLanguages(IEnumerable<(int Id, string Name, bool Checked)> languages)
@@ -1445,16 +1458,15 @@ internal sealed class StalkerLanguageSelector : Panel
         if (_items.Count == 0 || ClientSize.Width <= 0 || ClientSize.Height <= 0)
             return;
 
-        const int columns = 5;
         const int preferredColumnWidth = 220;
         const int preferredRowHeight = 27;
-
-        var rows = Math.Max(1, (int)Math.Ceiling(_items.Count / (double)columns));
 
         var contentLeft = Padding.Left;
         var contentTop = Padding.Top;
         var availableWidth = Math.Max(1, ClientSize.Width - Padding.Horizontal);
         var availableHeight = Math.Max(1, ClientSize.Height - Padding.Vertical);
+        var columns = PreferredColumnCount(availableWidth);
+        var rows = Math.Max(1, (int)Math.Ceiling(_items.Count / (double)columns));
 
         var columnWidth = Math.Min(
             preferredColumnWidth,
