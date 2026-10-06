@@ -1,7 +1,7 @@
-using STALKER2LocalizationTool.Core;
-using STALKER2LocalizationTool.Models;
+using LocalizationWorkbench.Core;
+using LocalizationWorkbench.Models;
 
-namespace STALKER2LocalizationTool.Services;
+namespace LocalizationWorkbench.Services;
 
 public sealed class RepakService
 {
