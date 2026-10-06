@@ -41,6 +41,59 @@ public static class UnrealStringCodec
         return (narrowValue, FStringEncoding.Ansi, offset);
     }
 
+    public static int SkipFString(byte[] data, int offset)
+    {
+        Ensure(data, offset, 4, "FString length is outside payload");
+        var length = BinaryPrimitives.ReadInt32LittleEndian(
+            data.AsSpan(offset, 4)
+        );
+        offset += 4;
+
+        if (length == 0)
+            return offset;
+
+        if (length < 0)
+        {
+            var charCount = checked(-length);
+            var byteCount = checked(charCount * 2);
+            Ensure(
+                data,
+                offset,
+                byteCount,
+                "UTF-16 FString is outside payload"
+            );
+
+            var end = offset + byteCount;
+            if (byteCount < 2
+                || data[end - 2] != 0
+                || data[end - 1] != 0)
+            {
+                throw new InvalidDataException(
+                    "UTF-16 FString is missing terminator"
+                );
+            }
+
+            return end;
+        }
+
+        Ensure(
+            data,
+            offset,
+            length,
+            "ANSI FString is outside payload"
+        );
+
+        var ansiEnd = offset + length;
+        if (length < 1 || data[ansiEnd - 1] != 0)
+        {
+            throw new InvalidDataException(
+                "ANSI FString is missing terminator"
+            );
+        }
+
+        return ansiEnd;
+    }
+
     public static void WriteFString(
         Stream stream,
         string? value,
