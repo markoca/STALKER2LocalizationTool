@@ -2,25 +2,13 @@ namespace STALKER2LocalizationTool.Models;
 
 public sealed class AppSettings
 {
-    public List<int> BuildLanguageIds { get; set; } = null!;
-
-    // Read once when migrating a pre-0.6 settings file, then omitted on save.
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public int? BuildLanguageId { get; set; }
+    public List<int> BuildLanguageIds { get; set; } = new() { 4 };
 
     public string GamePaksFolder { get; set; } = string.Empty;
     public string ModsFolder { get; set; } = string.Empty;
     public string CachedFolder { get; set; } = string.Empty;
     public string EditableFolder { get; set; } = string.Empty;
     public string OutputFolder { get; set; } = string.Empty;
-
-    // Legacy pre-RC1 names. They are consumed once during settings migration and
-    // cleared before settings.json is saved again.
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ExtractedFolder { get; set; }
-
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public string? ReadyFolder { get; set; }
 
     public string RetocPath { get; set; } = string.Empty;
     public string UAssetGuiPath { get; set; } = string.Empty;
@@ -30,6 +18,35 @@ public sealed class AppSettings
 
     public bool AutoScan { get; set; } = true;
 
-    [JsonIgnore]
-    public List<string> MigrationMessages { get; } = new();
+    public static AppSettings CreateRuntime()
+    {
+        var baseDir = AppContext.BaseDirectory;
+
+        var settings = new AppSettings
+        {
+            GamePaksFolder = SteamLocator.TryFindGamePaksFolder() ?? string.Empty,
+            ModsFolder = Path.Combine(baseDir, "Mods"),
+            CachedFolder = Path.Combine(baseDir, "Cached"),
+            EditableFolder = Path.Combine(baseDir, "Editable"),
+            OutputFolder = Path.Combine(baseDir, "Output"),
+            RetocPath = Path.Combine(baseDir, "tools", "retoc.exe"),
+            UAssetGuiPath = Path.Combine(baseDir, "tools", "UAssetGUI.exe"),
+            MappingsPath = Path.Combine(baseDir, "tools", "Mappings.usmap"),
+            RepakPath = Path.Combine(baseDir, "tools", "repak.exe"),
+            S2HocmmPath = Path.Combine(baseDir, "tools", "S2HOCMM.exe"),
+        };
+
+        foreach (var path in new[]
+                 {
+                     settings.ModsFolder,
+                     settings.CachedFolder,
+                     settings.EditableFolder,
+                     settings.OutputFolder,
+                 })
+        {
+            try { Directory.CreateDirectory(path); } catch { }
+        }
+
+        return settings;
+    }
 }
