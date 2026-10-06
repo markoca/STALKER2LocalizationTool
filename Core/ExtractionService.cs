@@ -213,16 +213,40 @@ public sealed class ExtractionService
             foreach (var sourceUtoc in sourceUtocs)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var workRoot = Path.Combine(stagingRoot, ".work", "db_" + Guid.NewGuid().ToString("N"));
-                var input = Path.Combine(workRoot, "input");
+                var workRoot = Path.Combine(
+                    stagingRoot,
+                    ".work",
+                    "db_" + Guid.NewGuid().ToString("N")
+                );
+                var fallbackInput = Path.Combine(workRoot, "input");
+                var input = CreateRetocInputDirectory(
+                    mod,
+                    sourceUtoc,
+                    fallbackInput
+                );
                 var legacy = Path.Combine(workRoot, "legacy");
                 var json = Path.Combine(workRoot, "json");
-                Directory.CreateDirectory(input);
                 Directory.CreateDirectory(legacy);
                 Directory.CreateDirectory(json);
 
-                PrepareRetocInput(sourceUtoc, input);
-                await _retoc.ToLegacyAsync(input, legacy, AppConstants.LocalizationDatabaseNeedle, cancellationToken);
+                try
+                {
+                    await PrepareRetocInputAsync(
+                        sourceUtoc,
+                        input,
+                        cancellationToken
+                    );
+                    await _retoc.ToLegacyAsync(
+                        input,
+                        legacy,
+                        AppConstants.LocalizationDatabaseNeedle,
+                        cancellationToken
+                    );
+                }
+                finally
+                {
+                    TryDeleteDirectory(input);
+                }
 
                 var scriptObjects = Path.Combine(legacy, "scriptobjects.bin");
                 RequireFile(scriptObjects, "retoc scriptobjects.bin");
@@ -569,23 +593,115 @@ public sealed class ExtractionService
         public string DirectoryAliasPackagePath { get; init; } = string.Empty;
     }
 
-    private void PrepareRetocInput(string sourceUtoc, string input)
+    private string CreateRetocInputDirectory(
+        ModScanResult mod,
+        string sourceUtoc,
+        string fallbackInput)
+    {
+        if (string.Equals(
+                mod.SourceKind,
+                "loose",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var sourceDirectory = Path.GetDirectoryName(sourceUtoc);
+            if (!string.IsNullOrWhiteSpace(sourceDirectory))
+            {
+                var nearSource = Path.Combine(
+                    sourceDirectory,
+                    ".localization-workbench-input-"
+                    + Guid.NewGuid().ToString("N")
+                );
+
+                try
+                {
+                    Directory.CreateDirectory(nearSource);
+                    return nearSource;
+                }
+                catch (Exception ex)
+                {
+                    _log?.Invoke(
+                        $"Could not create retoc input beside loose source; "
+                        + $"using cache workspace instead: {ex.Message}"
+                    );
+                }
+            }
+        }
+
+        Directory.CreateDirectory(fallbackInput);
+        return fallbackInput;
+    }
+
+    private async Task PrepareRetocInputAsync(
+        string sourceUtoc,
+        string input,
+        CancellationToken cancellationToken)
     {
         var sourceUcas = Path.ChangeExtension(sourceUtoc, ".ucas");
         var sourcePak = Path.ChangeExtension(sourceUtoc, ".pak");
         RequireFile(sourceUtoc, "source .utoc");
         RequireFile(sourceUcas, "source .ucas");
 
-        FileLinker.LinkOrCopy(sourceUtoc, Path.Combine(input, Path.GetFileName(sourceUtoc)));
-        FileLinker.LinkOrCopy(sourceUcas, Path.Combine(input, Path.GetFileName(sourceUcas)));
+        await LinkRetocInputAsync(
+            sourceUtoc,
+            Path.Combine(input, Path.GetFileName(sourceUtoc)),
+            cancellationToken
+        );
+        await LinkRetocInputAsync(
+            sourceUcas,
+            Path.Combine(input, Path.GetFileName(sourceUcas)),
+            cancellationToken
+        );
+
         if (File.Exists(sourcePak))
-            FileLinker.LinkOrCopy(sourcePak, Path.Combine(input, Path.GetFileName(sourcePak)));
+        {
+            await LinkRetocInputAsync(
+                sourcePak,
+                Path.Combine(input, Path.GetFileName(sourcePak)),
+                cancellationToken
+            );
+        }
 
         RequireValidGamePaksFolder();
-        var globalUtoc = Path.Combine(_settings.GamePaksFolder, "global.utoc");
-        var globalUcas = Path.Combine(_settings.GamePaksFolder, "global.ucas");
-        FileLinker.LinkOrCopy(globalUtoc, Path.Combine(input, "global.utoc"));
-        FileLinker.LinkOrCopy(globalUcas, Path.Combine(input, "global.ucas"));
+        var globalUtoc = Path.Combine(
+            _settings.GamePaksFolder,
+            "global.utoc"
+        );
+        var globalUcas = Path.Combine(
+            _settings.GamePaksFolder,
+            "global.ucas"
+        );
+
+        await LinkRetocInputAsync(
+            globalUtoc,
+            Path.Combine(input, "global.utoc"),
+            cancellationToken
+        );
+        await LinkRetocInputAsync(
+            globalUcas,
+            Path.Combine(input, "global.ucas"),
+            cancellationToken
+        );
+    }
+
+    private async Task LinkRetocInputAsync(
+        string source,
+        string destination,
+        CancellationToken cancellationToken)
+    {
+        var linked = await FileLinker.LinkOrCopyAsync(
+            source,
+            destination,
+            cancellationToken
+        );
+
+        if (!linked)
+        {
+            var sizeMiB = new FileInfo(source).Length / (1024d * 1024d);
+            _log?.Invoke(
+                $"Copied retoc input because linking was unavailable: "
+                + $"{Path.GetFileName(source)} ({sizeMiB:N1} MiB)"
+            );
+        }
     }
 
     private static void MergeDumpValue(
