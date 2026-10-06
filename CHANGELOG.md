@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0-rc.1
+
+- Established the cleaned **Localization Workbench** Version 2 release-candidate baseline on `main`.
+- Removed the old `settings.json` persistence system and legacy workspace migration paths.
+- Internal workspace/tool paths now resolve dynamically from the running executable directory.
+- Added lightweight persistence of validated external GAME and MODS source paths through `user-paths.json`.
+- Separated GAME and MODS workflow readiness/status logging with consistent decorated banners.
+- MODS scanning is now strictly manual: it starts only from **SCAN MODS**.
+- Entering MODS performs only a one-shot pre-scan source-presence check and reports **MODS FOUND / READY TO SCAN** when appropriate.
+- Removed obsolete MODS scan snapshot persistence and related dead code.
+- Consolidated the current development baseline onto `main` and refreshed release-candidate documentation.
+
 ## 1.0.0-rc.7
 - Publish helper tools are selected by target runtime, not by build-host OS.
 - Windows runtime bundle moved to `tools/win-x64/`.
