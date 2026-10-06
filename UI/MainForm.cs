@@ -359,11 +359,12 @@ public sealed class MainForm : Form
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        _progress.Dock = DockStyle.Fill;
+        _progress.Dock = DockStyle.None;
+        _progress.Anchor = AnchorStyles.Left | AnchorStyles.Right;
         _progress.Minimum = 0;
         _progress.Maximum = 100;
-        _progress.Height = 12;
-        _progress.Margin = new Padding(0, 9, 12, 8);
+        _progress.Height = 8;
+        _progress.Margin = new Padding(0, 14, 12, 14);
 
         var openButtons = new FlowLayoutPanel
         {
