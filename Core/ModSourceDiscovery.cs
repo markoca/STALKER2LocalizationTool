@@ -1,6 +1,6 @@
 using SharpCompress.Archives;
 
-namespace STALKER2LocalizationTool.Core;
+namespace LocalizationWorkbench.Core;
 
 /// <summary>
 /// Discovers physical mod sources the same way the release launch pipeline does:
