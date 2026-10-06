@@ -1,7 +1,7 @@
-using STALKER2LocalizationTool.Models;
-using STALKER2LocalizationTool.Services;
+using LocalizationWorkbench.Models;
+using LocalizationWorkbench.Services;
 
-namespace STALKER2LocalizationTool.Core;
+namespace LocalizationWorkbench.Core;
 
 public sealed class GameScanner
 {
