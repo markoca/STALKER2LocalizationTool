@@ -68,11 +68,11 @@ public sealed class SettingsService
             .ToList();
         settings.BuildLanguageId = null;
 
-        settings.RetocPath = DefaultIfEmpty(settings.RetocPath, Path.Combine(baseDir, "tools", "retoc.exe"));
-        settings.UAssetGuiPath = DefaultIfEmpty(settings.UAssetGuiPath, Path.Combine(baseDir, "tools", "UAssetGUI.exe"));
-        settings.MappingsPath = DefaultIfEmpty(settings.MappingsPath, Path.Combine(baseDir, "tools", "Mappings.usmap"));
-        settings.RepakPath = DefaultIfEmpty(settings.RepakPath, Path.Combine(baseDir, "tools", "repak.exe"));
-        settings.S2HocmmPath = DefaultIfEmpty(settings.S2HocmmPath, FindS2Hocmm(baseDir));
+        settings.RetocPath = DefaultIfEmpty(settings.RetocPath, FindBundledTool(baseDir, "retoc.exe"));
+        settings.UAssetGuiPath = DefaultIfEmpty(settings.UAssetGuiPath, FindBundledTool(baseDir, "UAssetGUI.exe"));
+        settings.MappingsPath = DefaultIfEmpty(settings.MappingsPath, FindBundledTool(baseDir, "Mappings.usmap"));
+        settings.RepakPath = DefaultIfEmpty(settings.RepakPath, FindBundledTool(baseDir, "repak.exe"));
+        settings.S2HocmmPath = DefaultIfEmpty(settings.S2HocmmPath, FindBundledTool(baseDir, "S2HOCMM.exe"));
 
         settings.ModsFolder = DefaultIfEmpty(settings.ModsFolder, Path.Combine(baseDir, "Mods"));
         settings.CachedFolder = ResolveWorkspaceFolder(
@@ -247,12 +247,18 @@ public sealed class SettingsService
         }
     }
 
-    private static string FindS2Hocmm(string baseDir)
+    private static string FindBundledTool(string baseDir, string fileName)
     {
-        // Release/runtime default: all external tools are deployed from the
-        // project-local tools directory. Custom paths remain supported through
-        // settings, but normal users never need a sibling developer checkout.
-        return Path.Combine(baseDir, "tools", "S2HOCMM.exe");
+        // Published runtime layout: <app>/tools/<file>.
+        var runtimePath = Path.Combine(baseDir, "tools", fileName);
+        if (File.Exists(runtimePath))
+            return runtimePath;
+
+        // Source-tree layout: tools/win-x64 is the only authoritative bundle.
+        // This fallback keeps direct Windows source runs useful without keeping
+        // duplicate binaries at tools/<file>.
+        var sourceTreePath = Path.Combine(baseDir, "tools", "win-x64", fileName);
+        return File.Exists(sourceTreePath) ? sourceTreePath : runtimePath;
     }
 
     private static string DefaultIfEmpty(string? value, string fallback) =>
