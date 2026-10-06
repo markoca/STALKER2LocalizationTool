@@ -851,7 +851,6 @@ public sealed class MainForm : Form
 
             RefreshGrid();
             UpdateButtons();
-            SaveModsSnapshot();
             CompleteProgress(_l.T("ui.done"));
             LogModsWorkflowReady();
         }
@@ -1155,7 +1154,6 @@ public sealed class MainForm : Form
                 mod.NeedsExtraction = false;
 
             RefreshModEditableStatuses();
-            SaveModsSnapshot();
             CompleteProgress(_l.T("ui.done"));
             LogModsWorkflowReady();
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1391,108 +1389,6 @@ public sealed class MainForm : Form
         }
 
         return string.Join(Environment.NewLine, lines);
-    }
-
-    private string ModsSnapshotPath() =>
-        Path.Combine(_settings.CachedFolder, ".workbench", "mods-scan.json");
-
-    private void SaveModsSnapshot()
-    {
-        if (_mods.Count == 0)
-            return;
-
-        try
-        {
-            JsonUtil.Save(
-                ModsSnapshotPath(),
-                new ModScanSnapshot
-                {
-                    Version = 2,
-                    ModsFolder = Path.GetFullPath(_settings.ModsFolder),
-                    SavedAtUtc = DateTime.UtcNow,
-                    Mods = _mods,
-                }
-            );
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"Could not save MODS scan snapshot: {ex.Message}");
-        }
-    }
-
-    private bool TryLoadModsSnapshot()
-    {
-        var path = ModsSnapshotPath();
-        if (!File.Exists(path))
-            return false;
-
-        try
-        {
-            var snapshot = JsonUtil.Load<ModScanSnapshot>(path);
-            if (snapshot.Version != 2
-                || !string.Equals(
-                    Path.GetFullPath(snapshot.ModsFolder),
-                    Path.GetFullPath(_settings.ModsFolder),
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-
-            _mods = snapshot.Mods ?? new List<ModScanResult>();
-
-            foreach (var mod in _mods)
-            {
-                var manifestPath = Path.Combine(
-                    _settings.CachedFolder,
-                    mod.ModId,
-                    "manifest.json"
-                );
-
-                mod.NeedsExtraction = mod.HasLocalization
-                                      && !SnapshotManifestMatches(
-                                          manifestPath,
-                                          mod.SourceFingerprint
-                                      );
-            }
-
-            RefreshModEditableStatuses();
-            AppendLog(
-                $"Loaded {_mods.Count} MODS result(s) from previous scan " +
-                $"({snapshot.SavedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss})."
-            );
-            return true;
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"Could not load MODS scan snapshot: {ex.Message}");
-            return false;
-        }
-    }
-
-    private static bool SnapshotManifestMatches(
-        string manifestPath,
-        string fingerprint)
-    {
-        if (!File.Exists(manifestPath)
-            || string.IsNullOrWhiteSpace(fingerprint))
-        {
-            return false;
-        }
-
-        try
-        {
-            var manifest = JsonUtil.Load<ExtractedManifest>(manifestPath);
-            return manifest.SchemaVersion == AppConstants.ManifestSchemaVersion
-                   && string.Equals(
-                       manifest.SourceFingerprint,
-                       fingerprint,
-                       StringComparison.OrdinalIgnoreCase
-                   );
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private void RefreshGameEditableTranslation()
