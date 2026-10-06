@@ -4,6 +4,7 @@ namespace STALKER2LocalizationTool.Core;
 
 public static class UnrealStringCodec
 {
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
     public static (string Value, FStringEncoding Encoding, int Offset) ReadFString(byte[] data, int offset)
     {
         Ensure(data, offset, 4, "FString length is outside payload");
@@ -36,8 +37,7 @@ public static class UnrealStringCodec
         if (narrowByteCount < 1 || narrow[^1] != 0)
             throw new InvalidDataException("ANSI FString is missing terminator");
 
-        var utf8Strict = new UTF8Encoding(false, true);
-        var narrowValue = utf8Strict.GetString(narrow[..^1]);
+        var narrowValue = StrictUtf8.GetString(narrow[..^1]);
         return (narrowValue, FStringEncoding.Ansi, offset);
     }
 
