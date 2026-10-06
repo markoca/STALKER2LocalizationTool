@@ -81,7 +81,7 @@ internal static class StalkerTheme
                 break;
 
             case StalkerProgressBar:
-                control.BackColor = PanelAlt;
+                control.BackColor = TitleBar;
                 control.ForeColor = Accent;
                 break;
 
@@ -1233,7 +1233,7 @@ internal sealed class StalkerProgressBar : Control
             | ControlStyles.ResizeRedraw,
             true);
 
-        BackColor = StalkerTheme.PanelAlt;
+        BackColor = StalkerTheme.TitleBar;
         ForeColor = StalkerTheme.Accent;
         MinimumSize = new Size(40, 8);
     }
@@ -1342,7 +1342,7 @@ internal sealed class StalkerLanguageSelector : Panel
     {
         BackColor = StalkerTheme.PanelAlt;
         ForeColor = StalkerTheme.Text;
-        Padding = new Padding(4, 2, 4, 2);
+        Padding = new Padding(6, 4, 6, 4);
         Margin = new Padding(0);
 
         SetStyle(
@@ -1415,7 +1415,7 @@ internal sealed class StalkerLanguageSelector : Panel
         if (_items.Count == 0 || ClientSize.Width <= 0 || ClientSize.Height <= 0)
             return;
 
-        const int columns = 5;
+        const int columns = 6;
         var rows = Math.Max(1, (int)Math.Ceiling(_items.Count / (double)columns));
 
         var contentLeft = Padding.Left;
@@ -1493,7 +1493,7 @@ internal sealed class StalkerLanguageCheckBox : CheckBox
 
     protected override void OnPaint(PaintEventArgs pevent)
     {
-        pevent.Graphics.Clear(StalkerTheme.PanelAlt);
+        pevent.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.PanelAlt);
 
         var box = new Rectangle(
             6,
