@@ -807,6 +807,7 @@ public sealed class MainForm : Form
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             _mods = await scanner.ScanAsync(progress, _operationCts.Token);
             _modsScanSuccessful = true;
+            UserPathStore.SaveValidated(_settings);
 
             foreach (var mod in _mods)
             {
@@ -871,6 +872,7 @@ public sealed class MainForm : Form
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             _game = await scanner.ScanAsync(progress, _operationCts.Token);
             _gameScanSuccessful = true;
+            UserPathStore.SaveValidated(_settings);
             if (_settings.BuildLanguageIds.Count > 0
                 && _settings.BuildLanguageIds.All(id => _builtVerifiedThisSession.Contains(BuildSessionKey(_game.ModId, id)))
                 && _game.UiStatus == ModUiStatus.Available)
