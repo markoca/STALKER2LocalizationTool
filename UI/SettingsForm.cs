@@ -1,7 +1,7 @@
-using STALKER2LocalizationTool.Localization;
-using STALKER2LocalizationTool.Models;
+using LocalizationWorkbench.Localization;
+using LocalizationWorkbench.Models;
 
-namespace STALKER2LocalizationTool.UI;
+namespace LocalizationWorkbench.UI;
 
 public sealed class SettingsForm : Form
 {
