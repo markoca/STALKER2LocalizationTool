@@ -20,7 +20,8 @@
 ## MODS
 
 - [ ] MODS is not scanned at startup or while GAME is active.
-- [ ] Entering the MODS tab triggers MODS scanning.
+- [ ] Entering the MODS tab never starts a scan; if mod sources are present it shows **MODS FOUND** and **READY TO SCAN**.
+- [ ] MODS scanning starts only when the user clicks **SCAN MODS**.
 - [ ] SCAN MODS discovers loose and ZIP/7z/RAR sources.
 - [ ] NewContent containers are ignored and OverrideContent is used.
 - [ ] Nexus download IDs are not shown in mod display names and detected versions are normalized.
