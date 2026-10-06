@@ -579,6 +579,6 @@ public sealed class ModScanner
             return ModUiStatus.NoLanguageSelected;
         if (string.IsNullOrWhiteSpace(mod.EditableTranslationFile))
             return ModUiStatus.MissingTranslation;
-        return ModUiStatus.Available;
+        return ModUiStatus.Extracted;
     }
 }
