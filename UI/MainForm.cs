@@ -1093,7 +1093,15 @@ public sealed class MainForm : Form
             var retoc = new RetocService(_settings.RetocPath, AppendLog);
             var repak = new RepakService(_settings.RepakPath, AppendLog);
             var uasset = new UAssetGuiService(_settings.UAssetGuiPath, _settings.MappingsPath, AppendLog);
-            var service = new ExtractionService(_settings, retoc, repak, uasset, AppendLog);
+            var service = new ExtractionService(
+                _settings,
+                retoc,
+                repak,
+                uasset,
+                AppendLog,
+                _settings.ModsFolder,
+                hashSourceFiles: false
+            );
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             await service.ExtractAsync(targets, progress, _operationCts.Token);
             CompleteProgress(_l.T("ui.done"));
