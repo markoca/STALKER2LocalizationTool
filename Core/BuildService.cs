@@ -35,7 +35,8 @@ public sealed class BuildService
         CancellationToken cancellationToken = default)
     {
         var available = mods
-            .Where(x => x.UiStatus == ModUiStatus.Available && !string.IsNullOrWhiteSpace(x.EditableTranslationFile))
+            .Where(x => x.UiStatus is ModUiStatus.Available or ModUiStatus.Extracted
+                        && !string.IsNullOrWhiteSpace(x.EditableTranslationFile))
             .ToList();
         ValidatePrerequisites(available, mode);
 
