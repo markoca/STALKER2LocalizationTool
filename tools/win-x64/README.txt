@@ -1,4 +1,4 @@
-The STALKER2 Localization Tool - project-local runtime tools
+Localization Workbench - project-local runtime tools
 ===========================================================
 
 The source project tools\ directory is the authoritative deployment bundle.
