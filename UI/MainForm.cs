@@ -1018,12 +1018,17 @@ public sealed class MainForm : Form
                         $"{language.EnglishName}: {p.Message}"
                     );
                 });
-                var results = await builder.BuildAllEditableAsync(
-                    new[] { _game! },
-                    language.Id,
-                    BuildMode.Modular,
-                    languageProgress,
-                    _operationCts.Token
+                var buildToken = _operationCts.Token;
+                AppendLog($"GAME / {language.EnglishName}: build pipeline started.");
+                var results = await Task.Run(
+                    () => builder.BuildAllEditableAsync(
+                        new[] { _game! },
+                        language.Id,
+                        BuildMode.Modular,
+                        languageProgress,
+                        buildToken
+                    ),
+                    buildToken
                 );
                 if (results.All(result => result.Verified))
                 {
@@ -1197,12 +1202,21 @@ public sealed class MainForm : Form
                         $"{language.EnglishName}: {p.Message}"
                     );
                 });
-                var results = await builder.BuildAllEditableAsync(
-                    availableMods,
-                    language.Id,
-                    mode,
-                    progress,
-                    _operationCts.Token
+                var buildToken = _operationCts.Token;
+                AppendLog(
+                    $"MODS / {language.EnglishName} / "
+                    + $"{(mode == BuildMode.AllInOne ? "All-in-One" : "Modular")}: "
+                    + "build pipeline started."
+                );
+                var results = await Task.Run(
+                    () => builder.BuildAllEditableAsync(
+                        availableMods,
+                        language.Id,
+                        mode,
+                        progress,
+                        buildToken
+                    ),
+                    buildToken
                 );
                 allResults.AddRange(results);
                 languageSummaries.Add((
