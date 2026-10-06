@@ -60,6 +60,42 @@ public static class ModSourceDiscovery
         public List<ArchiveTriplet> Triplets { get; set; } = new();
     }
 
+    public static bool HasPotentialModSources(string modsRoot)
+    {
+        if (string.IsNullOrWhiteSpace(modsRoot) || !Directory.Exists(modsRoot))
+            return false;
+
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(
+                         modsRoot,
+                         "*",
+                         SearchOption.AllDirectories))
+            {
+                if (IsInsideIgnoredSourceDirectory(modsRoot, file))
+                    continue;
+
+                var extension = Path.GetExtension(file);
+                if (ArchiveExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase))
+                    return true;
+
+                if (!extension.Equals(".utoc", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var pak = Path.ChangeExtension(file, ".pak");
+                var ucas = Path.ChangeExtension(file, ".ucas");
+                if (File.Exists(pak) && File.Exists(ucas))
+                    return true;
+            }
+        }
+        catch
+        {
+            return false;
+        }
+
+        return false;
+    }
+
     public static Task<List<SourceGroup>> DiscoverAsync(
         string modsRoot,
         string materializationRoot,
