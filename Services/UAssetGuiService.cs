@@ -56,8 +56,8 @@ public sealed class UAssetGuiService
             throw new InvalidOperationException(
                 "UAssetGUI failed before managed code could start. The configured UAssetGUI.exe cannot load its .NET application bundle; " +
                 "the extracted .uasset has not been parsed yet and is not implicated by this error. " +
-                $"Localization Workbench v{AppConstants.Version} pins upstream UAssetGUI {AppConstants.UAssetGuiVersion}; " +
-                "replace tools\\UAssetGUI.exe in the source project with the known-good binary, republish, then retry. " +
+                $"Localization Workbench v{AppConstants.Version} is tested with UAssetGUI {AppConstants.UAssetGuiVersion}; " +
+                "replace tools\\UAssetGUI.exe with a compatible known-good binary, then retry. " +
                 "On Linux/Wine, UAssetGUI v1.1.0 also requires the .NET 8 Desktop Runtime in the same Wine prefix.",
                 ex
             );
@@ -95,9 +95,9 @@ public sealed class UAssetGuiService
             if (string.Equals(hash, AppConstants.UAssetGuiKnownBadSha256, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException(
-                    "This UAssetGUI.exe is the known-bad bundle that was accidentally shipped in STALKER2 Localization Tool v0.8.0-v0.8.2. " +
-                    $"SHA-256: {hash}. Replace tools\\UAssetGUI.exe in the source project with the pinned upstream " +
-                    $"UAssetGUI {AppConstants.UAssetGuiVersion} binary and republish."
+                    "This UAssetGUI.exe matches a known-bad historical bundle. " +
+                    $"SHA-256: {hash}. Replace tools\\UAssetGUI.exe with a compatible " +
+                    $"UAssetGUI {AppConstants.UAssetGuiVersion} binary."
                 );
             }
 
