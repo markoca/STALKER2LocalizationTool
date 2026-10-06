@@ -46,6 +46,18 @@ public static class ModSourceDiscovery
         public string PakMember { get; init; } = string.Empty;
         public string UtocMember { get; init; } = string.Empty;
         public string UcasMember { get; init; } = string.Empty;
+        public long PakSize { get; init; }
+        public long UtocSize { get; init; }
+        public long UcasSize { get; init; }
+    }
+
+    private sealed class ArchiveDiscoveryCache
+    {
+        public int Version { get; set; } = 1;
+        public long ArchiveLength { get; set; }
+        public long ArchiveLastWriteUtcTicks { get; set; }
+        public string ArchiveSha256 { get; set; } = string.Empty;
+        public List<ArchiveTriplet> Triplets { get; set; } = new();
     }
 
     public static Task<List<SourceGroup>> DiscoverAsync(
@@ -301,6 +313,41 @@ public static class ModSourceDiscovery
         Action<string>? log,
         CancellationToken cancellationToken)
     {
+        var archiveRelative = Path.GetRelativePath(modsRoot, archivePath);
+        var archiveDisplay = Path.GetFileNameWithoutExtension(archivePath);
+        var archiveInfo = new FileInfo(archivePath);
+        var discoveryCachePath = ArchiveDiscoveryCachePath(
+            materializationRoot,
+            archivePath
+        );
+
+        var cached = TryLoadArchiveDiscoveryCache(
+            discoveryCachePath,
+            archiveInfo
+        );
+
+        if (cached is not null
+            && CanReuseMaterializedArchive(
+                materializationRoot,
+                archiveDisplay,
+                cached
+            ))
+        {
+            log?.Invoke($"Archive discovery cache reused: {archiveRelative}");
+
+            foreach (var group in BuildCachedArchiveGroups(
+                         archivePath,
+                         archiveRelative,
+                         archiveDisplay,
+                         materializationRoot,
+                         cached))
+            {
+                yield return group;
+            }
+
+            yield break;
+        }
+
         using var archive = ArchiveFactory.OpenArchive(archivePath);
 
         var entries = archive.Entries
@@ -351,15 +398,28 @@ public static class ModSourceDiscovery
                 PakMember = pak,
                 UtocMember = utoc,
                 UcasMember = ucas,
+                PakSize = byNormalizedName[pak].Size,
+                UtocSize = byNormalizedName[utoc].Size,
+                UcasSize = byNormalizedName[ucas].Size,
             });
         }
 
         if (triplets.Count == 0)
             yield break;
 
-        var archiveRelative = Path.GetRelativePath(modsRoot, archivePath);
-        var archiveDisplay = Path.GetFileNameWithoutExtension(archivePath);
         var archiveHash = Sha256File(archivePath);
+
+        SaveArchiveDiscoveryCache(
+            discoveryCachePath,
+            new ArchiveDiscoveryCache
+            {
+                Version = 1,
+                ArchiveLength = archiveInfo.Length,
+                ArchiveLastWriteUtcTicks = archiveInfo.LastWriteTimeUtc.Ticks,
+                ArchiveSha256 = archiveHash,
+                Triplets = triplets,
+            }
+        );
 
         foreach (var familyGroup in triplets.GroupBy(
                      item => item.Family,
@@ -382,11 +442,11 @@ public static class ModSourceDiscovery
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var memberIdentity = HashUtil.Sha256Text(triplet.UtocMember)[..12];
-                var targetDir = Path.Combine(
+                var targetDir = MaterializedTripletDirectory(
                     materializationRoot,
-                    PathUtil.MakeSafeName(archiveDisplay) + "_" + archiveHash[..12],
-                    PathUtil.MakeSafeName(triplet.Stem) + "_" + memberIdentity
+                    archiveDisplay,
+                    archiveHash,
+                    triplet
                 );
                 Directory.CreateDirectory(targetDir);
 
@@ -416,6 +476,168 @@ public static class ModSourceDiscovery
                 ContainerLabelsByPath = labels,
                 OriginalSourceFiles = new List<string> { archivePath },
             };
+        }
+    }
+
+    private static ArchiveDiscoveryCache? TryLoadArchiveDiscoveryCache(
+        string cachePath,
+        FileInfo archiveInfo)
+    {
+        if (!File.Exists(cachePath))
+            return null;
+
+        try
+        {
+            var cache = JsonUtil.Load<ArchiveDiscoveryCache>(cachePath);
+            return cache.Version == 1
+                   && cache.ArchiveLength == archiveInfo.Length
+                   && cache.ArchiveLastWriteUtcTicks == archiveInfo.LastWriteTimeUtc.Ticks
+                   && !string.IsNullOrWhiteSpace(cache.ArchiveSha256)
+                   && cache.Triplets.Count > 0
+                ? cache
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void SaveArchiveDiscoveryCache(
+        string cachePath,
+        ArchiveDiscoveryCache cache)
+    {
+        try
+        {
+            JsonUtil.Save(cachePath, cache);
+        }
+        catch
+        {
+            // Discovery cache is an optimization only.
+        }
+    }
+
+    private static string ArchiveDiscoveryCachePath(
+        string materializationRoot,
+        string archivePath)
+    {
+        var identity = Path.GetFullPath(archivePath);
+        return Path.Combine(
+            materializationRoot,
+            ".archive_index",
+            HashUtil.Sha256Text(identity) + ".json"
+        );
+    }
+
+    private static bool CanReuseMaterializedArchive(
+        string materializationRoot,
+        string archiveDisplay,
+        ArchiveDiscoveryCache cache)
+    {
+        foreach (var triplet in cache.Triplets)
+        {
+            var targetDir = MaterializedTripletDirectory(
+                materializationRoot,
+                archiveDisplay,
+                cache.ArchiveSha256,
+                triplet
+            );
+
+            if (!FileMatchesSize(
+                    Path.Combine(targetDir, triplet.Stem + ".pak"),
+                    triplet.PakSize)
+                || !FileMatchesSize(
+                    Path.Combine(targetDir, triplet.Stem + ".utoc"),
+                    triplet.UtocSize)
+                || !FileMatchesSize(
+                    Path.Combine(targetDir, triplet.Stem + ".ucas"),
+                    triplet.UcasSize))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static IEnumerable<SourceGroup> BuildCachedArchiveGroups(
+        string archivePath,
+        string archiveRelative,
+        string archiveDisplay,
+        string materializationRoot,
+        ArchiveDiscoveryCache cache)
+    {
+        foreach (var familyGroup in cache.Triplets.GroupBy(
+                     item => item.Family,
+                     StringComparer.OrdinalIgnoreCase))
+        {
+            var family = familyGroup
+                .OrderBy(item => item.UtocMember, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var displayName = cache.Triplets.Count == family.Count
+                ? archiveDisplay
+                : $"{archiveDisplay} — {familyGroup.Key}";
+
+            var containers = new List<string>();
+            var labels = new Dictionary<string, string>(
+                StringComparer.OrdinalIgnoreCase
+            );
+
+            foreach (var triplet in family)
+            {
+                var targetDir = MaterializedTripletDirectory(
+                    materializationRoot,
+                    archiveDisplay,
+                    cache.ArchiveSha256,
+                    triplet
+                );
+                var utocTarget = Path.Combine(
+                    targetDir,
+                    triplet.Stem + ".utoc"
+                );
+
+                containers.Add(utocTarget);
+                labels[utocTarget] = triplet.Stem;
+            }
+
+            yield return new SourceGroup
+            {
+                Key = $"archive|{Path.GetFullPath(archivePath)}|{familyGroup.Key}",
+                Name = displayName,
+                Kind = "archive",
+                Label = archiveRelative,
+                Containers = containers,
+                ContainerLabelsByPath = labels,
+                OriginalSourceFiles = new List<string> { archivePath },
+            };
+        }
+    }
+
+    private static string MaterializedTripletDirectory(
+        string materializationRoot,
+        string archiveDisplay,
+        string archiveHash,
+        ArchiveTriplet triplet)
+    {
+        var memberIdentity = HashUtil.Sha256Text(triplet.UtocMember)[..12];
+        return Path.Combine(
+            materializationRoot,
+            PathUtil.MakeSafeName(archiveDisplay) + "_" + archiveHash[..12],
+            PathUtil.MakeSafeName(triplet.Stem) + "_" + memberIdentity
+        );
+    }
+
+    private static bool FileMatchesSize(string path, long expectedSize)
+    {
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Exists && info.Length == expectedSize;
+        }
+        catch
+        {
+            return false;
         }
     }
 
