@@ -36,13 +36,47 @@ public sealed class ExtractionService
         IProgress<(int Current, int Total, string Message)>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var list = mods.Where(x => x.HasLocalization && x.NeedsExtraction).ToList();
-        ValidatePrerequisites(list);
+        var list = mods
+            .Where(x =>
+                x.HasLocalization
+                && (x.NeedsExtraction
+                    || x.UiStatus == ModUiStatus.MissingTranslation))
+            .ToList();
+
+        // Only a real source extraction needs retoc/UAssetGUI/repak.
+        // MissingTranslation is an Editable-recovery case and can be restored
+        // directly from the already-current Cached workspace.
+        ValidatePrerequisites(
+            list.Where(x => x.NeedsExtraction).ToList()
+        );
+
         Directory.CreateDirectory(_settings.CachedFolder);
+
         for (var index = 0; index < list.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var mod = list[index];
+
+            if (!mod.NeedsExtraction
+                && mod.UiStatus == ModUiStatus.MissingTranslation)
+            {
+                progress?.Report((
+                    index,
+                    list.Count,
+                    $"Restoring {mod.ModName}"
+                ));
+                _log?.Invoke(
+                    $"=== Restoring Editable files for {mod.ModName} ==="
+                );
+                RestoreMissingEditableWorkspace(mod);
+                progress?.Report((
+                    index + 1,
+                    list.Count,
+                    $"Restored {mod.ModName}"
+                ));
+                continue;
+            }
+
             progress?.Report((index, list.Count, $"Extracting {mod.ModName}"));
             _log?.Invoke($"=== Extracting {mod.ModName} ===");
             await ExtractOneModAsync(mod, cancellationToken);
@@ -148,6 +182,75 @@ public sealed class ExtractionService
             TryDeleteDirectory(stagingRoot);
             throw;
         }
+    }
+
+    private void RestoreMissingEditableWorkspace(ModScanResult mod)
+    {
+        var cachedRoot = Path.Combine(
+            _settings.CachedFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(cachedRoot))
+        {
+            throw new DirectoryNotFoundException(
+                $"Cached extraction was not found for {mod.ModName}: {cachedRoot}"
+            );
+        }
+
+        var editableRoot = Path.Combine(
+            _settings.EditableFolder,
+            mod.ModId
+        );
+        Directory.CreateDirectory(editableRoot);
+
+        var restored = 0;
+
+        foreach (var directory in Directory.EnumerateDirectories(
+                     cachedRoot,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(
+                cachedRoot,
+                directory
+            );
+            Directory.CreateDirectory(
+                Path.Combine(editableRoot, relative)
+            );
+        }
+
+        foreach (var sourceFile in Directory.EnumerateFiles(
+                     cachedRoot,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(
+                cachedRoot,
+                sourceFile
+            );
+            var destinationFile = Path.Combine(
+                editableRoot,
+                relative
+            );
+
+            if (File.Exists(destinationFile))
+                continue;
+
+            Directory.CreateDirectory(
+                Path.GetDirectoryName(destinationFile)!
+            );
+            File.Copy(
+                sourceFile,
+                destinationFile,
+                overwrite: false
+            );
+            restored++;
+        }
+
+        _log?.Invoke(
+            $"Restored {restored} missing Editable file(s) from Cached -> "
+            + editableRoot
+        );
     }
 
     private void SeedEditableWorkspace(string cachedRoot, string modId)
