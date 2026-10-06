@@ -1727,7 +1727,10 @@ public sealed class MainForm : Form
             return;
         }
 
-        if (_buildGameButton.Enabled)
+        // Scan completion happens while the form is still busy, so the BUILD
+        // button is temporarily disabled at this point. Derive the workflow
+        // stage from the scanned GAME state itself rather than button.Enabled.
+        if (_game?.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified)
         {
             _statusText.Text = "READY TO BUILD";
             AppendLog("=========== READY TO BUILD ===========");
@@ -1743,7 +1746,8 @@ public sealed class MainForm : Form
             return;
         }
 
-        if (_buildModularButton.Enabled || _buildAllInOneButton.Enabled)
+        if (_mods.Any(mod =>
+                mod.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified))
         {
             _statusText.Text = "READY TO BUILD";
             AppendLog("=========== READY TO BUILD ===========");
