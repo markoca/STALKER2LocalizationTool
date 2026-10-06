@@ -12,7 +12,6 @@ public sealed class SettingsForm : Form
 
     private readonly Label _titleAccent = new();
     private readonly Label _titleRest = new();
-    private readonly StalkerBrandMark _brandMark = new();
     private readonly StalkerWindowButton _minimizeButton = new();
     private readonly StalkerWindowButton _maximizeButton = new();
     private readonly StalkerWindowButton _closeButton = new() { IsCloseButton = true };
@@ -144,10 +143,6 @@ public sealed class SettingsForm : Form
             BackColor = StalkerTheme.WindowChrome,
         };
 
-        _brandMark.Width = 52;
-        _brandMark.Height = 52;
-        _brandMark.Margin = new Padding(0, 2, 14, 0);
-
         var titleWords = new FlowLayoutPanel
         {
             AutoSize = true,
@@ -177,7 +172,6 @@ public sealed class SettingsForm : Form
 
         titleWords.Controls.Add(_titleAccent);
         titleWords.Controls.Add(_titleRest);
-        identity.Controls.Add(_brandMark);
         identity.Controls.Add(titleWords);
 
         var captionButtons = new FlowLayoutPanel
