@@ -57,6 +57,7 @@ public sealed class MainForm : Form
     private bool _suspendWatcherScan;
     private bool _lastSettingsDeletedCache;
     private bool _modsScanInProgress;
+    private bool _modsReadyPromptShown;
 
     private FileSystemWatcher? _editableWatcher;
     private FileSystemWatcher? _cachedWatcher;
@@ -708,8 +709,16 @@ public sealed class MainForm : Form
 
     private void ShowModsReadyToScan()
     {
-        if (!IsModsWorkspace || _busy)
+        // This is a one-shot pre-scan hint for the current application session.
+        // Switching between GAME and MODS must never duplicate it.
+        if (!IsModsWorkspace
+            || _busy
+            || _modsScanSuccessful
+            || _modsScanInProgress
+            || _modsReadyPromptShown)
+        {
             return;
+        }
 
         if (!ModSourceDiscovery.HasPotentialModSources(_settings.ModsFolder))
         {
@@ -720,6 +729,7 @@ public sealed class MainForm : Form
         AppendLog("=========== MODS FOUND ===========");
         AppendLog("=========== READY TO SCAN ===========");
         _statusText.Text = "READY TO SCAN";
+        _modsReadyPromptShown = true;
     }
 
     private void ConfigureGrid()
