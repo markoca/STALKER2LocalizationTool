@@ -135,16 +135,15 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 6,
+            RowCount = 5,
             Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // title chrome
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // navigation
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // languages
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // workspace
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // title chrome
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // navigation
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Languages + workspace
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152)); // log
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // footer
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // footer
         Controls.Add(root);
 
         // TCD-style custom window chrome: one strong identity band, no native title bar.
@@ -314,15 +313,30 @@ public sealed class MainForm : Form
         navBar.Controls.Add(navLayout);
         root.Controls.Add(navBar, 0, 1);
 
+        // Main work area follows the True Custom Difficulty composition:
+        // Languages on the left, active GAME/MODS workspace on the right.
+        var mainContent = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0),
+            Padding = new Padding(14, 8, 14, 10),
+            BackColor = StalkerTheme.WindowBackground,
+        };
+        mainContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 31F));
+        mainContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 69F));
+        mainContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        root.Controls.Add(mainContent, 0, 2);
+
         // Languages remains a normal content card, not part of the window chrome.
         var languagesCard = new StalkerCardPanel
         {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Fill,
+            AutoSize = false,
             BackColor = StalkerTheme.Panel,
-            Padding = new Padding(12, 8, 12, 8),
-            Margin = new Padding(14, 8, 14, 8),
+            Padding = new Padding(12, 10, 12, 10),
+            Margin = new Padding(0, 0, 6, 0),
             AccentEdge = false,
         };
         var languagesLayout = new TableLayoutPanel
@@ -364,7 +378,7 @@ public sealed class MainForm : Form
         languagesLayout.Controls.Add(languagesHeader, 0, 0);
         languagesLayout.Controls.Add(_buildLanguages, 0, 1);
         languagesCard.Controls.Add(languagesLayout);
-        root.Controls.Add(languagesCard, 0, 2);
+        mainContent.Controls.Add(languagesCard, 0, 0);
 
         // Workspace body: tabs now live in the global nav band above.
         var workspaceCard = new StalkerCardPanel
@@ -372,7 +386,7 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             BackColor = StalkerTheme.Panel,
             Padding = new Padding(0),
-            Margin = new Padding(14, 0, 14, 10),
+            Margin = new Padding(6, 0, 0, 0),
         };
 
         _workspaceHost.Dock = DockStyle.Fill;
@@ -395,7 +409,7 @@ public sealed class MainForm : Form
         _workspaceHost.Controls.Add(_modsTab);
         _workspaceHost.Controls.Add(_gameTab);
         workspaceCard.Controls.Add(_workspaceHost);
-        root.Controls.Add(workspaceCard, 0, 3);
+        mainContent.Controls.Add(workspaceCard, 1, 0);
         SetWorkspace(_gameTab);
 
         // LOG is still content, therefore it keeps the same bordered graphite card language.
@@ -430,7 +444,7 @@ public sealed class MainForm : Form
         logLayout.Controls.Add(_logLabel, 0, 0);
         logLayout.Controls.Add(_logBox, 0, 1);
         logCard.Controls.Add(logLayout);
-        root.Controls.Add(logCard, 0, 4);
+        root.Controls.Add(logCard, 0, 3);
 
         // TCD-style bottom chrome: one edge-to-edge footer band, not a card + StatusStrip.
         var footerBar = new StalkerFooterBar
@@ -496,7 +510,7 @@ public sealed class MainForm : Form
         footer.Controls.Add(_progress, 1, 0);
         footer.Controls.Add(openButtons, 2, 0);
         footerBar.Controls.Add(footer);
-        root.Controls.Add(footerBar, 0, 5);
+        root.Controls.Add(footerBar, 0, 4);
 
         UpdateMaximizeButtonGlyph();
     }
