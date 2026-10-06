@@ -68,11 +68,36 @@ public sealed class SettingsService
             .ToList();
         settings.BuildLanguageId = null;
 
-        settings.RetocPath = DefaultIfEmpty(settings.RetocPath, Path.Combine(baseDir, "tools", "retoc.exe"));
-        settings.UAssetGuiPath = DefaultIfEmpty(settings.UAssetGuiPath, Path.Combine(baseDir, "tools", "UAssetGUI.exe"));
-        settings.MappingsPath = DefaultIfEmpty(settings.MappingsPath, Path.Combine(baseDir, "tools", "Mappings.usmap"));
-        settings.RepakPath = DefaultIfEmpty(settings.RepakPath, Path.Combine(baseDir, "tools", "repak.exe"));
-        settings.S2HocmmPath = DefaultIfEmpty(settings.S2HocmmPath, FindS2Hocmm(baseDir));
+        settings.RetocPath = RepairBundledFilePath(
+            settings.RetocPath,
+            Path.Combine(baseDir, "tools", "retoc.exe"),
+            "retoc.exe",
+            settings.MigrationMessages
+        );
+        settings.UAssetGuiPath = RepairBundledFilePath(
+            settings.UAssetGuiPath,
+            Path.Combine(baseDir, "tools", "UAssetGUI.exe"),
+            "UAssetGUI.exe",
+            settings.MigrationMessages
+        );
+        settings.MappingsPath = RepairBundledFilePath(
+            settings.MappingsPath,
+            Path.Combine(baseDir, "tools", "Mappings.usmap"),
+            "Mappings.usmap",
+            settings.MigrationMessages
+        );
+        settings.RepakPath = RepairBundledFilePath(
+            settings.RepakPath,
+            Path.Combine(baseDir, "tools", "repak.exe"),
+            "repak.exe",
+            settings.MigrationMessages
+        );
+        settings.S2HocmmPath = RepairBundledFilePath(
+            settings.S2HocmmPath,
+            FindS2Hocmm(baseDir),
+            "S2HOCMM.exe",
+            settings.MigrationMessages
+        );
 
         settings.ModsFolder = DefaultIfEmpty(settings.ModsFolder, Path.Combine(baseDir, "Mods"));
         settings.CachedFolder = ResolveWorkspaceFolder(
@@ -253,6 +278,31 @@ public sealed class SettingsService
         // project-local tools directory. Custom paths remain supported through
         // settings, but normal users never need a sibling developer checkout.
         return Path.Combine(baseDir, "tools", "S2HOCMM.exe");
+    }
+
+    private static string RepairBundledFilePath(
+        string? currentValue,
+        string bundledFallback,
+        string displayName,
+        List<string> messages)
+    {
+        if (!string.IsNullOrWhiteSpace(currentValue) && File.Exists(currentValue))
+            return currentValue;
+
+        if (File.Exists(bundledFallback))
+        {
+            if (!string.IsNullOrWhiteSpace(currentValue)
+                && !PathsEqual(currentValue, bundledFallback))
+            {
+                messages.Add(
+                    $"Settings repaired: {displayName} no longer exists at '{currentValue}'. " +
+                    $"Using bundled tool: {bundledFallback}"
+                );
+            }
+            return bundledFallback;
+        }
+
+        return string.IsNullOrWhiteSpace(currentValue) ? bundledFallback : currentValue;
     }
 
     private static string DefaultIfEmpty(string? value, string fallback) =>
