@@ -41,31 +41,87 @@ public static class UnrealStringCodec
         return (narrowValue, FStringEncoding.Ansi, offset);
     }
 
-    public static byte[] WriteFString(string? value, FStringEncoding preferredEncoding)
+    public static void WriteFString(
+        Stream stream,
+        string? value,
+        FStringEncoding preferredEncoding)
     {
         value ??= string.Empty;
 
         if (preferredEncoding == FStringEncoding.Ansi)
         {
-            var raw = Encoding.UTF8.GetBytes(value);
-            if (raw.All(b => b < 0x80))
+            var byteCount = Encoding.UTF8.GetByteCount(value);
+            var rented = System.Buffers.ArrayPool<byte>.Shared.Rent(
+                Math.Max(1, byteCount)
+            );
+            try
             {
-                var output = new byte[4 + raw.Length + 1];
-                BinaryPrimitives.WriteInt32LittleEndian(output.AsSpan(0, 4), raw.Length + 1);
-                raw.CopyTo(output.AsSpan(4));
-                output[^1] = 0;
-                return output;
+                var written = Encoding.UTF8.GetBytes(
+                    value.AsSpan(),
+                    rented.AsSpan(0, byteCount)
+                );
+
+                var asciiOnly = true;
+                for (var i = 0; i < written; i++)
+                {
+                    if (rented[i] >= 0x80)
+                    {
+                        asciiOnly = false;
+                        break;
+                    }
+                }
+
+                if (asciiOnly)
+                {
+                    WriteLength(stream, written + 1);
+                    stream.Write(rented, 0, written);
+                    stream.WriteByte(0);
+                    return;
+                }
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(rented);
             }
         }
 
-        var wide = Encoding.Unicode.GetBytes(value);
-        var codeUnitsWithTerminator = checked(wide.Length / 2 + 1);
-        var result = new byte[4 + wide.Length + 2];
-        BinaryPrimitives.WriteInt32LittleEndian(result.AsSpan(0, 4), -codeUnitsWithTerminator);
-        wide.CopyTo(result.AsSpan(4));
-        result[^2] = 0;
-        result[^1] = 0;
-        return result;
+        var wideByteCount = Encoding.Unicode.GetByteCount(value);
+        var wideRented = System.Buffers.ArrayPool<byte>.Shared.Rent(
+            Math.Max(2, wideByteCount)
+        );
+        try
+        {
+            var written = Encoding.Unicode.GetBytes(
+                value.AsSpan(),
+                wideRented.AsSpan(0, wideByteCount)
+            );
+
+            var codeUnitsWithTerminator = checked(written / 2 + 1);
+            WriteLength(stream, -codeUnitsWithTerminator);
+            stream.Write(wideRented, 0, written);
+            stream.WriteByte(0);
+            stream.WriteByte(0);
+        }
+        finally
+        {
+            System.Buffers.ArrayPool<byte>.Shared.Return(wideRented);
+        }
+    }
+
+    private static void WriteLength(Stream stream, int value)
+    {
+        Span<byte> bytes = stackalloc byte[4];
+        BinaryPrimitives.WriteInt32LittleEndian(bytes, value);
+        stream.Write(bytes);
+    }
+
+    public static byte[] WriteFString(
+        string? value,
+        FStringEncoding preferredEncoding)
+    {
+        using var stream = new MemoryStream();
+        WriteFString(stream, value, preferredEncoding);
+        return stream.ToArray();
     }
 
     private static void Ensure(byte[] data, int offset, int length, string message)
