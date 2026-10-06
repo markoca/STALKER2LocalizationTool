@@ -247,7 +247,7 @@ public sealed class MainForm : Form
             AutoSize = false,
             Height = 44,
             Margin = new Padding(0),
-            Padding = new Padding(14, 0, 0, 0),
+            Padding = new Padding(14, 0, 14, 0),
         };
 
         var navLayout = new TableLayoutPanel
