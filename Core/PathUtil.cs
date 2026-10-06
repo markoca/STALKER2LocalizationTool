@@ -20,9 +20,22 @@ public static class PathUtil
 
     public static string ArchiveModDisplayName(string archiveNameOrPath)
     {
-        var archiveName = Path.GetFileNameWithoutExtension(
+        var archiveName = Path.GetFileName(
             archiveNameOrPath
         ).Trim();
+
+        // This method is sometimes called with the real archive filename and
+        // sometimes with an already extensionless display name. Never call
+        // GetFileNameWithoutExtension blindly here because a dotted version
+        // such as "0.4" would be mistaken for a file extension on the second
+        // pass. Strip only actual supported archive extensions.
+        var archiveExtension = Path.GetExtension(archiveName);
+        if (archiveExtension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
+            || archiveExtension.Equals(".7z", StringComparison.OrdinalIgnoreCase)
+            || archiveExtension.Equals(".rar", StringComparison.OrdinalIgnoreCase))
+        {
+            archiveName = archiveName[..^archiveExtension.Length];
+        }
 
         // Nexus-style names commonly look like:
         //   <title> <3-4 digit Nexus ID> <version> <timestamp> <hash>
