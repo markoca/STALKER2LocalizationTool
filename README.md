@@ -37,10 +37,12 @@ The application targets **Windows x64** (`net8.0-windows`).
 
 Linux is supported as a development host for cross-publishing and Wine testing, not as a native application target.
 
-The authoritative helper-tool bundle is:
+Localization Workbench does **not** distribute helper-tool binaries.
+
+The user must obtain compatible Windows x64 copies of the required tools and place them beside the application under:
 
 ```text
-tools/win-x64/
+tools/
 ├── retoc.exe
 ├── repak.exe
 ├── UAssetGUI.exe
@@ -48,7 +50,9 @@ tools/win-x64/
 └── S2HOCMM.exe
 ```
 
-No helper tool is downloaded or compiled by the publish scripts.
+The tested UAssetGUI baseline is **v1.1.0**. `Mappings.usmap` must match the target S.T.A.L.K.E.R. 2 game build.
+
+The publish scripts do not download, validate, copy, or redistribute these third-party tools.
 
 ## GAME workflow
 
@@ -193,7 +197,9 @@ Both publish paths create a self-contained Windows x64 runtime under:
 publish/win-x64/
 ```
 
-Existing `user-paths.json`, `Mods`, `Cached`, `Editable`, and `Output` data are preserved across republish.
+Existing `user-paths.json`, `Mods`, `Cached`, `Editable`, `Output`, and locally supplied `tools` data are preserved across republish.
+
+A clean distribution should not include helper-tool binaries. The release may contain only `tools/README.txt`; the user supplies the actual tools.
 
 The target Windows machine does not need a separate .NET installation.
 
