@@ -1,6 +1,6 @@
-using STALKER2LocalizationTool.Core;
+using LocalizationWorkbench.Core;
 
-namespace STALKER2LocalizationTool.Services;
+namespace LocalizationWorkbench.Services;
 
 public sealed class UAssetGuiService
 {
@@ -56,7 +56,7 @@ public sealed class UAssetGuiService
             throw new InvalidOperationException(
                 "UAssetGUI failed before managed code could start. The configured UAssetGUI.exe cannot load its .NET application bundle; " +
                 "the extracted .uasset has not been parsed yet and is not implicated by this error. " +
-                $"The STALKER2 Localization Tool v{AppConstants.Version} pins upstream UAssetGUI {AppConstants.UAssetGuiVersion}; " +
+                $"Localization Workbench v{AppConstants.Version} pins upstream UAssetGUI {AppConstants.UAssetGuiVersion}; " +
                 "replace tools\\UAssetGUI.exe in the source project with the known-good binary, republish, then retry. " +
                 "On Linux/Wine, UAssetGUI v1.1.0 also requires the .NET 8 Desktop Runtime in the same Wine prefix.",
                 ex
