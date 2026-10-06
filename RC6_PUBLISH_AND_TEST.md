@@ -30,7 +30,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 Output:
 
 ```text
-publish\win-x64\STALKER2LocalizationTool.exe
+publish\win-x64\LocalizationWorkbench.exe
 publish\win-x64\tools\...
 ```
 
