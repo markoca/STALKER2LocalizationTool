@@ -30,7 +30,7 @@ GAME handles the game's `Game.locres` workflow.
 3. Edit `Editable/Game/<language>.json`.
 4. **BUILD** serializes the selected language with S2HOCMM and packages the verified `Game.locres` with repak.
 
-If `Editable/Game` is deleted while a valid `Cached/Game` still exists, the next scan reports **READY FOR EXTRACTION**. EXTRACT restores the missing editable files from Cached without re-reading the game source packages.
+If `Editable/Game` is deleted while a valid `Cached/Game` still exists, the next scan reports **LOCALIZATION READY FOR EXTRACTION**. EXTRACT restores the missing editable files from Cached without re-reading the game source packages.
 
 ## MODS workflow
 
