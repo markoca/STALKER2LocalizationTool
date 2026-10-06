@@ -461,10 +461,10 @@ internal sealed class StalkerCheckedListBox : CheckedListBox
             14,
             14);
 
-        using (var border = new Pen(IsItemChecked(e.Index) ? StalkerTheme.Accent : StalkerTheme.Border))
+        using (var border = new Pen(GetItemChecked(e.Index) ? StalkerTheme.Accent : StalkerTheme.Border))
             e.Graphics.DrawRectangle(border, box);
 
-        if (IsItemChecked(e.Index))
+        if (GetItemChecked(e.Index))
         {
             using var fill = new SolidBrush(StalkerTheme.Accent);
             var inner = Rectangle.Inflate(box, -3, -3);
