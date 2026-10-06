@@ -828,7 +828,7 @@ public sealed class MainForm : Form
 
         try
         {
-            AppendLog($"--- {_l.T("ui.scanning")} ---");
+            AppendLog("========== SCANNING MODS ==========");
             var retoc = new RetocService(_settings.RetocPath, AppendLog);
             var scanner = new ModScanner(
                 retoc,
@@ -892,7 +892,7 @@ public sealed class MainForm : Form
         _operationCts = new CancellationTokenSource();
         try
         {
-            AppendLog($"--- {_l.T("ui.scanning_game")} ---");
+            AppendLog("========== SCANNING GAME ==========");
             var scanner = new GameScanner(
                 new RetocService(_settings.RetocPath, AppendLog),
                 new RepakService(_settings.RepakPath, AppendLog),
