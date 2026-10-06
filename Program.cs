@@ -12,6 +12,7 @@ internal static class Program
         ApplicationConfiguration.Initialize();
 
         var settings = AppSettings.CreateRuntime();
+        UserPathStore.Apply(settings);
         var localizer = new Localizer();
 
         Application.Run(new MainForm(settings, localizer));
