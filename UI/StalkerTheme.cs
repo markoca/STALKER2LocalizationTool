@@ -920,8 +920,12 @@ internal sealed class StalkerProgressBar : ProgressBar
         SetStyle(
             ControlStyles.UserPaint
             | ControlStyles.AllPaintingInWmPaint
-            | ControlStyles.OptimizedDoubleBuffer,
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
             true);
+
+        BackColor = StalkerTheme.PanelAlt;
+        ForeColor = StalkerTheme.Accent;
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -930,18 +934,78 @@ internal sealed class StalkerProgressBar : ProgressBar
         if (rect.Width <= 0 || rect.Height <= 0)
             return;
 
-        e.Graphics.Clear(StalkerTheme.PanelAlt);
+        e.Graphics.SmoothingMode = SmoothingMode.None;
+        e.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.PanelAlt);
+
+        var rail = new Rectangle(
+            0,
+            Math.Max(0, (rect.Height - 6) / 2),
+            Math.Max(1, rect.Width),
+            Math.Min(6, rect.Height)
+        );
+
+        using (var track = new SolidBrush(StalkerTheme.TitleBar))
+            e.Graphics.FillRectangle(track, rail);
+
         using (var border = new Pen(StalkerTheme.Border))
-            e.Graphics.DrawRectangle(border, 0, 0, rect.Width - 1, rect.Height - 1);
+            e.Graphics.DrawRectangle(
+                border,
+                rail.Left,
+                rail.Top,
+                Math.Max(0, rail.Width - 1),
+                Math.Max(0, rail.Height - 1)
+            );
 
         var range = Maximum - Minimum;
-        var ratio = range <= 0 ? 0d : Math.Clamp((Value - Minimum) / (double)range, 0d, 1d);
-        var width = (int)Math.Round((rect.Width - 2) * ratio);
+        var ratio = range <= 0
+            ? 0d
+            : Math.Clamp((Value - Minimum) / (double)range, 0d, 1d);
 
-        if (width > 0)
+        var innerWidth = Math.Max(0, rail.Width - 2);
+        var fillWidth = (int)Math.Round(innerWidth * ratio);
+
+        if (fillWidth <= 0)
+            return;
+
+        var fillRect = new Rectangle(
+            rail.Left + 1,
+            rail.Top + 1,
+            fillWidth,
+            Math.Max(1, rail.Height - 2)
+        );
+
+        using (var fill = new LinearGradientBrush(
+                   fillRect,
+                   StalkerTheme.AccentHover,
+                   StalkerTheme.Accent,
+                   LinearGradientMode.Horizontal))
         {
-            using var fill = new SolidBrush(StalkerTheme.Accent);
-            e.Graphics.FillRectangle(fill, 1, 1, width, Math.Max(0, rect.Height - 2));
+            e.Graphics.FillRectangle(fill, fillRect);
+        }
+
+        // Thin highlight keeps the rail sharp at small sizes.
+        using (var highlight = new Pen(Color.FromArgb(150, Color.White)))
+        {
+            e.Graphics.DrawLine(
+                highlight,
+                fillRect.Left,
+                fillRect.Top,
+                fillRect.Right - 1,
+                fillRect.Top
+            );
+        }
+
+        // Bright leading edge makes movement readable without making the bar thicker.
+        if (fillRect.Width >= 2)
+        {
+            using var edge = new Pen(StalkerTheme.AccentHover);
+            e.Graphics.DrawLine(
+                edge,
+                fillRect.Right - 1,
+                fillRect.Top,
+                fillRect.Right - 1,
+                fillRect.Bottom - 1
+            );
         }
     }
 }
