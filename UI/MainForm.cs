@@ -166,7 +166,7 @@ public sealed class MainForm : Form
             RowCount = 1,
             Margin = new Padding(0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
+            BackColor = StalkerTheme.WindowChrome,
         };
         titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -179,7 +179,7 @@ public sealed class MainForm : Form
             WrapContents = false,
             Margin = new Padding(0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
+            BackColor = StalkerTheme.WindowChrome,
         };
 
         _brandMark.Width = 52;
@@ -193,7 +193,7 @@ public sealed class MainForm : Form
             WrapContents = false,
             Margin = new Padding(0, 12, 0, 0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
+            BackColor = StalkerTheme.WindowChrome,
         };
 
         _titleAccent.AutoSize = true;
@@ -218,7 +218,7 @@ public sealed class MainForm : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
             Margin = new Padding(0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
+            BackColor = StalkerTheme.WindowChrome,
         };
 
         _minimizeButton.Text = "—";
