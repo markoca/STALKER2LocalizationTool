@@ -834,7 +834,7 @@ public sealed class MainForm : Form
             UpdateButtons();
             SaveModsSnapshot();
             CompleteProgress(_l.T("ui.done"));
-            AppendLog("=========== READY FOR EXTRACTION ===========");
+            LogModsWorkflowReady();
         }
         catch (OperationCanceledException)
         {
@@ -891,7 +891,7 @@ public sealed class MainForm : Form
                 _game.UiStatus = ModUiStatus.BuiltVerified;
             UpdateButtons();
             CompleteProgress(_l.T("ui.done"));
-            AppendLog("=========== READY FOR EXTRACTION ===========");
+            LogGameWorkflowReady();
         }
         catch (OperationCanceledException)
         {
@@ -1702,6 +1702,38 @@ public sealed class MainForm : Form
             return;
         }
         _logBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+    }
+
+    private void LogGameWorkflowReady()
+    {
+        if (_game?.UiStatus == ModUiStatus.NeedsExtraction)
+        {
+            _statusText.Text = "READY FOR EXTRACTION";
+            AppendLog("=========== READY FOR EXTRACTION ===========");
+            return;
+        }
+
+        if (_buildGameButton.Enabled)
+        {
+            _statusText.Text = "READY TO BUILD";
+            AppendLog("=========== READY TO BUILD ===========");
+        }
+    }
+
+    private void LogModsWorkflowReady()
+    {
+        if (_mods.Any(mod => mod.UiStatus == ModUiStatus.NeedsExtraction))
+        {
+            _statusText.Text = "READY FOR EXTRACTION";
+            AppendLog("=========== READY FOR EXTRACTION ===========");
+            return;
+        }
+
+        if (_buildModularButton.Enabled || _buildAllInOneButton.Enabled)
+        {
+            _statusText.Text = "READY TO BUILD";
+            AppendLog("=========== READY TO BUILD ===========");
+        }
     }
 
     private DialogResult ShowSettings()
