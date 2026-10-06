@@ -69,26 +69,55 @@ public static class LocalizationDatabaseCodec
     public static byte[] Serialize(LocalizationPayload parsed)
     {
         using var stream = new MemoryStream();
+        WritePayload(stream, parsed);
+        return stream.ToArray();
+    }
+
+    public static bool RoundTripMatches(
+        LocalizationPayload parsed,
+        byte[] originalPayload)
+    {
+        using var stream = new ComparingWriteStream(originalPayload);
+        WritePayload(stream, parsed);
+        return stream.IsExactMatch;
+    }
+
+    private static void WritePayload(
+        Stream stream,
+        LocalizationPayload parsed)
+    {
         stream.Write(parsed.RootHeader);
         WriteInt32(stream, parsed.Records.Count);
 
         foreach (var record in parsed.Records)
         {
-            stream.Write(UnrealStringCodec.WriteFString(record.Sid, record.SidEncoding));
+            stream.Write(
+                UnrealStringCodec.WriteFString(
+                    record.Sid,
+                    record.SidEncoding
+                )
+            );
             stream.Write(record.NestedHeader);
             WriteInt32(stream, record.Translations.Count);
 
             foreach (var translation in record.Translations)
             {
                 Span<byte> idBytes = stackalloc byte[8];
-                BinaryPrimitives.WriteInt64LittleEndian(idBytes, translation.LanguageId);
+                BinaryPrimitives.WriteInt64LittleEndian(
+                    idBytes,
+                    translation.LanguageId
+                );
                 stream.Write(idBytes);
-                stream.Write(UnrealStringCodec.WriteFString(translation.Value, translation.Encoding));
+                stream.Write(
+                    UnrealStringCodec.WriteFString(
+                        translation.Value,
+                        translation.Encoding
+                    )
+                );
             }
         }
 
         stream.Write(parsed.Trailer);
-        return stream.ToArray();
     }
 
     public static PatchResult Patch(
@@ -161,6 +190,77 @@ public static class LocalizationDatabaseCodec
 
         if (failures.Count > 0)
             throw new InvalidDataException(label + ": patched localization verification failed\r\n" + string.Join("\r\n", failures));
+    }
+
+    private sealed class ComparingWriteStream : Stream
+    {
+        private readonly byte[] _expected;
+        private int _offset;
+        private bool _matches = true;
+
+        public ComparingWriteStream(byte[] expected)
+        {
+            _expected = expected;
+        }
+
+        public bool IsExactMatch =>
+            _matches && _offset == _expected.Length;
+
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => _offset;
+
+        public override long Position
+        {
+            get => _offset;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override void Write(
+            byte[] buffer,
+            int offset,
+            int count)
+        {
+            Write(buffer.AsSpan(offset, count));
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            if (_offset > _expected.Length - buffer.Length)
+            {
+                _matches = false;
+                _offset += buffer.Length;
+                return;
+            }
+
+            if (_matches
+                && !buffer.SequenceEqual(
+                    _expected.AsSpan(_offset, buffer.Length)))
+            {
+                _matches = false;
+            }
+
+            _offset += buffer.Length;
+        }
+
+        public override int Read(
+            byte[] buffer,
+            int offset,
+            int count) =>
+            throw new NotSupportedException();
+
+        public override long Seek(
+            long offset,
+            SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) =>
+            throw new NotSupportedException();
     }
 
     private static int ReadInt32(byte[] data, ref int offset, string label)
