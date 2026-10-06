@@ -244,9 +244,8 @@ public sealed class MainForm : Form
             Dock = DockStyle.Top,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            MinimumSize = new Size(0, 48),
             Margin = new Padding(0),
-            Padding = new Padding(14, 6, 10, 6),
+            Padding = new Padding(14, 0, 10, 0),
         };
 
         var navLayout = new TableLayoutPanel
@@ -262,6 +261,7 @@ public sealed class MainForm : Form
         };
         navLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         navLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        navLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
 
         var tabStrip = new FlowLayoutPanel
         {
@@ -282,18 +282,17 @@ public sealed class MainForm : Form
 
         var navActions = new FlowLayoutPanel
         {
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Fill,
+            AutoSize = false,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            Anchor = AnchorStyles.Right,
             Margin = new Padding(0),
             Padding = new Padding(0),
             BackColor = StalkerTheme.TitleBar,
         };
 
-        ConfigureChromeButton(_refreshButton, 92);
-        ConfigureChromeButton(_settingsButton, 102);
+        ConfigureNavButton(_refreshButton, 92);
+        ConfigureNavButton(_settingsButton, 102);
         _refreshButton.Click += async (_, _) => await ScanActiveAsync();
         _settingsButton.Click += async (_, _) =>
         {
@@ -668,6 +667,16 @@ public sealed class MainForm : Form
         button.Margin = new Padding(0, 0, 6, 0);
         button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
         button.Tag = primary ? StalkerTheme.PrimaryButtonTag : null;
+    }
+
+    private static void ConfigureNavButton(Button button, int width)
+    {
+        button.AutoSize = false;
+        button.Width = width;
+        button.Height = 44;
+        button.Margin = new Padding(0, 0, 6, 0);
+        button.Padding = new Padding(10, 5, 10, 5);
+        button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
     }
 
     private static void ConfigureChromeButton(Button button, int width)
