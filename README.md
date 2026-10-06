@@ -1,4 +1,4 @@
-# The STALKER2 Localization Tool
+# Localization Workbench
 
 **Version:** `1.0.0-rc.6`
 
@@ -66,8 +66,8 @@ RC6 rebuilds MODS overlays with normal stock `retoc.exe`. The finished package i
 ## Workspace layout
 
 ```text
-STALKER2LocalizationTool\
-├── STALKER2LocalizationTool.exe
+LocalizationWorkbench\
+├── LocalizationWorkbench.exe
 ├── settings.json
 ├── Mods\
 ├── Cached\
@@ -211,11 +211,11 @@ The publish scripts preserve runtime settings and workspace data, but refresh `t
 Typical launch:
 
 ```bash
-cd ~/s2tools/STALKER2LocalizationTool/publish/win-x64
+cd ~/s2tools/LocalizationWorkbench/publish/win-x64
 
 WINEPREFIX="$HOME/.wine-uassetgui" \
 WINEDEBUG=-all \
-wine STALKER2LocalizationTool.exe
+wine LocalizationWorkbench.exe
 ```
 
 The UAssetGUI Wine prefix needs .NET 8 Desktop Runtime.
