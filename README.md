@@ -9,6 +9,7 @@ This branch is the current **Version 2 Release Candidate 1** baseline. The proje
 ## v2 RC1 highlights
 
 - Unified **Localization Workbench** project/application identity.
+- English UI strings are embedded in the application; there are no loose locale files.
 - Clean portable runtime layout with internal paths resolved from the running EXE directory.
 - No `settings.json` runtime configuration system.
 - Only user-selected external source paths are persisted in `user-paths.json`.
@@ -124,7 +125,6 @@ Cached/
 Editable/
 Output/
 tools/
-locales/
 ```
 
 They are derived from `AppContext.BaseDirectory` and are never persisted as user configuration.
@@ -159,7 +159,6 @@ Editable/
 └── <mod>/
 Output/
 tools/
-locales/
 ```
 
 `Cached` is rebuild state and should not be edited manually.
