@@ -1,6 +1,6 @@
-using STALKER2LocalizationTool.Models;
+using LocalizationWorkbench.Models;
 
-namespace STALKER2LocalizationTool.Localization;
+namespace LocalizationWorkbench.Localization;
 
 public sealed class Localizer
 {
