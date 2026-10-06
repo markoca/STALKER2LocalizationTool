@@ -310,20 +310,60 @@ public sealed class ExtractionService
                         + $"in {uassetTimer.Elapsed.TotalSeconds:N1}s"
                     );
 
-                    var export = UAssetInspector.ReadLocalizationExport(assetJson, alias.VirtualPath);
-                    if (!export.ImportsLocalizationDatabaseClass)
-                        throw new InvalidDataException($"{alias.VirtualPath}: asset does not import ModLocalizationDatabaseDataAsset");
-
-                    var parsed = LocalizationDatabaseCodec.Parse(export.Payload, alias.VirtualPath);
-                    var roundTrip = LocalizationDatabaseCodec.Serialize(parsed);
-                    if (!roundTrip.AsSpan().SequenceEqual(export.Payload))
-                        throw new InvalidDataException($"{alias.VirtualPath}: untouched parser/serializer round-trip changed the payload");
-
-                    var internalPackagePath = UAssetInspector.DetectInternalPackagePath(
+                    var inspectTimer = Stopwatch.StartNew();
+                    _log?.Invoke(
+                        $"Inspecting UAssetGUI JSON: "
+                        + $"{Path.GetFileName(assetJson)} "
+                        + $"({new FileInfo(assetJson).Length / (1024d * 1024d):N1} MiB)"
+                    );
+                    var export = UAssetInspector.ReadLocalizationExport(
                         assetJson,
-                        alias.VirtualPath,
                         alias.VirtualPath
                     );
+                    inspectTimer.Stop();
+                    _log?.Invoke(
+                        $"UAssetGUI JSON inspected in "
+                        + $"{inspectTimer.Elapsed.TotalSeconds:N1}s; "
+                        + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB"
+                    );
+
+                    if (!export.ImportsLocalizationDatabaseClass)
+                    {
+                        throw new InvalidDataException(
+                            $"{alias.VirtualPath}: asset does not import "
+                            + "ModLocalizationDatabaseDataAsset"
+                        );
+                    }
+
+                    var parseTimer = Stopwatch.StartNew();
+                    var parsed = LocalizationDatabaseCodec.Parse(
+                        export.Payload,
+                        alias.VirtualPath
+                    );
+                    parseTimer.Stop();
+                    _log?.Invoke(
+                        $"Localization database parsed in "
+                        + $"{parseTimer.Elapsed.TotalSeconds:N1}s; "
+                        + $"records={parsed.Records.Count:N0}"
+                    );
+
+                    var roundTripTimer = Stopwatch.StartNew();
+                    if (!LocalizationDatabaseCodec.RoundTripMatches(
+                            parsed,
+                            export.Payload))
+                    {
+                        throw new InvalidDataException(
+                            $"{alias.VirtualPath}: untouched parser/serializer "
+                            + "round-trip changed the payload"
+                        );
+                    }
+                    roundTripTimer.Stop();
+                    _log?.Invoke(
+                        $"Localization round-trip verified in "
+                        + $"{roundTripTimer.Elapsed.TotalSeconds:N1}s"
+                    );
+
+                    var internalPackagePath = export.InternalPackagePath;
 
                     parsedAliases.Add(new ParsedAliasAsset
                     {
