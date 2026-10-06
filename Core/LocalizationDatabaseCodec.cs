@@ -91,11 +91,10 @@ public static class LocalizationDatabaseCodec
 
         foreach (var record in parsed.Records)
         {
-            stream.Write(
-                UnrealStringCodec.WriteFString(
-                    record.Sid,
-                    record.SidEncoding
-                )
+            UnrealStringCodec.WriteFString(
+                stream,
+                record.Sid,
+                record.SidEncoding
             );
             stream.Write(record.NestedHeader);
             WriteInt32(stream, record.Translations.Count);
@@ -108,11 +107,10 @@ public static class LocalizationDatabaseCodec
                     translation.LanguageId
                 );
                 stream.Write(idBytes);
-                stream.Write(
-                    UnrealStringCodec.WriteFString(
-                        translation.Value,
-                        translation.Encoding
-                    )
+                UnrealStringCodec.WriteFString(
+                    stream,
+                    translation.Value,
+                    translation.Encoding
                 );
             }
         }
