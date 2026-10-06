@@ -60,6 +60,18 @@ internal static class StalkerTheme
     {
         switch (control)
         {
+            case StalkerTitleBar:
+            case StalkerNavigationBar:
+            case StalkerFooterBar:
+                control.BackColor = TitleBar;
+                control.ForeColor = Text;
+                break;
+
+            case StalkerWindowButton:
+            case StalkerUtilityButton:
+                control.ForeColor = Text;
+                break;
+
             case StalkerCardPanel:
                 control.ForeColor = Text;
                 break;
@@ -557,6 +569,258 @@ internal static class StalkerTheme
 }
 
 /// <summary>
+/// Edge-to-edge title band inspired by the True Custom Difficulty shell.
+/// </summary>
+internal sealed class StalkerTitleBar : Panel
+{
+    public StalkerTitleBar()
+    {
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Text;
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var rect = ClientRectangle;
+        if (rect.Width <= 0 || rect.Height <= 0)
+            return;
+
+        using (var background = new LinearGradientBrush(
+                   rect,
+                   StalkerTheme.TitleBar,
+                   Color.FromArgb(0x1A, 0x17, 0x10),
+                   LinearGradientMode.Horizontal))
+        {
+            e.Graphics.FillRectangle(background, rect);
+        }
+
+        using var border = new Pen(StalkerTheme.Border);
+        e.Graphics.DrawLine(border, 0, Height - 1, Width, Height - 1);
+    }
+}
+
+/// <summary>
+/// Flat global navigation strip. Selected tabs carry the yellow TCD underline.
+/// </summary>
+internal sealed class StalkerNavigationBar : Panel
+{
+    public StalkerNavigationBar()
+    {
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Text;
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.Clear(StalkerTheme.TitleBar);
+        using var border = new Pen(StalkerTheme.Border);
+        e.Graphics.DrawLine(border, 0, Height - 1, Width, Height - 1);
+    }
+}
+
+/// <summary>
+/// Full-width bottom command/status band matching the TCD window shell.
+/// </summary>
+internal sealed class StalkerFooterBar : Panel
+{
+    public StalkerFooterBar()
+    {
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Text;
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.Clear(StalkerTheme.TitleBar);
+        using var border = new Pen(StalkerTheme.Border);
+        e.Graphics.DrawLine(border, 0, 0, Width, 0);
+    }
+}
+
+/// <summary>
+/// Minimal native-window replacement button used in the borderless TCD-style title bar.
+/// </summary>
+internal sealed class StalkerWindowButton : Button
+{
+    private bool _hovered;
+    private bool _pressed;
+
+    public bool IsCloseButton { get; set; }
+
+    public StalkerWindowButton()
+    {
+        Width = 48;
+        Height = 36;
+        Margin = new Padding(0);
+        FlatStyle = FlatStyle.Flat;
+        FlatAppearance.BorderSize = 0;
+        UseVisualStyleBackColor = false;
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Text;
+        Font = new Font("Segoe UI Symbol", 13F, FontStyle.Regular);
+        Cursor = Cursors.Hand;
+        TabStop = false;
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hovered = false;
+        _pressed = false;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs mevent)
+    {
+        _pressed = true;
+        Invalidate();
+        base.OnMouseDown(mevent);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs mevent)
+    {
+        _pressed = false;
+        Invalidate();
+        base.OnMouseUp(mevent);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var background = _pressed
+            ? StalkerTheme.PanelPressed
+            : _hovered
+                ? (IsCloseButton
+                    ? Color.FromArgb(0x6E, 0x2F, 0x2A)
+                    : StalkerTheme.PanelHover)
+                : StalkerTheme.TitleBar;
+
+        e.Graphics.Clear(background);
+        TextRenderer.DrawText(
+            e.Graphics,
+            Text,
+            Font,
+            ClientRectangle,
+            _hovered && !IsCloseButton
+                ? StalkerTheme.Accent
+                : StalkerTheme.Text,
+            TextFormatFlags.HorizontalCenter
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.NoPrefix
+        );
+    }
+}
+
+/// <summary>
+/// Flat utility command used inside top/bottom chrome bands.
+/// </summary>
+internal sealed class StalkerUtilityButton : Button
+{
+    private bool _hovered;
+    private bool _pressed;
+
+    public StalkerUtilityButton()
+    {
+        FlatStyle = FlatStyle.Flat;
+        FlatAppearance.BorderSize = 0;
+        UseVisualStyleBackColor = false;
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Text;
+        Cursor = Cursors.Hand;
+        TabStop = false;
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hovered = false;
+        _pressed = false;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs mevent)
+    {
+        _pressed = true;
+        Invalidate();
+        base.OnMouseDown(mevent);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs mevent)
+    {
+        _pressed = false;
+        Invalidate();
+        base.OnMouseUp(mevent);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var background = _pressed
+            ? StalkerTheme.PanelPressed
+            : _hovered
+                ? StalkerTheme.PanelHover
+                : StalkerTheme.TitleBar;
+
+        e.Graphics.Clear(background);
+
+        using var border = new Pen(_hovered ? StalkerTheme.AccentDark : StalkerTheme.Border);
+        e.Graphics.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
+
+        TextRenderer.DrawText(
+            e.Graphics,
+            Text,
+            Font,
+            ClientRectangle,
+            _hovered ? StalkerTheme.Accent : StalkerTheme.Text,
+            TextFormatFlags.HorizontalCenter
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis
+            | TextFormatFlags.NoPrefix
+        );
+    }
+}
+
+/// <summary>
 /// Compact radiation / Zone mark used by the workbench header.
 /// </summary>
 internal sealed class StalkerBrandMark : Control
@@ -746,10 +1010,10 @@ internal sealed class StalkerNavButton : Button
         FlatStyle = FlatStyle.Flat;
         FlatAppearance.BorderSize = 0;
         UseVisualStyleBackColor = false;
-        BackColor = StalkerTheme.PanelAlt;
+        BackColor = StalkerTheme.TitleBar;
         ForeColor = StalkerTheme.MutedText;
-        Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-        Height = 38;
+        Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+        Height = 44;
         Width = 150;
         Margin = new Padding(0);
         Cursor = Cursors.Hand;
@@ -795,11 +1059,9 @@ internal sealed class StalkerNavButton : Button
     {
         var background = _pressed
             ? StalkerTheme.PanelPressed
-            : _selected
-                ? StalkerTheme.Panel
-                : _hovered
-                    ? StalkerTheme.PanelHover
-                    : StalkerTheme.PanelAlt;
+            : _hovered
+                ? StalkerTheme.PanelHover
+                : StalkerTheme.TitleBar;
 
         pevent.Graphics.Clear(background);
 
@@ -820,7 +1082,7 @@ internal sealed class StalkerNavButton : Button
         if (_selected)
         {
             using var accent = new SolidBrush(StalkerTheme.Accent);
-            pevent.Graphics.FillRectangle(accent, 0, Height - 3, Width, 3);
+            pevent.Graphics.FillRectangle(accent, 12, Height - 3, Math.Max(1, Width - 24), 3);
         }
     }
 }
