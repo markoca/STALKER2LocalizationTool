@@ -62,7 +62,7 @@ internal static class StalkerTheme
         switch (control)
         {
             case StalkerTitleBar:
-                control.BackColor = WindowChrome;
+                control.BackColor = TitleBar;
                 control.ForeColor = Text;
                 break;
 
@@ -73,8 +73,8 @@ internal static class StalkerTheme
                 break;
 
             case StalkerWindowButton:
-                control.BackColor = WindowChrome;
-                control.ForeColor = Text;
+                control.BackColor = TitleBar;
+                control.ForeColor = MutedText;
                 break;
 
             case StalkerUtilityButton:
@@ -337,166 +337,43 @@ internal static class StalkerTheme
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
         var diameter = Math.Min(bounds.Width, bounds.Height);
-        var x = bounds.Left + (bounds.Width - diameter) / 2;
-        var y = bounds.Top + (bounds.Height - diameter) / 2;
-        var circle = new Rectangle(x, y, diameter, diameter);
-
-        using var shell = new SolidBrush(TitleBar);
-        using var accent = new SolidBrush(Accent);
-        using var border = new Pen(Accent, Math.Max(1F, diameter / 18F));
-
-        graphics.FillEllipse(shell, circle);
-        graphics.DrawEllipse(border, circle);
-
-        var blade = Rectangle.Inflate(circle, -(int)Math.Round(diameter * 0.12), -(int)Math.Round(diameter * 0.12));
-        foreach (var angle in new[] { -120F, 0F, 120F })
-            graphics.FillPie(accent, blade, angle, 58F);
-
-        var cutSize = Math.Max(4, (int)Math.Round(diameter * 0.40));
-        var cut = new Rectangle(
-            circle.Left + (circle.Width - cutSize) / 2,
-            circle.Top + (circle.Height - cutSize) / 2,
-            cutSize,
-            cutSize);
-        graphics.FillEllipse(shell, cut);
-
-        var coreSize = Math.Max(3, (int)Math.Round(diameter * 0.16));
-        var core = new Rectangle(
-            circle.Left + (circle.Width - coreSize) / 2,
-            circle.Top + (circle.Height - coreSize) / 2,
-            coreSize,
-            coreSize);
-        graphics.FillEllipse(accent, core);
-    }
-
-    private static bool DetectWineRuntime()
-    {
-        if (!OperatingSystem.IsWindows())
-            return false;
-
-        try
-        {
-            return wine_get_version() != IntPtr.Zero;
-        }
-        catch (EntryPointNotFoundException)
-        {
-            return false;
-        }
-        catch (DllNotFoundException)
-        {
-            return false;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static void TryApplyDarkNativeScrollbarTheme(Control control)
-    {
-        var mayOwnNativeScrollbars =
-            control is TextBoxBase
-            || control is ListBox
-            || control is CheckedListBox
-            || control is DataGridView
-            || control is ScrollBar
-            || (control is Panel panel && panel.AutoScroll);
-
-        if (!mayOwnNativeScrollbars)
+        if (diameter <= 0)
             return;
 
-        void Apply()
-        {
-            if (!OperatingSystem.IsWindows() || IsWine)
-                return;
+        var scale = diameter / 34F;
+        var offsetX = bounds.Left + (bounds.Width - diameter) / 2F;
+        var offsetY = bounds.Top + (bounds.Height - diameter) / 2F;
 
-            try
-            {
-                // "DarkMode_Explorer" asks Windows common controls to render their
-                // native chrome (including scrollbars) with dark-mode metrics/colors.
-                // Wine may emulate this; unsupported builds simply ignore the call.
-                _ = SetWindowTheme(control.Handle, "DarkMode_Explorer", null);
-                _ = SendMessage(control.Handle, WmThemeChanged, IntPtr.Zero, IntPtr.Zero);
-            }
-            catch
-            {
-                // Presentation enhancement only.
-            }
-        }
-
-        if (control.IsHandleCreated)
-            Apply();
-        else
-            control.HandleCreated += (_, _) => Apply();
-    }
-
-    private static void TryHideNativeTitleBarIcon(Form form)
-    {
-        void Apply()
-        {
-            if (!OperatingSystem.IsWindows())
-                return;
-
-            try
-            {
-                form.ShowIcon = false;
-
-                // Explicitly clear both caption icon slots. Native Windows honours
-                // ShowIcon, while Wine window managers may still paint the class icon
-                // unless WM_SETICON is also cleared.
-                _ = SendMessage(
-                    form.Handle,
-                    WmSetIcon,
-                    new IntPtr(IconSmall),
-                    IntPtr.Zero
-                );
-                _ = SendMessage(
-                    form.Handle,
-                    WmSetIcon,
-                    new IntPtr(IconBig),
-                    IntPtr.Zero
-                );
-
-                if (IsWine)
-                {
-                    var blank = CreateTransparentWindowIcon();
-                    if (blank is not null)
-                        form.Icon = blank;
-                }
-            }
-            catch
-            {
-                // Presentation-only. Never block startup over window chrome.
-            }
-        }
-
-        if (form.IsHandleCreated)
-            Apply();
-        else
-            form.HandleCreated += (_, _) => Apply();
-    }
-
-    private static Icon? CreateTransparentWindowIcon()
-    {
+        var state = graphics.Save();
         try
         {
-            using var bitmap = new Bitmap(32, 32);
-            bitmap.MakeTransparent();
+            graphics.TranslateTransform(offsetX, offsetY);
+            graphics.ScaleTransform(scale, scale);
 
-            var hIcon = bitmap.GetHicon();
-            try
+            using var accent = new SolidBrush(Accent);
+            using var blade = new GraphicsPath();
+
+            blade.AddLine(14.5F, 12.67F, 10F, 4.88F);
+            blade.AddBezier(10F, 4.88F, 14.2F, 2.3F, 19.8F, 2.3F, 24F, 4.88F);
+            blade.AddLine(24F, 4.88F, 19.5F, 12.67F);
+            blade.AddBezier(19.5F, 12.67F, 17.9F, 11.75F, 16.1F, 11.75F, 14.5F, 12.67F);
+            blade.CloseFigure();
+
+            for (var i = 0; i < 3; i++)
             {
-                using var temporary = Icon.FromHandle(hIcon);
-                return (Icon)temporary.Clone();
+                var bladeState = graphics.Save();
+                graphics.TranslateTransform(17F, 17F);
+                graphics.RotateTransform(i * 120F);
+                graphics.TranslateTransform(-17F, -17F);
+                graphics.FillPath(accent, blade);
+                graphics.Restore(bladeState);
             }
-            finally
-            {
-                _ = DestroyIcon(hIcon);
-            }
+
+            graphics.FillEllipse(accent, 13.5F, 13.5F, 7F, 7F);
         }
-        catch
+        finally
         {
-            return null;
+            graphics.Restore(state);
         }
     }
 
@@ -597,7 +474,7 @@ internal sealed class StalkerTitleBar : Panel
 {
     public StalkerTitleBar()
     {
-        BackColor = StalkerTheme.WindowChrome;
+        BackColor = StalkerTheme.TitleBar;
         ForeColor = StalkerTheme.Text;
         SetStyle(
             ControlStyles.UserPaint
@@ -613,10 +490,7 @@ internal sealed class StalkerTitleBar : Panel
         if (rect.Width <= 0 || rect.Height <= 0)
             return;
 
-        e.Graphics.Clear(StalkerTheme.WindowChrome);
-
-        using var border = new Pen(StalkerTheme.Border);
-        e.Graphics.DrawLine(border, 0, Height - 1, Width, Height - 1);
+        e.Graphics.Clear(StalkerTheme.TitleBar);
     }
 }
 
@@ -680,14 +554,14 @@ internal sealed class StalkerWindowButton : Button
 
     public StalkerWindowButton()
     {
-        Width = 48;
-        Height = 36;
+        Width = 42;
+        Height = 30;
         Margin = new Padding(0);
         FlatStyle = FlatStyle.Flat;
         FlatAppearance.BorderSize = 0;
         UseVisualStyleBackColor = false;
-        BackColor = StalkerTheme.WindowChrome;
-        ForeColor = StalkerTheme.Text;
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.MutedText;
         Font = new Font("Segoe UI Symbol", 13F, FontStyle.Regular);
         Cursor = Cursors.Hand;
         TabStop = false;
@@ -734,9 +608,9 @@ internal sealed class StalkerWindowButton : Button
             ? StalkerTheme.PanelPressed
             : _hovered
                 ? (IsCloseButton
-                    ? Color.FromArgb(0x6E, 0x2F, 0x2A)
+                    ? StalkerTheme.Danger
                     : StalkerTheme.PanelHover)
-                : StalkerTheme.WindowChrome;
+                : StalkerTheme.TitleBar;
 
         e.Graphics.Clear(background);
         TextRenderer.DrawText(
@@ -744,9 +618,11 @@ internal sealed class StalkerWindowButton : Button
             Text,
             Font,
             ClientRectangle,
-            _hovered && !IsCloseButton
-                ? StalkerTheme.Accent
-                : StalkerTheme.Text,
+            IsCloseButton && _hovered
+                ? Color.White
+                : _hovered
+                    ? StalkerTheme.Accent
+                    : StalkerTheme.MutedText,
             TextFormatFlags.HorizontalCenter
             | TextFormatFlags.VerticalCenter
             | TextFormatFlags.NoPrefix
@@ -926,8 +802,12 @@ internal sealed class StalkerBrandMark : Control
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
-        var size = Math.Min(ClientSize.Width, ClientSize.Height) - 4;
-        if (size <= 0) return;
+        var size = Math.Min(
+            30,
+            Math.Min(ClientSize.Width, ClientSize.Height)
+        );
+        if (size <= 0)
+            return;
 
         var bounds = new Rectangle(
             (ClientSize.Width - size) / 2,
