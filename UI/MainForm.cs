@@ -53,7 +53,7 @@ public sealed class MainForm : Form
     private bool _shownOnce;
     private bool _loadingLanguageChecks;
     private bool _suspendWatcherScan;
-    private bool _lastSettingsClearedGameCache;
+    private bool _lastSettingsDeletedCache;
 
     private FileSystemWatcher? _modsWatcher;
     private FileSystemWatcher? _editableWatcher;
@@ -298,7 +298,7 @@ public sealed class MainForm : Form
             if (ShowSettings() != DialogResult.OK)
                 return;
 
-            if (_lastSettingsClearedGameCache)
+            if (_lastSettingsDeletedCache)
                 return;
 
             await ScanActiveAsync();
@@ -1645,7 +1645,7 @@ public sealed class MainForm : Form
 
     private DialogResult ShowSettings()
     {
-        _lastSettingsClearedGameCache = false;
+        _lastSettingsDeletedCache = false;
         _watchDebounce.Stop();
         _suspendWatcherScan = true;
 
@@ -1653,10 +1653,10 @@ public sealed class MainForm : Form
         {
             using var dialog = new SettingsForm(_settings, _l);
             var result = dialog.ShowDialog(this);
-            _lastSettingsClearedGameCache = dialog.GameCacheCleared;
+            _lastSettingsDeletedCache = dialog.CacheDeleted;
 
-            if (dialog.GameCacheCleared)
-                MarkGameCacheCleared();
+            if (dialog.CacheDeleted)
+                MarkCacheDeleted();
 
             if (result == DialogResult.OK)
             {
@@ -1673,22 +1673,28 @@ public sealed class MainForm : Form
         }
     }
 
-    private void MarkGameCacheCleared()
+    private void MarkCacheDeleted()
     {
-        if (_game is null || !_game.HasLocalization)
+        if (_game is not null && _game.HasLocalization)
         {
-            UpdateButtons();
-            return;
+            _game.NeedsExtraction = true;
+            _game.UiStatus = ModUiStatus.NeedsExtraction;
         }
 
-        _game.NeedsExtraction = true;
-        _game.UiStatus = ModUiStatus.NeedsExtraction;
+        foreach (var mod in _mods.Where(mod => mod.HasLocalization))
+        {
+            mod.NeedsExtraction = true;
+            mod.UiStatus = ModUiStatus.NeedsExtraction;
+        }
 
-        foreach (var language in BuildLanguageCatalog.All)
-            _builtVerifiedThisSession.Remove(BuildSessionKey(_game.ModId, language.Id));
+        _builtVerifiedThisSession.Clear();
 
+        RefreshGrid();
         UpdateButtons();
-        AppendLog("GAME cache cleared: extraction is required; existing scan result kept in memory.");
+        AppendLog(
+            "Cache deleted: GAME and MODS extraction data was removed; "
+            + "existing scan results remain in memory and require extraction."
+        );
     }
 
     private bool NeedsInitialSetup() =>
