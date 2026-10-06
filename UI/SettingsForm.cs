@@ -127,7 +127,7 @@ public sealed class SettingsForm : Form
             RowCount = 1,
             Margin = new Padding(0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.WindowChrome,
+            BackColor = StalkerTheme.TitleBar,
         };
         titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -140,7 +140,7 @@ public sealed class SettingsForm : Form
             WrapContents = false,
             Margin = new Padding(0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.WindowChrome,
+            BackColor = StalkerTheme.TitleBar,
         };
 
         var titleWords = new FlowLayoutPanel
@@ -150,7 +150,7 @@ public sealed class SettingsForm : Form
             WrapContents = false,
             Margin = new Padding(0, 12, 0, 0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.WindowChrome,
+            BackColor = StalkerTheme.TitleBar,
         };
 
         _titleAccent.AutoSize = true;
@@ -182,7 +182,7 @@ public sealed class SettingsForm : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
             Margin = new Padding(0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.WindowChrome,
+            BackColor = StalkerTheme.TitleBar,
         };
 
         _minimizeButton.Text = "—";
