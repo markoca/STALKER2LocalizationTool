@@ -3,7 +3,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-PROJECT="$ROOT/STALKER2LocalizationTool.csproj"
+PROJECT="$(find "$ROOT" -maxdepth 1 -type f -name '*.csproj' -print -quit)"
+if [[ -z "$PROJECT" ]]; then
+    echo "ERROR: no .csproj found in project root: $ROOT" >&2
+    exit 1
+fi
 TOOLS_ROOT="$ROOT/tools/win-x64"
 PUBLISH_ROOT="$ROOT/publish"
 OUT="$PUBLISH_ROOT/win-x64"
@@ -12,7 +16,7 @@ mkdir -p "$PUBLISH_ROOT"
 STAGE="$(mktemp -d "$PUBLISH_ROOT/.win-x64-stage.XXXXXX")"
 PRESERVE="$(mktemp -d "$PUBLISH_ROOT/.win-x64-preserve.XXXXXX")"
 
-PRESERVED_NAMES=(settings.json Mods Cached Editable Output Extracted Ready)
+PRESERVED_NAMES=(Mods Cached Editable Output Extracted Ready)
 REQUIRED_TOOLS=(retoc.exe repak.exe UAssetGUI.exe Mappings.usmap S2HOCMM.exe)
 
 restore_runtime_data() {
@@ -70,6 +74,7 @@ if [[ -d "$OUT/Extracted" && ! -e "$OUT/Cached" ]]; then mv "$OUT/Extracted" "$O
 if [[ -d "$OUT/Ready" && ! -e "$OUT/Editable" ]]; then mv "$OUT/Ready" "$OUT/Editable"; fi
 
 cp -a "$STAGE/." "$OUT/"
+rm -f "$OUT/settings.json"
 mkdir -p "$OUT/Mods" "$OUT/Cached" "$OUT/Editable" "$OUT/Output"
 
 for doc in README.md CHANGELOG.md RC_CHECKLIST.md RC7_PUBLISH_AND_TEST.md; do
