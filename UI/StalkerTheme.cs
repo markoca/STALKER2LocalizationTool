@@ -17,7 +17,6 @@ internal static class StalkerTheme
 
     public static readonly Color WindowBackground = Color.FromArgb(0x10, 0x11, 0x0F);
     public static readonly Color TitleBar = Color.FromArgb(0x0B, 0x0C, 0x0B);
-    public static readonly Color WindowChrome = Color.Black;
     public static readonly Color Panel = Color.FromArgb(0x17, 0x19, 0x16);
     public static readonly Color PanelAlt = Color.FromArgb(0x20, 0x23, 0x1F);
     public static readonly Color PanelHover = Color.FromArgb(0x29, 0x2D, 0x27);
@@ -96,9 +95,7 @@ internal static class StalkerTheme
 
             case StalkerLanguageSelector:
             case StalkerLanguageCheckBox:
-            case StalkerCheckedListBox:
             case StalkerToggleCheckBox:
-            case StalkerTabControl:
                 control.BackColor = WindowBackground;
                 control.ForeColor = Text;
                 break;
@@ -1116,95 +1113,6 @@ internal sealed class StalkerNavButton : Button
 }
 
 /// <summary>
-/// Owner-drawn GAME / MODS tab headers matching True Custom Difficulty:
-/// graphite surface, muted inactive labels, yellow active label and a 3px active indicator.
-/// </summary>
-internal sealed class StalkerTabControl : TabControl
-{
-    private int _hotIndex = -1;
-
-    public StalkerTabControl()
-    {
-        DrawMode = TabDrawMode.OwnerDrawFixed;
-        SizeMode = TabSizeMode.Fixed;
-        ItemSize = new Size(150, 36);
-        Padding = new Point(15, 6);
-        SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
-    }
-
-    protected override void OnHandleCreated(EventArgs e)
-    {
-        base.OnHandleCreated(e);
-        try { _ = SetWindowTheme(Handle, string.Empty, string.Empty); } catch { }
-    }
-
-    protected override void OnMouseMove(MouseEventArgs e)
-    {
-        var hotIndex = -1;
-        for (var i = 0; i < TabCount; i++)
-        {
-            if (GetTabRect(i).Contains(e.Location))
-            {
-                hotIndex = i;
-                break;
-            }
-        }
-
-        if (_hotIndex != hotIndex)
-        {
-            _hotIndex = hotIndex;
-            Invalidate();
-        }
-
-        base.OnMouseMove(e);
-    }
-
-    protected override void OnMouseLeave(EventArgs e)
-    {
-        _hotIndex = -1;
-        Invalidate();
-        base.OnMouseLeave(e);
-    }
-
-    protected override void OnDrawItem(DrawItemEventArgs e)
-    {
-        var page = TabPages[e.Index];
-        var selected = e.Index == SelectedIndex;
-        var hovered = e.Index == _hotIndex;
-        var bounds = GetTabRect(e.Index);
-
-        using var background = new SolidBrush(
-            selected ? StalkerTheme.Panel :
-            hovered ? StalkerTheme.PanelHover :
-            StalkerTheme.TitleBar);
-        e.Graphics.FillRectangle(background, bounds);
-
-        var foreground = selected
-            ? StalkerTheme.Accent
-            : hovered
-                ? StalkerTheme.Text
-                : StalkerTheme.MutedText;
-
-        TextRenderer.DrawText(
-            e.Graphics,
-            page.Text,
-            Font,
-            bounds,
-            foreground,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-        if (selected)
-        {
-            using var accent = new SolidBrush(StalkerTheme.Accent);
-            e.Graphics.FillRectangle(accent, bounds.Left, bounds.Bottom - 3, bounds.Width, 3);
-        }
-    }
-
-    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
-    private static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
-}
-
-/// <summary>
 /// Yellow owner-drawn progress bar so progress never falls back to the native Windows/Wine theme.
 /// </summary>
 internal sealed class StalkerProgressBar : Control
@@ -1615,66 +1523,6 @@ internal sealed class StalkerLanguageCheckBox : CheckBox
             | TextFormatFlags.VerticalCenter
             | TextFormatFlags.EndEllipsis
             | TextFormatFlags.NoPrefix);
-    }
-}
-
-/// <summary>
-/// Dark multi-column build-language selector with custom yellow checks.
-/// </summary>
-internal sealed class StalkerCheckedListBox : CheckedListBox
-{
-    public StalkerCheckedListBox()
-    {
-        DrawMode = DrawMode.OwnerDrawFixed;
-        ItemHeight = 24;
-        BackColor = StalkerTheme.PanelAlt;
-        ForeColor = StalkerTheme.Text;
-        BorderStyle = BorderStyle.FixedSingle;
-    }
-
-    protected override void OnDrawItem(DrawItemEventArgs e)
-    {
-        if (e.Index < 0 || e.Index >= Items.Count)
-        {
-            base.OnDrawItem(e);
-            return;
-        }
-
-        var selected = (e.State & DrawItemState.Selected) != 0;
-        using var back = new SolidBrush(selected ? StalkerTheme.PanelHover : StalkerTheme.PanelAlt);
-        e.Graphics.FillRectangle(back, e.Bounds);
-
-        var box = new Rectangle(
-            e.Bounds.Left + 7,
-            e.Bounds.Top + (e.Bounds.Height - 14) / 2,
-            14,
-            14);
-
-        using (var border = new Pen(GetItemChecked(e.Index) ? StalkerTheme.Accent : StalkerTheme.Border))
-            e.Graphics.DrawRectangle(border, box);
-
-        if (GetItemChecked(e.Index))
-        {
-            using var fill = new SolidBrush(StalkerTheme.Accent);
-            var inner = Rectangle.Inflate(box, -3, -3);
-            e.Graphics.FillRectangle(fill, inner);
-        }
-
-        var textBounds = new Rectangle(
-            box.Right + 8,
-            e.Bounds.Top,
-            Math.Max(0, e.Bounds.Right - box.Right - 12),
-            e.Bounds.Height);
-
-        TextRenderer.DrawText(
-            e.Graphics,
-            GetItemText(Items[e.Index]),
-            Font,
-            textBounds,
-            selected ? StalkerTheme.Accent : StalkerTheme.Text,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-        e.DrawFocusRectangle();
     }
 }
 
