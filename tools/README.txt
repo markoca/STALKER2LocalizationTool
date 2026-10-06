@@ -1,16 +1,36 @@
-Runtime helper binaries are organized by TARGET runtime.
+Localization Workbench - user-supplied runtime tools
+===================================================
 
-Current supported application target:
-  tools/win-x64/
-    retoc.exe
-    repak.exe
-    UAssetGUI.exe
-    S2HOCMM.exe
-    Mappings.usmap
+Localization Workbench does NOT distribute helper-tool binaries.
 
-Localization Workbench is a Windows Forms application targeting net8.0-windows.
-Linux may be used as a build host and Wine test environment, but there is no
-native Linux application target or Linux helper bundle in this repository.
+Before using GAME or MODS workflows, obtain compatible Windows x64 copies of
+the required tools yourself and place them beside this README under:
 
-scripts/publish-win-x64.sh and scripts/publish-win-x64.ps1 both consume only
-tools/win-x64/. The published application receives those files under tools/.
+    tools/retoc.exe
+    tools/repak.exe
+    tools/UAssetGUI.exe
+    tools/Mappings.usmap
+    tools/S2HOCMM.exe
+
+The application resolves this directory relative to Localization Workbench.exe.
+
+Notes
+-----
+retoc.exe
+  Use a compatible stock Windows x64 retoc CLI build.
+
+UAssetGUI.exe
+  The tested baseline is UAssetGUI v1.1.0.
+
+Mappings.usmap
+  Use mappings compatible with the target S.T.A.L.K.E.R. 2 game build.
+
+repak.exe
+  Used by the GAME Game.locres extraction/build workflow.
+
+S2HOCMM.exe
+  Used by the GAME workflow for Game.locres serialization and verification.
+
+The publish scripts do not download, validate, copy, or redistribute these
+third-party tools. A developer may keep locally supplied tools in
+publish/win-x64/tools/ for testing; that folder is preserved across republish.
