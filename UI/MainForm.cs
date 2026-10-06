@@ -667,7 +667,7 @@ public sealed class MainForm : Form
                 _settings.BuildLanguageIds,
                 AppendLog
             );
-            var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
+            var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             _mods = await scanner.ScanAsync(progress, _operationCts.Token);
 
             foreach (var mod in _mods)
@@ -728,7 +728,7 @@ public sealed class MainForm : Form
                 _settings.BuildLanguageIds,
                 AppendLog
             );
-            var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
+            var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             _game = await scanner.ScanAsync(progress, _operationCts.Token);
             if (_settings.BuildLanguageIds.Count > 0
                 && _settings.BuildLanguageIds.All(id => _builtVerifiedThisSession.Contains(BuildSessionKey(_game.ModId, id)))
@@ -779,7 +779,7 @@ public sealed class MainForm : Form
                 _settings.GamePaksFolder,
                 hashSourceFiles: false
             );
-            var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
+            var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             await service.ExtractAsync(new[] { _game! }, progress, _operationCts.Token);
             CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -843,7 +843,7 @@ public sealed class MainForm : Form
 
                 _game.EditableTranslationFile = editableFile;
                 _game.UiStatus = ModUiStatus.Available;
-                var languageProgress = new Progress<(int Current, int Total, string Message)>(p =>
+                var languageProgress = CreateUiProgress(p =>
                 {
                     var inner = p.Total <= 0
                         ? 0d
@@ -926,7 +926,7 @@ public sealed class MainForm : Form
             var repak = new RepakService(_settings.RepakPath, AppendLog);
             var uasset = new UAssetGuiService(_settings.UAssetGuiPath, _settings.MappingsPath, AppendLog);
             var service = new ExtractionService(_settings, retoc, repak, uasset, AppendLog);
-            var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
+            var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             await service.ExtractAsync(targets, progress, _operationCts.Token);
             CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1006,7 +1006,7 @@ public sealed class MainForm : Form
                     continue;
                 }
 
-                var progress = new Progress<(int Current, int Total, string Message)>(p =>
+                var progress = CreateUiProgress(p =>
                 {
                     var inner = p.Total <= 0
                         ? 0d
@@ -1332,6 +1332,50 @@ public sealed class MainForm : Form
         _extractGameButton.Enabled = !_busy && _game?.UiStatus == ModUiStatus.NeedsExtraction;
         _buildGameButton.Enabled = !_busy && hasLanguages
             && _game?.UiStatus is (ModUiStatus.Available or ModUiStatus.BuiltVerified);
+    }
+
+    private IProgress<(int Current, int Total, string Message)> CreateUiProgress(
+        Action<(int Current, int Total, string Message)> handler)
+    {
+        return new SynchronousUiProgress(this, handler);
+    }
+
+    private sealed class SynchronousUiProgress :
+        IProgress<(int Current, int Total, string Message)>
+    {
+        private readonly Control _owner;
+        private readonly Action<(int Current, int Total, string Message)> _handler;
+
+        public SynchronousUiProgress(
+            Control owner,
+            Action<(int Current, int Total, string Message)> handler)
+        {
+            _owner = owner;
+            _handler = handler;
+        }
+
+        public void Report((int Current, int Total, string Message) value)
+        {
+            if (_owner.IsDisposed || _owner.Disposing)
+                return;
+
+            if (_owner.InvokeRequired)
+            {
+                try
+                {
+                    _owner.Invoke(new Action(() => _handler(value)));
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                return;
+            }
+
+            _handler(value);
+        }
     }
 
     private void SetBusy(bool busy, string message)
