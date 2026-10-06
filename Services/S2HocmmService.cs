@@ -1,6 +1,6 @@
-using STALKER2LocalizationTool.Core;
+using LocalizationWorkbench.Core;
 
-namespace STALKER2LocalizationTool.Services;
+namespace LocalizationWorkbench.Services;
 
 public sealed class S2HocmmService
 {
