@@ -10,15 +10,17 @@
 
 ## GAME
 
-- [ ] SCAN GAME reaches **READY FOR EXTRACTION** for a new/changed source.
+- [ ] SCAN GAME reaches **LOCALIZATION READY FOR EXTRACTION** for a new/changed source.
 - [ ] EXTRACT creates `Cached/Game` and `Editable/Game`.
-- [ ] A valid existing extraction reaches **READY TO BUILD** without rescanning after extraction.
-- [ ] Deleting `Editable/Game` while keeping valid `Cached/Game` makes EXTRACT available again and reports **READY FOR EXTRACTION**.
+- [ ] A valid existing extraction reaches **LOCALIZATION READY FOR BUILD** without rescanning after extraction.
+- [ ] Deleting `Editable/Game` while keeping valid `Cached/Game` makes EXTRACT available again and reports **LOCALIZATION READY FOR EXTRACTION**.
 - [ ] Cached -> Editable recovery does not require a new source extraction.
 - [ ] BUILD verifies S2HOCMM output and the final repak package.
 
 ## MODS
 
+- [ ] MODS is not scanned at startup or while GAME is active.
+- [ ] Entering the MODS tab triggers MODS scanning.
 - [ ] SCAN MODS discovers loose and ZIP/7z/RAR sources.
 - [ ] NewContent containers are ignored and OverrideContent is used.
 - [ ] Nexus download IDs are not shown in mod display names and detected versions are normalized.
@@ -32,6 +34,5 @@
 ## Workspace and UI
 
 - [ ] DELETE CACHE removes Cached state and forces MODS to be scanned again.
-- [ ] Legacy `Extracted` / `Ready` defaults migrate safely when encountered.
 - [ ] GAME / MODS workflow buttons remain step-aware.
 - [ ] Custom title bar, window controls and spinning radiation mark render correctly.
