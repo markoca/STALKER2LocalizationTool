@@ -31,6 +31,7 @@ public sealed class MainForm : Form
     private readonly StalkerNavButton _modsTabButton = new();
     private Panel? _activeWorkspaceTab;
     private bool IsGameWorkspace => ReferenceEquals(_activeWorkspaceTab, _gameTab);
+    private bool IsModsWorkspace => ReferenceEquals(_activeWorkspaceTab, _modsTab);
     private readonly Button _scanGameButton = new();
     private readonly Button _extractGameButton = new();
     private readonly Button _buildGameButton = new();
@@ -55,6 +56,7 @@ public sealed class MainForm : Form
     private bool _loadingLanguageChecks;
     private bool _suspendWatcherScan;
     private bool _lastSettingsDeletedCache;
+    private bool _modsScanInProgress;
 
     private FileSystemWatcher? _modsWatcher;
     private FileSystemWatcher? _editableWatcher;
@@ -88,10 +90,15 @@ public sealed class MainForm : Form
             _watchDebounce.Stop();
             if (_settings.AutoScan && !_busy)
             {
-                if (IsGameWorkspace && _game is not null)
-                    RefreshGameEditableTranslation();
-                else
+                if (IsGameWorkspace)
+                {
+                    if (_game is not null)
+                        RefreshGameEditableTranslation();
+                }
+                else if (IsModsWorkspace)
+                {
                     await ScanModsAsync();
+                }
             }
         };
 
@@ -110,8 +117,7 @@ public sealed class MainForm : Form
                 }
             }
 
-            if (!TryLoadModsSnapshot())
-                await ScanModsAsync();
+            UpdateButtons();
         };
     }
 
@@ -252,7 +258,15 @@ public sealed class MainForm : Form
         _gameTabButton.Width = 150;
         _modsTabButton.Width = 150;
         _gameTabButton.Click += (_, _) => SetWorkspace(_gameTab);
-        _modsTabButton.Click += (_, _) => SetWorkspace(_modsTab);
+        _modsTabButton.Click += async (_, _) =>
+        {
+            SetWorkspace(_modsTab);
+
+            // MODS discovery is intentionally tab-scoped. Never scan it at startup
+            // or while the user is working in GAME.
+            if (!_busy)
+                await ScanModsAsync();
+        };
         tabStrip.Controls.Add(_gameTabButton);
         tabStrip.Controls.Add(_modsTabButton);
 
@@ -675,6 +689,10 @@ public sealed class MainForm : Form
 
     private void SetWorkspace(Panel tab)
     {
+        var leavingMods = IsModsWorkspace && !ReferenceEquals(tab, _modsTab);
+        if (leavingMods && _modsScanInProgress)
+            _operationCts?.Cancel();
+
         _activeWorkspaceTab = tab;
         _gameTab.Visible = ReferenceEquals(tab, _gameTab);
         _modsTab.Visible = ReferenceEquals(tab, _modsTab);
@@ -781,7 +799,7 @@ public sealed class MainForm : Form
 
     private async Task ScanModsAsync()
     {
-        if (_busy) return;
+        if (!IsModsWorkspace || _busy) return;
         if (!File.Exists(_settings.RetocPath) || !Directory.Exists(_settings.ModsFolder))
         {
             UpdateButtons();
@@ -789,6 +807,7 @@ public sealed class MainForm : Form
         }
 
         _modsScanSuccessful = false;
+        _modsScanInProgress = true;
         SetBusy(true, _l.T("ui.scanning"));
         _operationCts = new CancellationTokenSource();
 
@@ -806,6 +825,12 @@ public sealed class MainForm : Form
             );
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             _mods = await scanner.ScanAsync(progress, _operationCts.Token);
+
+            // The user may have left MODS while the async scanner was finishing.
+            // In that case discard the completion path instead of committing MODS state.
+            if (!IsModsWorkspace)
+                return;
+
             _modsScanSuccessful = true;
             UserPathStore.SaveValidated(_settings);
 
@@ -834,7 +859,8 @@ public sealed class MainForm : Form
         }
         finally
         {
-            _operationCts.Dispose();
+            _modsScanInProgress = false;
+            _operationCts?.Dispose();
             _operationCts = null;
             SetBusy(false, _l.T("ui.idle"));
         }
