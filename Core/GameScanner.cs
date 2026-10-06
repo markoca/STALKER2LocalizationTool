@@ -63,9 +63,7 @@ public sealed class GameScanner
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        _log?.Invoke(
-            $"Game: scanning pakchunk0 only ({game.Containers.Count} IoStore container(s), {game.PakFiles.Count} PAK file(s))."
-        );
+        _log?.Invoke("FOUND GAME LOCALIZATION");
 
         var aliases = new List<LocalizationAlias>();
         var locres = new List<LocresSource>();
