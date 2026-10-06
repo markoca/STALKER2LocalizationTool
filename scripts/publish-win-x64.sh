@@ -64,7 +64,7 @@ cp -a "$STAGE/." "$OUT/"
 mkdir -p "$OUT/Mods" "$OUT/Cached" "$OUT/Editable" "$OUT/Output" "$OUT/tools"
 [[ -f "$ROOT/tools/README.txt" ]] && cp -f "$ROOT/tools/README.txt" "$OUT/tools/README.txt"
 
-for doc in README.md CHANGELOG.md RC_CHECKLIST.md RELEASE_CANDIDATE.md; do
+for doc in README.md QUICK_USER_HANDBOOK.md CHANGELOG.md RC_CHECKLIST.md RELEASE_CANDIDATE.md; do
     [[ -f "$ROOT/$doc" ]] && cp -f "$ROOT/$doc" "$OUT/$doc"
 done
 
