@@ -1356,6 +1356,23 @@ internal sealed class StalkerLanguageSelector : Panel
     public IReadOnlyCollection<int> CheckedIds =>
         _items.Where(item => item.Checked).Select(item => item.LanguageId).ToArray();
 
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        const int columns = 5;
+        const int preferredColumnWidth = 220;
+        const int preferredRowHeight = 27;
+
+        var count = Math.Max(1, _items.Count);
+        var rows = Math.Max(1, (int)Math.Ceiling(count / (double)columns));
+        var preferredWidth = Padding.Horizontal + columns * preferredColumnWidth;
+        var preferredHeight = Padding.Vertical + rows * preferredRowHeight;
+
+        if (proposedSize.Width > 0)
+            preferredWidth = Math.Min(preferredWidth, proposedSize.Width);
+
+        return new Size(preferredWidth, preferredHeight);
+    }
+
     public void SetLanguages(IEnumerable<(int Id, string Name, bool Checked)> languages)
     {
         var values = languages.ToList();
@@ -1395,12 +1412,25 @@ internal sealed class StalkerLanguageSelector : Panel
         {
             ResumeLayout(true);
             _loading = false;
+
+            var preferred = GetPreferredSize(
+                new Size(Parent?.ClientSize.Width ?? Width, 0)
+            );
+            Height = preferred.Height;
+            Parent?.PerformLayout();
         }
     }
 
     protected override void OnResize(EventArgs eventargs)
     {
         base.OnResize(eventargs);
+
+        var preferred = GetPreferredSize(
+            new Size(Parent?.ClientSize.Width ?? Width, 0)
+        );
+        if (Height != preferred.Height)
+            Height = preferred.Height;
+
         LayoutItems();
         Invalidate();
     }
