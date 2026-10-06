@@ -521,8 +521,7 @@ public static class ModSourceDiscovery
 
         log?.Invoke(
             $"Archive mod source: {archiveRelative} -> "
-            + $"{retained.Count} IoStore container(s) after NewContent exclusion "
-            + $"[{displayName}]"
+            + $"{retained.Count} IoStore container(s) [{displayName}]"
         );
 
         yield return new SourceGroup
