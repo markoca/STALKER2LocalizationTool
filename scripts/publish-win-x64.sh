@@ -3,7 +3,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-PROJECT="$ROOT/STALKER2LocalizationTool.csproj"
+PROJECT="$(find "$ROOT" -maxdepth 1 -type f -name '*.csproj' -print -quit)"
+if [[ -z "$PROJECT" ]]; then
+    echo "ERROR: no .csproj found in project root: $ROOT" >&2
+    exit 1
+fi
 TOOLS_ROOT="$ROOT/tools/win-x64"
 PUBLISH_ROOT="$ROOT/publish"
 OUT="$PUBLISH_ROOT/win-x64"
