@@ -967,14 +967,14 @@ internal sealed class StalkerProgressBar : Control
             | ControlStyles.ResizeRedraw,
             true);
 
-        BackColor = Color.Transparent;
+        BackColor = StalkerTheme.PanelAlt;
         ForeColor = StalkerTheme.Accent;
         MinimumSize = new Size(40, 8);
     }
 
     protected override void OnPaintBackground(PaintEventArgs e)
     {
-        e.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.PanelAlt);
+        e.Graphics.Clear(BackColor);
     }
 
     protected override void OnPaint(PaintEventArgs e)
