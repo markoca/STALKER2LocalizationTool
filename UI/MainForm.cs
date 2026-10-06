@@ -601,12 +601,34 @@ public sealed class MainForm : Form
     private async Task ScanGameAsync()
     {
         if (_busy) return;
-        if (!File.Exists(_settings.RetocPath) || !File.Exists(_settings.RepakPath) || !Directory.Exists(_settings.GamePaksFolder))
+
+        var missingGameRequirements = new List<string>();
+        if (!Directory.Exists(_settings.GamePaksFolder))
+            missingGameRequirements.Add($"Game Paks folder: {_settings.GamePaksFolder}");
+        if (!File.Exists(_settings.RetocPath))
+            missingGameRequirements.Add($"retoc.exe: {_settings.RetocPath}");
+        if (!File.Exists(_settings.RepakPath))
+            missingGameRequirements.Add($"repak.exe: {_settings.RepakPath}");
+
+        if (missingGameRequirements.Count > 0)
         {
             _game = null;
             RefreshGameStatus();
             UpdateButtons();
-            MessageBox.Show(this, _l.T("ui.game_paths_missing"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            AppendLog("GAME scan prerequisites missing:");
+            foreach (var item in missingGameRequirements)
+                AppendLog("  " + item);
+
+            MessageBox.Show(
+                this,
+                _l.T("ui.game_paths_missing") + Environment.NewLine + Environment.NewLine
+                + string.Join(Environment.NewLine, missingGameRequirements),
+                AppConstants.AppName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information
+            );
+
             if (ShowSettings() == DialogResult.OK)
                 await ScanGameAsync();
             return;
