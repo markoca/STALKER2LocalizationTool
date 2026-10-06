@@ -116,7 +116,7 @@
   "ui.cached_folder": "Cached folder",
   "help.cached_folder": "Read-only cached extraction data required for safe rebuilding is saved here.",
   "ui.available": "Available",
-  "ui.clear_game_cache": "CLEAR GAME CACHE",
+  "ui.clear_game_cache": "Clear Game Cache",
   "ui.clear_game_cache_confirm": "Delete the GAME cache?\n\n{0}\n\nEditable/Game, MODS cache and Output will not be changed.",
   "ui.game_cache_cleared": "GAME cache cleared. It will be rebuilt when needed.",
   "ui.game_cache_empty": "There is no GAME cache to clear.",
