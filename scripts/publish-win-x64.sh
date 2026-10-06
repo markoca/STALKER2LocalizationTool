@@ -16,7 +16,7 @@ mkdir -p "$PUBLISH_ROOT"
 STAGE="$(mktemp -d "$PUBLISH_ROOT/.win-x64-stage.XXXXXX")"
 PRESERVE="$(mktemp -d "$PUBLISH_ROOT/.win-x64-preserve.XXXXXX")"
 
-PRESERVED_NAMES=(Mods Cached Editable Output Extracted Ready)
+PRESERVED_NAMES=(user-paths.json Mods Cached Editable Output Extracted Ready)
 REQUIRED_TOOLS=(retoc.exe repak.exe UAssetGUI.exe Mappings.usmap S2HOCMM.exe)
 
 restore_runtime_data() {
