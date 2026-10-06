@@ -59,15 +59,84 @@ tools\
     Mappings.usmap
 ```
 
-Tested UAssetGUI baseline:
+Download the tools from their original project/release pages:
+
+**retoc v0.1.5**
 
 ```text
-UAssetGUI v1.1.0
+https://github.com/trumank/retoc/releases
 ```
 
-Use compatible Windows x64 versions of retoc, repak and S2HOCMM.
+Download the Windows x64 release and place the executable as:
 
-`Mappings.usmap` must be compatible with your current S.T.A.L.K.E.R. 2 game version.
+```text
+tools\retoc.exe
+```
+
+**repak v0.2.3**
+
+```text
+https://github.com/trumank/repak/releases
+```
+
+Download the Windows x64 release and place the executable as:
+
+```text
+tools\repak.exe
+```
+
+**UAssetGUI v1.1.0**
+
+```text
+https://github.com/atenfyr/UAssetGUI/releases
+```
+
+Use the stable v1.1.0 release and place:
+
+```text
+tools\UAssetGUI.exe
+```
+
+**S2HOCMM v2.3**
+
+Nexus Mods:
+
+```text
+https://www.nexusmods.com/stalker2heartofchornobyl/mods/540
+```
+
+Original project / releases:
+
+```text
+https://gitlab.com/PatrykPniewski/s2hocmm
+https://gitlab.com/PatrykPniewski/s2hocmm/-/releases
+```
+
+Place:
+
+```text
+tools\S2HOCMM.exe
+```
+
+**Mappings.usmap**
+
+Mappings must match the installed S.T.A.L.K.E.R. 2 game version.
+
+For the current tested game baseline **2.0.4**:
+
+```text
+https://www.nexusmods.com/stalker2heartofchornobyl/mods/2356
+```
+
+Place the mapping as:
+
+```text
+tools\Mappings.usmap
+```
+
+If the game is updated beyond 2.0.4, obtain a mapping generated for that game build instead of assuming the old mapping is compatible.
+
+UAssetGUI v1.1.0 may require the .NET 8 Desktop Runtime when that dependency is not already available.
 
 ### 1.3 Start the application
 
