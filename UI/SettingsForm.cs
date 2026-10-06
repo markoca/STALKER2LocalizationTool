@@ -65,15 +65,12 @@ public sealed class SettingsForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(14, 12, 14, 12),
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
-        content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         content.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         content.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-
-        content.Controls.Add(BuildHeader(), 0, 0);
 
         var body = new Panel
         {
@@ -101,8 +98,8 @@ public sealed class SettingsForm : Form
         bodyStack.Controls.Add(BuildToolsCard(), 0, 1);
 
         body.Controls.Add(bodyStack);
-        content.Controls.Add(body, 0, 1);
-        content.Controls.Add(BuildAutoScanCard(), 0, 2);
+        content.Controls.Add(body, 0, 0);
+        content.Controls.Add(BuildAutoScanCard(), 0, 1);
 
         root.Controls.Add(content, 0, 1);
         root.Controls.Add(BuildFooter(), 0, 2);
@@ -220,19 +217,8 @@ public sealed class SettingsForm : Form
 
     private void ApplyWindowTitle()
     {
-        var title = _l.T("app.title").Trim();
-        var split = title.Split(
-            ' ',
-            2,
-            StringSplitOptions.RemoveEmptyEntries
-        );
-
-        _titleAccent.Text = split.Length > 0
-            ? split[0].ToUpperInvariant()
-            : "LOCALIZATION";
-        _titleRest.Text = split.Length > 1
-            ? split[1].ToUpperInvariant()
-            : "WORKBENCH";
+        _titleAccent.Text = _l.T("ui.settings").Trim().ToUpperInvariant();
+        _titleRest.Text = string.Empty;
     }
 
     private void ToggleMaximize()
@@ -248,39 +234,6 @@ public sealed class SettingsForm : Form
         _maximizeButton.Text = WindowState == FormWindowState.Maximized
             ? "❐"
             : "□";
-    }
-
-    private Control BuildHeader()
-    {
-        var header = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(2, 0, 0, 12),
-        };
-
-        var title = new Label
-        {
-            AutoSize = true,
-            Text = _l.T("ui.settings"),
-            Font = new Font("Segoe UI", 18F, FontStyle.Bold),
-            Margin = new Padding(0, 0, 0, 2),
-        };
-
-        var subtitle = new Label
-        {
-            AutoSize = true,
-            Text = "Workspace paths and toolchain configuration",
-            Font = new Font("Segoe UI", 8.5F),
-            Tag = StalkerTheme.MutedLabelTag,
-            Margin = new Padding(1, 0, 0, 0),
-        };
-
-        header.Controls.Add(title, 0, 0);
-        header.Controls.Add(subtitle, 0, 1);
-        return header;
     }
 
     private Control BuildPathsCard()
