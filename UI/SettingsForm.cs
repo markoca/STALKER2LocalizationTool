@@ -359,8 +359,8 @@ public sealed class SettingsForm : Form
         clearGameCache.Click += (_, _) => ClearGameCache();
         resetWorkspace.Click += (_, _) => ResetWorkspacePaths();
 
-        leftActions.Controls.Add(clearGameCache);
         leftActions.Controls.Add(resetWorkspace);
+        leftActions.Controls.Add(clearGameCache);
 
         rightActions.Controls.Add(cancel);
         rightActions.Controls.Add(save);
