@@ -60,70 +60,30 @@ public sealed class SettingsService
 
     private static AppSettings CreatePersistedSettings(AppSettings settings)
     {
-        var baseDir = AppContext.BaseDirectory;
-
         return new AppSettings
         {
             BuildLanguageIds = settings.BuildLanguageIds.ToList(),
             BuildLanguageId = null,
 
-            // GAME is an external user-selected location and must be persisted.
+            // External/user-selected locations are persisted.
             GamePaksFolder = settings.GamePaksFolder,
+            ModsFolder = settings.ModsFolder,
 
-            // Portable workspace defaults are never persisted as absolute paths.
-            ModsFolder = PersistOnlyOverride(
-                settings.ModsFolder,
-                Path.Combine(baseDir, "Mods")
-            ),
-            CachedFolder = PersistOnlyOverride(
-                settings.CachedFolder,
-                Path.Combine(baseDir, "Cached")
-            ),
-            EditableFolder = PersistOnlyOverride(
-                settings.EditableFolder,
-                Path.Combine(baseDir, "Editable")
-            ),
-            OutputFolder = PersistOnlyOverride(
-                settings.OutputFolder,
-                Path.Combine(baseDir, "Output")
-            ),
-
-            // Bundled tools are also resolved dynamically from the current runtime.
-            RetocPath = PersistOnlyOverride(
-                settings.RetocPath,
-                Path.Combine(baseDir, "tools", "retoc.exe")
-            ),
-            UAssetGuiPath = PersistOnlyOverride(
-                settings.UAssetGuiPath,
-                Path.Combine(baseDir, "tools", "UAssetGUI.exe")
-            ),
-            MappingsPath = PersistOnlyOverride(
-                settings.MappingsPath,
-                Path.Combine(baseDir, "tools", "Mappings.usmap")
-            ),
-            RepakPath = PersistOnlyOverride(
-                settings.RepakPath,
-                Path.Combine(baseDir, "tools", "repak.exe")
-            ),
-            S2HocmmPath = PersistOnlyOverride(
-                settings.S2HocmmPath,
-                FindS2Hocmm(baseDir)
-            ),
+            // Internal portable paths are NEVER persisted. They are derived from
+            // AppContext.BaseDirectory on every launch.
+            CachedFolder = string.Empty,
+            EditableFolder = string.Empty,
+            OutputFolder = string.Empty,
+            RetocPath = string.Empty,
+            UAssetGuiPath = string.Empty,
+            MappingsPath = string.Empty,
+            RepakPath = string.Empty,
+            S2HocmmPath = string.Empty,
 
             ExtractedFolder = null,
             ReadyFolder = null,
             AutoScan = settings.AutoScan,
         };
-    }
-
-    private static string PersistOnlyOverride(string? currentValue, string dynamicDefault)
-    {
-        if (string.IsNullOrWhiteSpace(currentValue))
-            return string.Empty;
-
-        return PathsEqual(currentValue, dynamicDefault)
-            ? string.Empty
-            : currentValue;
     }
 
     private static void ApplyDefaultsAndMigrate(AppSettings settings)
@@ -142,67 +102,23 @@ public sealed class SettingsService
             .ToList();
         settings.BuildLanguageId = null;
 
-        settings.RetocPath = RepairBundledFilePath(
-            settings.RetocPath,
-            Path.Combine(baseDir, "tools", "retoc.exe"),
-            "retoc.exe",
-            settings.MigrationMessages
-        );
-        settings.UAssetGuiPath = RepairBundledFilePath(
-            settings.UAssetGuiPath,
-            Path.Combine(baseDir, "tools", "UAssetGUI.exe"),
-            "UAssetGUI.exe",
-            settings.MigrationMessages
-        );
-        settings.MappingsPath = RepairBundledFilePath(
-            settings.MappingsPath,
-            Path.Combine(baseDir, "tools", "Mappings.usmap"),
-            "Mappings.usmap",
-            settings.MigrationMessages
-        );
-        settings.RepakPath = RepairBundledFilePath(
-            settings.RepakPath,
-            Path.Combine(baseDir, "tools", "repak.exe"),
-            "repak.exe",
-            settings.MigrationMessages
-        );
-        settings.S2HocmmPath = RepairBundledFilePath(
-            settings.S2HocmmPath,
-            FindS2Hocmm(baseDir),
-            "S2HOCMM.exe",
-            settings.MigrationMessages
-        );
+        // Internal runtime/workspace paths are ALWAYS derived from the directory
+        // containing the currently running executable. They are intentionally not
+        // restored from settings.json, so moving or renaming the portable app folder
+        // can never leave stale absolute paths behind.
+        settings.CachedFolder = Path.Combine(baseDir, "Cached");
+        settings.EditableFolder = Path.Combine(baseDir, "Editable");
+        settings.OutputFolder = Path.Combine(baseDir, "Output");
 
-        settings.ModsFolder = ResolvePortableDefaultFolder(
-            settings.ModsFolder,
-            Path.Combine(baseDir, "Mods"),
-            "Mods",
-            settings.MigrationMessages
-        );
-        settings.CachedFolder = ResolveWorkspaceFolder(
-            settings.CachedFolder,
-            settings.ExtractedFolder,
-            Path.Combine(baseDir, "Extracted"),
-            Path.Combine(baseDir, "Cached"),
-            "Extracted",
-            "Cached",
-            settings.MigrationMessages
-        );
-        settings.EditableFolder = ResolveWorkspaceFolder(
-            settings.EditableFolder,
-            settings.ReadyFolder,
-            Path.Combine(baseDir, "Ready"),
-            Path.Combine(baseDir, "Editable"),
-            "Ready",
-            "Editable",
-            settings.MigrationMessages
-        );
-        settings.OutputFolder = ResolvePortableDefaultFolder(
-            settings.OutputFolder,
-            Path.Combine(baseDir, "Output"),
-            "Output",
-            settings.MigrationMessages
-        );
+        settings.RetocPath = Path.Combine(baseDir, "tools", "retoc.exe");
+        settings.UAssetGuiPath = Path.Combine(baseDir, "tools", "UAssetGUI.exe");
+        settings.MappingsPath = Path.Combine(baseDir, "tools", "Mappings.usmap");
+        settings.RepakPath = Path.Combine(baseDir, "tools", "repak.exe");
+        settings.S2HocmmPath = Path.Combine(baseDir, "tools", "S2HOCMM.exe");
+
+        // Mods is intentionally user-configurable. Its default follows the runtime,
+        // but a custom external Mods folder is preserved.
+        settings.ModsFolder = DefaultIfEmpty(settings.ModsFolder, Path.Combine(baseDir, "Mods"));
 
         // Legacy JSON properties disappear on the next save.
         settings.ExtractedFolder = null;
@@ -215,230 +131,6 @@ public sealed class SettingsService
 
         if (string.IsNullOrWhiteSpace(settings.GamePaksFolder))
             settings.GamePaksFolder = SteamLocator.TryFindGamePaksFolder() ?? string.Empty;
-    }
-
-    private static string ResolveWorkspaceFolder(
-        string currentValue,
-        string? legacySettingValue,
-        string oldDefault,
-        string newDefault,
-        string oldName,
-        string newName,
-        List<string> messages)
-    {
-        // Pre-RC settings can arrive in either form:
-        //   ExtractedFolder/ReadyFolder legacy JSON properties, or
-        //   CachedFolder/EditableFolder already populated with the old default path.
-        // Treat only the application's old DEFAULT directories as legacy. A custom
-        // path chosen by the user remains untouched even if its folder happens to
-        // contain the old terminology.
-        var currentPointsAtOldDefault = !string.IsNullOrWhiteSpace(currentValue)
-                                       && PathsEqual(currentValue, oldDefault);
-        var legacyPointsAtOldDefault = string.IsNullOrWhiteSpace(legacySettingValue)
-                                       || PathsEqual(legacySettingValue, oldDefault);
-
-        if (string.IsNullOrWhiteSpace(currentValue)
-            && !string.IsNullOrWhiteSpace(legacySettingValue)
-            && !PathsEqual(legacySettingValue, oldDefault))
-        {
-            messages.Add(
-                $"Settings migrated: {oldName} folder is now called {newName}; " +
-                $"custom path preserved: {legacySettingValue}"
-            );
-            return legacySettingValue;
-        }
-
-        var desired = currentPointsAtOldDefault || string.IsNullOrWhiteSpace(currentValue)
-            ? newDefault
-            : currentValue;
-
-        desired = ResolvePortableDefaultFolder(
-            desired,
-            newDefault,
-            newName,
-            messages
-        );
-
-        // Only migrate the physical default workspace when this settings record is
-        // actually using the default workspace family. Never rename a custom path.
-        if ((currentPointsAtOldDefault || legacyPointsAtOldDefault)
-            && PathsEqual(desired, newDefault))
-        {
-            MigrateDefaultWorkspace(oldDefault, newDefault, oldName, newName, messages);
-
-            if (currentPointsAtOldDefault)
-                messages.Add($"Settings path migrated: {oldName} -> {newName}.");
-        }
-
-        return desired;
-    }
-
-    private static void MigrateDefaultWorkspace(
-        string oldDefault,
-        string newDefault,
-        string oldName,
-        string newName,
-        List<string> messages)
-    {
-        if (!Directory.Exists(oldDefault))
-            return;
-
-        if (!Directory.Exists(newDefault))
-        {
-            try
-            {
-                Directory.Move(oldDefault, newDefault);
-                messages.Add($"Workspace migrated: {oldName} -> {newName}.");
-            }
-            catch (Exception ex)
-            {
-                messages.Add($"Could not rename {oldName} to {newName}: {ex.Message}");
-            }
-            return;
-        }
-
-        var oldHasEntries = HasEntries(oldDefault);
-        var newHasEntries = HasEntries(newDefault);
-
-        // Safe cleanup cases: no user data can be lost because one side is empty.
-        if (!oldHasEntries)
-        {
-            try
-            {
-                Directory.Delete(oldDefault, recursive: false);
-                messages.Add($"Removed empty legacy {oldName} workspace; {newName} is authoritative.");
-            }
-            catch (Exception ex)
-            {
-                messages.Add($"Could not remove empty legacy {oldName} folder: {ex.Message}");
-            }
-            return;
-        }
-
-        if (!newHasEntries)
-        {
-            try
-            {
-                Directory.Delete(newDefault, recursive: false);
-                Directory.Move(oldDefault, newDefault);
-                messages.Add($"Workspace migrated: {oldName} -> {newName} (empty destination replaced safely).");
-            }
-            catch (Exception ex)
-            {
-                messages.Add($"Could not migrate {oldName} to empty {newName}: {ex.Message}");
-            }
-            return;
-        }
-
-        // Both contain data. Do not merge, overwrite, delete or guess. The new
-        // workspace remains authoritative so no new runtime writes go to the legacy
-        // default folder, and the user gets a clear conflict warning.
-        messages.Add(
-            $"Both legacy {oldName} and current {newName} folders contain data. " +
-            $"Nothing was merged or overwritten. The application will use only {newName}; " +
-            $"review {oldName} manually before deleting it."
-        );
-    }
-
-
-    private static bool HasEntries(string path)
-    {
-        try { return Directory.EnumerateFileSystemEntries(path).Any(); }
-        catch { return true; }
-    }
-
-    private static bool PathsEqual(string left, string right)
-    {
-        try
-        {
-            return string.Equals(
-                Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
-                StringComparison.OrdinalIgnoreCase
-            );
-        }
-        catch
-        {
-            return string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
-        }
-    }
-
-    private static string FindS2Hocmm(string baseDir)
-    {
-        // Release/runtime default: all external tools are deployed from the
-        // project-local tools directory. Custom paths remain supported through
-        // settings, but normal users never need a sibling developer checkout.
-        return Path.Combine(baseDir, "tools", "S2HOCMM.exe");
-    }
-
-    private static string ResolvePortableDefaultFolder(
-        string? currentValue,
-        string currentDefault,
-        string folderName,
-        List<string> messages)
-    {
-        if (string.IsNullOrWhiteSpace(currentValue))
-            return currentDefault;
-
-        if (PathsEqual(currentValue, currentDefault))
-            return currentDefault;
-
-        // Default runtime workspaces are portable. If settings.json was preserved
-        // across a project/runtime folder rename, the saved absolute path still
-        // points at the previous <project>/publish/win-x64/<folder> location.
-        // Recognize only that exact default layout; arbitrary custom paths remain
-        // untouched.
-        if (LooksLikePortableRuntimeDefault(currentValue, folderName))
-        {
-            messages.Add(
-                $"Settings relocated: {folderName} now follows the current runtime folder: {currentDefault}"
-            );
-            return currentDefault;
-        }
-
-        return currentValue;
-    }
-
-    private static bool LooksLikePortableRuntimeDefault(string path, string folderName)
-    {
-        if (string.IsNullOrWhiteSpace(path))
-            return false;
-
-        // Do not require the old path to exist. A renamed/moved portable runtime
-        // leaves an absolute path in settings.json that may point to a directory
-        // which no longer exists. Normalize separators and recognize the portable
-        // runtime layout purely by its suffix.
-        var normalized = path.Trim()
-            .TrimEnd('\\', '/')
-            .Replace('\\', '/');
-
-        var suffix = $"/publish/win-x64/{folderName}";
-        return normalized.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string RepairBundledFilePath(
-        string? currentValue,
-        string bundledFallback,
-        string displayName,
-        List<string> messages)
-    {
-        if (!string.IsNullOrWhiteSpace(currentValue) && File.Exists(currentValue))
-            return currentValue;
-
-        if (File.Exists(bundledFallback))
-        {
-            if (!string.IsNullOrWhiteSpace(currentValue)
-                && !PathsEqual(currentValue, bundledFallback))
-            {
-                messages.Add(
-                    $"Settings repaired: {displayName} no longer exists at '{currentValue}'. " +
-                    $"Using bundled tool: {bundledFallback}"
-                );
-            }
-            return bundledFallback;
-        }
-
-        return string.IsNullOrWhiteSpace(currentValue) ? bundledFallback : currentValue;
     }
 
     private static string DefaultIfEmpty(string? value, string fallback) =>
