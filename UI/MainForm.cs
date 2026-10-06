@@ -1080,9 +1080,10 @@ public sealed class MainForm : Form
     private async Task ExtractAsync()
     {
         var targets = _mods
-            .Where(x =>
-                x.UiStatus is ModUiStatus.NeedsExtraction
-                    or ModUiStatus.MissingTranslation)
+            .Where(mod =>
+                mod.UiStatus is ModUiStatus.NeedsExtraction
+                    or ModUiStatus.MissingTranslation
+                || CanRestoreEditableFromCache(mod))
             .ToList();
         if (targets.Count == 0)
         {
@@ -1521,6 +1522,48 @@ public sealed class MainForm : Form
         UpdateButtons();
     }
 
+    private bool CanRestoreEditableFromCache(ModScanResult mod)
+    {
+        if (mod.NeedsExtraction || !mod.HasLocalization)
+            return false;
+
+        var cachedRoot = Path.Combine(
+            _settings.CachedFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(cachedRoot))
+            return false;
+
+        var cachedHasEditableJson = BuildLanguageCatalog.All.Any(language =>
+            File.Exists(
+                Path.Combine(
+                    cachedRoot,
+                    language.Key + ".json"
+                )
+            )
+        );
+        if (!cachedHasEditableJson)
+            return false;
+
+        var editableRoot = Path.Combine(
+            _settings.EditableFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(editableRoot))
+            return true;
+
+        var editableHasAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
+            File.Exists(
+                Path.Combine(
+                    editableRoot,
+                    language.Key + ".json"
+                )
+            )
+        );
+
+        return !editableHasAnyLanguageJson;
+    }
+
     private void UpdateButtons()
     {
         _settingsButton.Enabled = !_busy;
@@ -1532,8 +1575,10 @@ public sealed class MainForm : Form
             mod => mod.UiStatus == ModUiStatus.NeedsExtraction
         );
         var modsCanExtract = _mods.Any(
-            mod => mod.UiStatus is ModUiStatus.NeedsExtraction
-                or ModUiStatus.MissingTranslation
+            mod =>
+                mod.UiStatus is ModUiStatus.NeedsExtraction
+                    or ModUiStatus.MissingTranslation
+                || CanRestoreEditableFromCache(mod)
         );
         var modsCanBuild = !_busy
             && hasLanguages
