@@ -1987,8 +1987,7 @@ public sealed class MainForm : Form
             ).FirstOrDefault();
 
             return firstPart is not null
-                   && (firstPart.Equals(".workbench", StringComparison.OrdinalIgnoreCase)
-                       || firstPart.Equals(".scan_cache", StringComparison.OrdinalIgnoreCase)
+                   && (firstPart.Equals(".scan_cache", StringComparison.OrdinalIgnoreCase)
                        || firstPart.Equals(".source_cache", StringComparison.OrdinalIgnoreCase));
         }
         catch
