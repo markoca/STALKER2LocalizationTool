@@ -850,6 +850,7 @@ public sealed class MainForm : Form
             UpdateButtons();
             SaveModsSnapshot();
             CompleteProgress(_l.T("ui.done"));
+            AppendLog("=========== READY FOR EXTRACTION ===========");
         }
         catch (OperationCanceledException)
         {
@@ -904,6 +905,7 @@ public sealed class MainForm : Form
                 _game.UiStatus = ModUiStatus.BuiltVerified;
             UpdateButtons();
             CompleteProgress(_l.T("ui.done"));
+            AppendLog("=========== READY FOR EXTRACTION ===========");
         }
         catch (OperationCanceledException)
         {
@@ -1697,7 +1699,7 @@ public sealed class MainForm : Form
             "Cache deleted: GAME and MODS extraction data was removed; "
             + "existing scan results remain in memory."
         );
-        AppendLog("READY FOR EXTRACTION");
+        AppendLog("=========== READY FOR EXTRACTION ===========");
     }
 
     private bool NeedsInitialSetup() =>
