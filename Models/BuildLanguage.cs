@@ -1,4 +1,4 @@
-namespace STALKER2LocalizationTool.Models;
+namespace LocalizationWorkbench.Models;
 
 public sealed record BuildLanguage(int Id, string Key, string EnglishName, string LocresCulture);
 
