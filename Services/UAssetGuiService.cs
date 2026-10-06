@@ -19,8 +19,19 @@ public sealed class UAssetGuiService
 
     public async Task ToJsonAsync(string uassetPath, string jsonPath, CancellationToken cancellationToken = default)
     {
-        await PrepareAsync(cancellationToken);
+        _log?.Invoke("UAssetGUI: preparing...");
+        await PrepareAsync(cancellationToken).ConfigureAwait(false);
+        _log?.Invoke("UAssetGUI: preparation complete.");
+
         Directory.CreateDirectory(Path.GetDirectoryName(jsonPath)!);
+
+        var uassetBytes = new FileInfo(uassetPath).Length;
+        var uexpPath = Path.ChangeExtension(uassetPath, ".uexp");
+        var uexpBytes = File.Exists(uexpPath) ? new FileInfo(uexpPath).Length : 0L;
+        _log?.Invoke(
+            $"UAssetGUI tojson starting: {Path.GetFileName(uassetPath)} "
+            + $"(uasset={FormatBytes(uassetBytes)}, uexp={FormatBytes(uexpBytes)})"
+        );
 
         try
         {
@@ -34,9 +45,11 @@ public sealed class UAssetGuiService
                     AppConstants.EngineVersion,
                     AppConstants.UAssetGuiMappingsAlias,
                 },
-                _log,
-                cancellationToken
-            );
+                log: null,
+                cancellationToken: cancellationToken,
+                captureStandardOutput: false,
+                priorityClass: ProcessPriorityClass.BelowNormal
+            ).ConfigureAwait(false);
         }
         catch (InvalidOperationException ex) when (IsBundleFailure(ex.Message))
         {
@@ -52,6 +65,11 @@ public sealed class UAssetGuiService
 
         if (!File.Exists(jsonPath))
             throw new FileNotFoundException("UAssetGUI did not produce the expected JSON file.", jsonPath);
+
+        _log?.Invoke(
+            $"UAssetGUI tojson completed: {Path.GetFileName(uassetPath)} "
+            + $"-> {FormatBytes(new FileInfo(jsonPath).Length)} JSON"
+        );
     }
 
     private async Task PrepareAsync(CancellationToken cancellationToken)
@@ -59,7 +77,7 @@ public sealed class UAssetGuiService
         if (_prepared)
             return;
 
-        await _prepareLock.WaitAsync(cancellationToken);
+        await _prepareLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_prepared)
@@ -70,7 +88,10 @@ public sealed class UAssetGuiService
             if (!File.Exists(_mappingsPath))
                 throw new FileNotFoundException("Mappings.usmap was not found.", _mappingsPath);
 
-            var hash = await HashUtil.Sha256FileAsync(_uassetGuiPath, cancellationToken);
+            var hash = await HashUtil.Sha256FileAsync(
+                _uassetGuiPath,
+                cancellationToken
+            ).ConfigureAwait(false);
             if (string.Equals(hash, AppConstants.UAssetGuiKnownBadSha256, StringComparison.OrdinalIgnoreCase))
             {
                 throw new InvalidDataException(
@@ -87,7 +108,9 @@ public sealed class UAssetGuiService
                 );
             }
 
-            InstallMappingsForStableCli();
+            await InstallMappingsForStableCliAsync(
+                cancellationToken
+            ).ConfigureAwait(false);
             _prepared = true;
         }
         finally
@@ -96,18 +119,31 @@ public sealed class UAssetGuiService
         }
     }
 
-    private void InstallMappingsForStableCli()
+    private async Task InstallMappingsForStableCliAsync(
+        CancellationToken cancellationToken)
     {
         // UAssetGUI v1.1.0 accepts a mappings NAME on the command line, not a full
-        // mappings path. Put our selected mappings file in UAssetGUI's normal
-        // LocalAppData mapping directory and invoke it by an isolated alias.
-        // This form remains compatible with newer UAssetGUI versions as well.
-        var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        // mappings path. Keep this preparation fully asynchronous: large .usmap
+        // files must never be read into memory or processed on the WinForms thread.
+        var localAppData = Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData
+        );
         if (string.IsNullOrWhiteSpace(localAppData))
-            throw new InvalidOperationException("Could not resolve the Windows LocalApplicationData directory for UAssetGUI mappings.");
+        {
+            throw new InvalidOperationException(
+                "Could not resolve the Windows LocalApplicationData directory for UAssetGUI mappings."
+            );
+        }
 
-        var mappingsDirectory = Path.Combine(localAppData, "UAssetGUI", "Mappings");
-        var installedPath = Path.Combine(mappingsDirectory, AppConstants.UAssetGuiMappingsAlias + ".usmap");
+        var mappingsDirectory = Path.Combine(
+            localAppData,
+            "UAssetGUI",
+            "Mappings"
+        );
+        var installedPath = Path.Combine(
+            mappingsDirectory,
+            AppConstants.UAssetGuiMappingsAlias + ".usmap"
+        );
 
         try
         {
@@ -116,18 +152,43 @@ public sealed class UAssetGuiService
             var copyRequired = true;
             if (File.Exists(installedPath))
             {
-                var sourceHash = SHA256.HashData(File.ReadAllBytes(_mappingsPath));
-                var installedHash = SHA256.HashData(File.ReadAllBytes(installedPath));
-                copyRequired = !sourceHash.AsSpan().SequenceEqual(installedHash);
+                var sourceInfo = new FileInfo(_mappingsPath);
+                var installedInfo = new FileInfo(installedPath);
+
+                if (sourceInfo.Length == installedInfo.Length)
+                {
+                    var sourceHash = await HashUtil.Sha256FileAsync(
+                        _mappingsPath,
+                        cancellationToken
+                    ).ConfigureAwait(false);
+                    var installedHash = await HashUtil.Sha256FileAsync(
+                        installedPath,
+                        cancellationToken
+                    ).ConfigureAwait(false);
+                    copyRequired = !string.Equals(
+                        sourceHash,
+                        installedHash,
+                        StringComparison.OrdinalIgnoreCase
+                    );
+                }
             }
 
             if (copyRequired)
             {
-                File.Copy(_mappingsPath, installedPath, overwrite: true);
-                _log?.Invoke($"UAssetGUI mappings installed as {AppConstants.UAssetGuiMappingsAlias} -> {installedPath}");
+                await CopyFileAsync(
+                    _mappingsPath,
+                    installedPath,
+                    cancellationToken
+                ).ConfigureAwait(false);
+
+                _log?.Invoke(
+                    $"UAssetGUI mappings installed as "
+                    + $"{AppConstants.UAssetGuiMappingsAlias} -> {installedPath}"
+                );
             }
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex) when (
+            ex is IOException or UnauthorizedAccessException)
         {
             throw new InvalidOperationException(
                 "Could not install the selected mappings file into UAssetGUI's LocalAppData\\UAssetGUI\\Mappings directory. " +
@@ -135,6 +196,46 @@ public sealed class UAssetGuiService
                 ex
             );
         }
+    }
+
+    private static async Task CopyFileAsync(
+        string source,
+        string destination,
+        CancellationToken cancellationToken)
+    {
+        await using var input = new FileStream(
+            source,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.Read,
+            1024 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan
+        );
+        await using var output = new FileStream(
+            destination,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            1024 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan
+        );
+
+        await input.CopyToAsync(
+            output,
+            1024 * 1024,
+            cancellationToken
+        ).ConfigureAwait(false);
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes >= 1024L * 1024L * 1024L)
+            return $"{bytes / (1024d * 1024d * 1024d):N2} GiB";
+        if (bytes >= 1024L * 1024L)
+            return $"{bytes / (1024d * 1024d):N1} MiB";
+        if (bytes >= 1024L)
+            return $"{bytes / 1024d:N1} KiB";
+        return $"{bytes} B";
     }
 
     private static bool IsBundleFailure(string message) =>
