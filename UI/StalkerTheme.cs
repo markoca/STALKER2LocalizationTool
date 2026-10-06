@@ -17,6 +17,7 @@ internal static class StalkerTheme
 
     public static readonly Color WindowBackground = Color.FromArgb(0x10, 0x11, 0x0F);
     public static readonly Color TitleBar = Color.FromArgb(0x0B, 0x0C, 0x0B);
+    public static readonly Color WindowChrome = Color.Black;
     public static readonly Color Panel = Color.FromArgb(0x17, 0x19, 0x16);
     public static readonly Color PanelAlt = Color.FromArgb(0x20, 0x23, 0x1F);
     public static readonly Color PanelHover = Color.FromArgb(0x29, 0x2D, 0x27);
@@ -61,6 +62,10 @@ internal static class StalkerTheme
         switch (control)
         {
             case StalkerTitleBar:
+                control.BackColor = WindowChrome;
+                control.ForeColor = Text;
+                break;
+
             case StalkerNavigationBar:
             case StalkerFooterBar:
                 control.BackColor = TitleBar;
@@ -68,6 +73,10 @@ internal static class StalkerTheme
                 break;
 
             case StalkerWindowButton:
+                control.BackColor = WindowChrome;
+                control.ForeColor = Text;
+                break;
+
             case StalkerUtilityButton:
                 control.ForeColor = Text;
                 break;
@@ -575,7 +584,7 @@ internal sealed class StalkerTitleBar : Panel
 {
     public StalkerTitleBar()
     {
-        BackColor = StalkerTheme.TitleBar;
+        BackColor = StalkerTheme.WindowChrome;
         ForeColor = StalkerTheme.Text;
         SetStyle(
             ControlStyles.UserPaint
@@ -591,7 +600,7 @@ internal sealed class StalkerTitleBar : Panel
         if (rect.Width <= 0 || rect.Height <= 0)
             return;
 
-        e.Graphics.Clear(StalkerTheme.TitleBar);
+        e.Graphics.Clear(StalkerTheme.WindowChrome);
 
         using var border = new Pen(StalkerTheme.Border);
         e.Graphics.DrawLine(border, 0, Height - 1, Width, Height - 1);
@@ -664,7 +673,7 @@ internal sealed class StalkerWindowButton : Button
         FlatStyle = FlatStyle.Flat;
         FlatAppearance.BorderSize = 0;
         UseVisualStyleBackColor = false;
-        BackColor = StalkerTheme.TitleBar;
+        BackColor = StalkerTheme.WindowChrome;
         ForeColor = StalkerTheme.Text;
         Font = new Font("Segoe UI Symbol", 13F, FontStyle.Regular);
         Cursor = Cursors.Hand;
@@ -714,7 +723,7 @@ internal sealed class StalkerWindowButton : Button
                 ? (IsCloseButton
                     ? Color.FromArgb(0x6E, 0x2F, 0x2A)
                     : StalkerTheme.PanelHover)
-                : StalkerTheme.TitleBar;
+                : StalkerTheme.WindowChrome;
 
         e.Graphics.Clear(background);
         TextRenderer.DrawText(
