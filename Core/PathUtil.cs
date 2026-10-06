@@ -1,4 +1,4 @@
-namespace STALKER2LocalizationTool.Core;
+namespace LocalizationWorkbench.Core;
 
 public static class PathUtil
 {
