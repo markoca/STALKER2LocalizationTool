@@ -1,12 +1,40 @@
 # Localization Workbench
 
-**Version:** `1.0.0-rc.7`
+**Version:** `2.0.0-rc.1`
 
 Windows desktop workbench for extracting, editing and rebuilding S.T.A.L.K.E.R. 2 localization.
 
+This branch is the current **Version 2 Release Candidate 1** baseline. The project now uses `main` as the authoritative development branch.
+
+## v2 RC1 highlights
+
+- Unified **Localization Workbench** project/application identity.
+- Clean portable runtime layout with internal paths resolved from the running EXE directory.
+- No `settings.json` runtime configuration system.
+- Only user-selected external source paths are persisted in `user-paths.json`.
+- GAME and MODS use separate, step-aware workflows.
+- MODS scanning is strictly manual and starts only when the user clicks **SCAN MODS**.
+- MODS tab entry performs only a lightweight source-presence check before the first scan.
+- Clear decorated workflow log states such as:
+
+```text
+=========== GAME FOUND ===========
+=========== READY TO SCAN ===========
+=========== FOUND GAME LOCALIZATION ===========
+=========== LOCALIZATION READY FOR EXTRACTION ===========
+=========== LOCALIZATION EXTRACTION DONE ===========
+=========== LOCALIZATION READY FOR BUILD ===========
+=========== MODS FOUND ===========
+=========== SCANNING MODS ===========
+=========== MODS READY FOR EXTRACTION ===========
+=========== MODS READY FOR BUILD ===========
+```
+
 ## Supported target
 
-The application targets **Windows x64** (`net8.0-windows`). Linux is supported as a development host for cross-publishing and Wine testing, not as a native application target.
+The application targets **Windows x64** (`net8.0-windows`).
+
+Linux is supported as a development host for cross-publishing and Wine testing, not as a native application target.
 
 The authoritative helper-tool bundle is:
 
@@ -23,36 +51,104 @@ No helper tool is downloaded or compiled by the publish scripts.
 
 ## GAME workflow
 
-GAME handles the game's `Game.locres` workflow.
+GAME handles the game's localization workflow.
 
-1. **SCAN GAME** inspects the supported game localization sources.
-2. **EXTRACT** creates the canonical read-only cache under `Cached/Game` and seeds `Editable/Game`.
-3. Edit `Editable/Game/<language>.json`.
-4. **BUILD** serializes the selected language with S2HOCMM and packages the verified `Game.locres` with repak.
+1. **Scan the game**
+2. **Extract all language JSON files**
+3. **Edit JSONs in /Editable/Game**
+4. **Build for selected languages**
+
+**SCAN GAME** inspects the supported game localization sources. A successful discovery reports:
+
+```text
+=========== FOUND GAME LOCALIZATION ===========
+```
+
+**EXTRACT** creates the canonical rebuild cache under `Cached/Game` and seeds `Editable/Game`.
+
+After successful extraction:
+
+```text
+=========== LOCALIZATION EXTRACTION DONE ===========
+=========== LOCALIZATION READY FOR BUILD ===========
+```
 
 If `Editable/Game` is deleted while a valid `Cached/Game` still exists, the next scan reports **LOCALIZATION READY FOR EXTRACTION**. EXTRACT restores the missing editable files from Cached without re-reading the game source packages.
+
+**BUILD** serializes the selected language with S2HOCMM and packages the verified `Game.locres` with repak.
 
 ## MODS workflow
 
 MODS handles LocalizationDatabase / IoStore localization.
 
-1. Put loose mod files or original ZIP/7z/RAR archives under `Mods`.
-2. **SCAN MODS** discovers complete IoStore triplets and inspects localization content.
-3. Only OverrideContent-side localization containers are used; NewContent containers are ignored.
-4. New or changed mods are marked **Needs extraction**.
-5. **EXTRACT** writes canonical rebuild data under `Cached/<mod>` and seeds `Editable/<mod>`.
-6. Extracted mods are shown as **Extracted**.
+MODS scanning is intentionally **manual-only**:
+
+- startup never scans MODS;
+- switching to the MODS tab never starts a scan;
+- watchers never start a MODS scan;
+- changing Settings never starts a MODS scan;
+- only the **SCAN MODS** button starts the full scan.
+
+Before the first MODS scan in the current session, entering the MODS tab performs only a lightweight source-presence check. If mod sources are present, these banners are shown once:
+
+```text
+=========== MODS FOUND ===========
+=========== READY TO SCAN ===========
+```
+
+Switching between GAME and MODS does not repeat those pre-scan banners.
+
+The full MODS workflow is:
+
+1. Place loose mod files or original ZIP/7z/RAR archives under the configured Mods source folder.
+2. Click **SCAN MODS**.
+3. Complete IoStore triplets are discovered and localization content is inspected.
+4. OverrideContent-side localization containers are used; NewContent containers are ignored.
+5. New or changed mods are marked **Needs extraction**.
+6. **EXTRACT** writes canonical rebuild data under `Cached/<mod>` and seeds `Editable/<mod>`.
 7. Edit `Editable/<mod>/<language>.json`.
 8. Build either **MODULAR** or **ALL-IN-ONE**.
 
-If editable translation files are removed while the corresponding Cached workspace is still valid, EXTRACT restores only the missing Editable files and does not overwrite files that are still present.
+If editable translation files are removed while corresponding Cached data is still valid, EXTRACT restores only the missing Editable files and does not overwrite files that are still present.
 
 Archive display names are normalized for the UI: Nexus download IDs are omitted and detected versions are shown as `vX.X` / `vX.X.X` where available.
 
-## Workspace
+## Paths and persistence
+
+Internal paths always follow the currently running executable:
 
 ```text
 Localization Workbench.exe
+
+Cached/
+Editable/
+Output/
+tools/
+locales/
+```
+
+They are derived from `AppContext.BaseDirectory` and are never persisted as user configuration.
+
+The application persists only the external user-selected source locations:
+
+- GAME Paks folder
+- MODS source folder
+
+Those values are stored in:
+
+```text
+user-paths.json
+```
+
+They are written only after a successful GAME or MODS scan and reused on future launches when the stored paths are still valid.
+
+## Workspace
+
+Typical runtime layout:
+
+```text
+Localization Workbench.exe
+user-paths.json
 
 Mods/
 Cached/
@@ -66,11 +162,15 @@ tools/
 locales/
 ```
 
-`Cached` is rebuild state and should not be edited manually. `Editable` contains user-editable JSON files.
+`Cached` is rebuild state and should not be edited manually.
+
+`Editable` contains user-editable localization JSON files.
 
 ## Build verification
 
-GAME verifies the S2HOCMM result and the final repak output. MODS rebuilds with stock retoc and verifies the final localization package against the expected package/chunk identity and patched payload.
+GAME verifies the S2HOCMM result and the final repak output.
+
+MODS rebuilds with stock retoc and verifies the final localization package against the expected package/chunk identity and patched payload.
 
 A selected target language whose values already match the source does not create a redundant physical localization override.
 
@@ -94,6 +194,8 @@ Both publish paths create a self-contained Windows x64 runtime under:
 publish/win-x64/
 ```
 
+Existing `user-paths.json`, `Mods`, `Cached`, `Editable`, and `Output` data are preserved across republish.
+
 The target Windows machine does not need a separate .NET installation.
 
 ## Wine test
@@ -106,4 +208,11 @@ wine "publish/win-x64/Localization Workbench.exe"
 
 The Wine prefix used for UAssetGUI must provide the .NET 8 Desktop Runtime expected by that tool.
 
-See `RC_CHECKLIST.md` and `RELEASE_CANDIDATE.md` for the release-candidate regression pass.
+## Release candidate validation
+
+This baseline is **Localization Workbench v2.0.0-rc.1**.
+
+Before promoting it to a final Version 2 release, run the complete regression pass in:
+
+- `RC_CHECKLIST.md`
+- `RELEASE_CANDIDATE.md`
