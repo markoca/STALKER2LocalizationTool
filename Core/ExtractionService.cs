@@ -110,16 +110,24 @@ public sealed class ExtractionService
                 Directory.Delete(finalRoot, recursive: true);
             Directory.Move(stagingRoot, finalRoot);
 
-            try
+            var editableRoot = Path.Combine(_settings.EditableFolder, mod.ModId);
+            if (!Directory.Exists(editableRoot))
             {
-                SeedEditableWorkspace(finalRoot, mod.ModId);
+                try
+                {
+                    SeedEditableWorkspace(finalRoot, mod.ModId);
+                }
+                catch
+                {
+                    // Do not leave a current manifest behind when the initial Editable
+                    // copy failed; the next scan must offer extraction again.
+                    TryDeleteDirectory(finalRoot);
+                    throw;
+                }
             }
-            catch
+            else
             {
-                // Do not leave a current manifest behind when the initial Editable
-                // copy failed; the next scan must offer extraction again.
-                TryDeleteDirectory(finalRoot);
-                throw;
+                _log?.Invoke($"Editable workspace already exists; refreshed cache only -> {finalRoot}");
             }
 
             _log?.Invoke(
