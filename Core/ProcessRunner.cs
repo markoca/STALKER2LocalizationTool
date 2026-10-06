@@ -16,7 +16,9 @@ public static class ProcessRunner
         CancellationToken cancellationToken = default,
         string? workingDirectory = null,
         bool throwOnNonZero = true,
-        IReadOnlyDictionary<string, string?>? environment = null)
+        IReadOnlyDictionary<string, string?>? environment = null,
+        Action<string>? outputLine = null,
+        bool captureStandardOutput = true)
     {
         if (string.IsNullOrWhiteSpace(executable) || !File.Exists(executable))
             throw new FileNotFoundException($"Executable not found: {executable}", executable);
@@ -55,7 +57,14 @@ public static class ProcessRunner
         process.OutputDataReceived += (_, e) =>
         {
             if (e.Data is null) return;
-            lock (stdout) stdout.AppendLine(e.Data);
+
+            if (captureStandardOutput)
+            {
+                lock (stdout)
+                    stdout.AppendLine(e.Data);
+            }
+
+            outputLine?.Invoke(e.Data);
             log?.Invoke(e.Data);
         };
 
@@ -75,6 +84,10 @@ public static class ProcessRunner
         try
         {
             await process.WaitForExitAsync(cancellationToken);
+
+            // Flush any remaining asynchronous stdout/stderr callbacks before
+            // returning to callers that consume streamed lines.
+            process.WaitForExit();
         }
         catch (OperationCanceledException)
         {
