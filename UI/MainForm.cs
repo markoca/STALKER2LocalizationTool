@@ -998,7 +998,7 @@ public sealed class MainForm : Form
                 if (!File.Exists(editableFile)) editableFile = null;
                 if (string.IsNullOrWhiteSpace(editableFile))
                 {
-                    AppendLog($"Base Game / {language.EnglishName}: editable JSON is missing; skipped.");
+                    AppendLog($"Game / {language.EnglishName}: editable JSON is missing; skipped.");
                     continue;
                 }
 
@@ -1787,8 +1787,8 @@ public sealed class MainForm : Form
                 || CanRestoreEditableFromCache(_game)
             ))
         {
-            _statusText.Text = "READY FOR EXTRACTION";
-            AppendLog("=========== READY FOR EXTRACTION ===========");
+            _statusText.Text = "GAME READY FOR EXTRACTION";
+            AppendLog("=========== GAME READY FOR EXTRACTION ===========");
             return;
         }
 
@@ -1797,8 +1797,8 @@ public sealed class MainForm : Form
         // stage from the scanned GAME state itself rather than button.Enabled.
         if (_game?.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified)
         {
-            _statusText.Text = "READY TO BUILD";
-            AppendLog("=========== READY TO BUILD ===========");
+            _statusText.Text = "GAME READY FOR BUILD";
+            AppendLog("=========== GAME READY FOR BUILD ===========");
         }
     }
 
@@ -1806,16 +1806,16 @@ public sealed class MainForm : Form
     {
         if (_mods.Any(mod => mod.UiStatus == ModUiStatus.NeedsExtraction))
         {
-            _statusText.Text = "READY FOR EXTRACTION";
-            AppendLog("=========== READY FOR EXTRACTION ===========");
+            _statusText.Text = "MODS READY FOR EXTRACTION";
+            AppendLog("=========== MODS READY FOR EXTRACTION ===========");
             return;
         }
 
         if (_mods.Any(mod =>
                 mod.UiStatus is ModUiStatus.Extracted or ModUiStatus.BuiltVerified))
         {
-            _statusText.Text = "READY TO BUILD";
-            AppendLog("=========== READY TO BUILD ===========");
+            _statusText.Text = "MODS READY FOR BUILD";
+            AppendLog("=========== MODS READY FOR BUILD ===========");
         }
     }
 
@@ -1870,8 +1870,8 @@ public sealed class MainForm : Form
 
         if (IsGameWorkspace && _gameScanSuccessful)
         {
-            _statusText.Text = "READY FOR EXTRACTION";
-            AppendLog("=========== READY FOR EXTRACTION ===========");
+            _statusText.Text = "GAME READY FOR EXTRACTION";
+            AppendLog("=========== GAME READY FOR EXTRACTION ===========");
         }
         else
         {
