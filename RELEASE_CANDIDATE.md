@@ -17,6 +17,8 @@ tools/win-x64/
   S2HOCMM.exe
 ```
 
+English UI strings are embedded in the executable; no loose `locales/` directory is required.
+
 Internal runtime paths are derived from the directory containing `Localization Workbench.exe`:
 
 ```text
@@ -24,7 +26,6 @@ Cached/
 Editable/
 Output/
 tools/
-locales/
 ```
 
 Only the external GAME and MODS source paths are persisted in `user-paths.json` after a successful scan.
@@ -62,7 +63,6 @@ publish/win-x64/
   Localization Workbench.exe
   user-paths.json        # created after a successful scan
   tools/
-  locales/
   Mods/
   Cached/
   Editable/
