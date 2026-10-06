@@ -24,31 +24,55 @@ public static class PathUtil
             archiveNameOrPath
         ).Trim();
 
-        // Nexus download names normally end with:
-        //   <nexus-id> <version> <YYYY-MM-DDTHH-MMZ> <download-hash>
-        // The four-digit Nexus ID is metadata and must never become part of
-        // the user-facing mod name.
-        var match = Regex.Match(
+        // Nexus-style names commonly look like:
+        //   <title> <3-4 digit Nexus ID> <version> <timestamp> <hash>
+        // The Nexus ID is metadata and is never part of the displayed mod name.
+        //
+        // Version rule:
+        //   1. Prefer the first explicit x.x / x.x.x version in the title.
+        //   2. Otherwise use the version token immediately after the Nexus ID.
+        //   3. A plain integer fallback is normalized to x.0.
+        //
+        // Examples:
+        //   ZoneMedicine V0.4 2803 0.4 ... -> ZoneMedicine v0.4
+        //   TrueGunNames 2932 1 ...         -> TrueGunNames v1.0
+
+        string baseName;
+        string metadataVersion;
+
+        var fullNexus = Regex.Match(
             archiveName,
-            @"^(?<base>.+?)\s+(?<id>\d{4,})\s+(?<version>\S+)\s+"
+            @"^(?<base>.+?)\s+(?<id>\d{3,4})\s+(?<version>\S+)\s+"
             + @"(?<date>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}Z)\s+"
             + @"(?<hash>\S+)$",
             RegexOptions.CultureInvariant
         );
 
-        if (!match.Success)
-            return MakeSafeName(archiveName);
+        if (fullNexus.Success)
+        {
+            baseName = fullNexus.Groups["base"].Value.Trim();
+            metadataVersion = fullNexus.Groups["version"].Value.Trim();
+        }
+        else
+        {
+            // Loose/extracted folders may retain only:
+            //   <title> <3-4 digit Nexus ID> <version>
+            var shortNexus = Regex.Match(
+                archiveName,
+                @"^(?<base>.+?)\s+(?<id>\d{3,4})\s+(?<version>\S+)$",
+                RegexOptions.CultureInvariant
+            );
 
-        var baseName = match.Groups["base"].Value.Trim();
-        var metadataVersion = match.Groups["version"].Value.Trim();
+            if (!shortNexus.Success)
+                return MakeSafeName(archiveName);
 
-        // Prefer the first explicit dotted version already present in the
-        // mod/archive name: x.x or x.x.x, optionally prefixed with V/v.
-        // Example:
-        //   ZoneMedicine V0.4 2803 0.4 ... -> ZoneMedicine v0.4
+            baseName = shortNexus.Groups["base"].Value.Trim();
+            metadataVersion = shortNexus.Groups["version"].Value.Trim();
+        }
+
         var dottedVersion = Regex.Match(
             baseName,
-            @"(?<!\d)[vV]?(?<version>\d+\.\d+(?:\.\d+)?)(?!\d)",
+            @"(?<!\d)[vV]?(?<version>\d+\.\d+(?:\.\d+)?)(?![\d.])",
             RegexOptions.CultureInvariant
         );
 
@@ -57,30 +81,43 @@ public static class PathUtil
         {
             version = dottedVersion.Groups["version"].Value;
 
-            // Everything from the explicit version token onward is metadata
-            // for the display name. Keep only the actual mod title before it.
+            // The explicit version itself is not part of the base title.
             baseName = baseName[..dottedVersion.Index]
                 .TrimEnd(' ', '-', '_');
         }
         else
         {
-            // If no x.x / x.x.x token exists, use the Nexus version field
-            // immediately after the numeric Nexus ID. Bare integers are
-            // normalized to x.0 so the display is always vX.X.
-            version = Regex.IsMatch(
-                metadataVersion,
-                @"^\d+$",
-                RegexOptions.CultureInvariant
-            )
-                ? metadataVersion + ".0"
-                : metadataVersion.TrimStart('v', 'V');
+            var normalizedMetadataVersion = metadataVersion
+                .Trim()
+                .TrimStart('v', 'V');
 
-            // A duplicate trailing metadata version in the human name is not
-            // part of the mod title.
+            var metadataDotted = Regex.Match(
+                normalizedMetadataVersion,
+                @"^(?<version>\d+\.\d+(?:\.\d+)?)$",
+                RegexOptions.CultureInvariant
+            );
+
+            if (metadataDotted.Success)
+            {
+                version = metadataDotted.Groups["version"].Value;
+            }
+            else if (Regex.IsMatch(
+                         normalizedMetadataVersion,
+                         @"^\d+$",
+                         RegexOptions.CultureInvariant))
+            {
+                version = normalizedMetadataVersion + ".0";
+            }
+            else
+            {
+                version = normalizedMetadataVersion;
+            }
+
+            // Remove a duplicate trailing version from the human title.
             var duplicateVersion = Regex.Match(
                 baseName,
                 @"^(?<name>.+?)(?:[\s_-]+[vV]?"
-                + Regex.Escape(metadataVersion)
+                + Regex.Escape(normalizedMetadataVersion)
                 + @")$",
                 RegexOptions.CultureInvariant
             );
