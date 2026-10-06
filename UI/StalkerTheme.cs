@@ -483,6 +483,32 @@ internal static class StalkerTheme
 /// </summary>
 internal sealed class StalkerBrandMark : Control
 {
+    private readonly System.Windows.Forms.Timer _spinTimer;
+    private float _rotation;
+    private bool _spinning;
+
+    public bool Spinning
+    {
+        get => _spinning;
+        set
+        {
+            if (_spinning == value)
+                return;
+
+            _spinning = value;
+            if (_spinning)
+            {
+                _spinTimer.Start();
+            }
+            else
+            {
+                _spinTimer.Stop();
+                _rotation = 0F;
+                Invalidate();
+            }
+        }
+    }
+
     public StalkerBrandMark()
     {
         Width = 44;
@@ -495,6 +521,16 @@ internal sealed class StalkerBrandMark : Control
             | ControlStyles.SupportsTransparentBackColor,
             true);
         BackColor = Color.Transparent;
+
+        _spinTimer = new System.Windows.Forms.Timer
+        {
+            Interval = 40,
+        };
+        _spinTimer.Tick += (_, _) =>
+        {
+            _rotation = (_rotation + 8F) % 360F;
+            Invalidate();
+        };
     }
 
     protected override void OnPaint(PaintEventArgs e)
@@ -509,7 +545,28 @@ internal sealed class StalkerBrandMark : Control
             size,
             size);
 
-        StalkerTheme.DrawRadiationMark(e.Graphics, bounds);
+        var state = e.Graphics.Save();
+        try
+        {
+            var centerX = bounds.Left + bounds.Width / 2F;
+            var centerY = bounds.Top + bounds.Height / 2F;
+            e.Graphics.TranslateTransform(centerX, centerY);
+            e.Graphics.RotateTransform(_rotation);
+            e.Graphics.TranslateTransform(-centerX, -centerY);
+            StalkerTheme.DrawRadiationMark(e.Graphics, bounds);
+        }
+        finally
+        {
+            e.Graphics.Restore(state);
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            _spinTimer.Dispose();
+
+        base.Dispose(disposing);
     }
 }
 
