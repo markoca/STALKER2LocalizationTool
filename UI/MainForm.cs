@@ -141,7 +141,7 @@ public sealed class MainForm : Form
         };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
@@ -441,6 +441,7 @@ public sealed class MainForm : Form
         _progress.Dock = DockStyle.Fill;
         _progress.Minimum = 0;
         _progress.Maximum = 100;
+        _progress.Visible = false;
         _progress.Margin = new Padding(0, 8, 12, 8);
 
         var openButtons = new FlowLayoutPanel
@@ -1502,6 +1503,12 @@ public sealed class MainForm : Form
         if (busy)
         {
             _progressCompleted = false;
+            _progress.Value = 0;
+            _progress.Visible = true;
+        }
+        else
+        {
+            _progress.Visible = false;
             _progress.Value = 0;
         }
 
