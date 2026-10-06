@@ -43,9 +43,10 @@ public sealed class ExtractionService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var mod = list[index];
-            progress?.Report((index + 1, list.Count, mod.ModName));
+            progress?.Report((index, list.Count, $"Extracting {mod.ModName}"));
             _log?.Invoke($"=== Extracting {mod.ModName} ===");
             await ExtractOneModAsync(mod, cancellationToken);
+            progress?.Report((index + 1, list.Count, $"Extracted {mod.ModName}"));
         }
     }
 
