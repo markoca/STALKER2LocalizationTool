@@ -116,17 +116,38 @@ public sealed class RetocService
         }
     }
 
-    public Task ToLegacyAsync(
+    public async Task ToLegacyAsync(
         string inputDirectory,
         string outputDirectory,
         string filter,
         CancellationToken cancellationToken = default)
     {
-        return ProcessRunner.RunAsync(
+        var stopwatch = Stopwatch.StartNew();
+        _log?.Invoke(
+            $"retoc to-legacy: extracting localization assets only "
+            + $"(--no-shaders, filter={filter})"
+        );
+
+        await ProcessRunner.RunAsync(
             _retocPath,
-            new[] { "to-legacy", inputDirectory, outputDirectory, "--filter", filter },
-            _log,
-            cancellationToken
+            new[]
+            {
+                "to-legacy",
+                inputDirectory,
+                outputDirectory,
+                "--filter",
+                filter,
+                "--no-shaders",
+            },
+            log: null,
+            cancellationToken: cancellationToken,
+            captureStandardOutput: false,
+            priorityClass: ProcessPriorityClass.BelowNormal
+        );
+
+        stopwatch.Stop();
+        _log?.Invoke(
+            $"retoc to-legacy completed in {stopwatch.Elapsed.TotalSeconds:N1}s"
         );
     }
 
