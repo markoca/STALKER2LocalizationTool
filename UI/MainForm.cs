@@ -978,6 +978,7 @@ public sealed class MainForm : Form
             _game!.NeedsExtraction = false;
             RefreshGameEditableTranslation();
             CompleteProgress(_l.T("ui.done"));
+            AppendLog("=========== GAME EXTRACTION DONE ===========");
             LogGameWorkflowReady();
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
