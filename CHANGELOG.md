@@ -153,7 +153,7 @@
 - Added Linux/CachyOS and PowerShell fetch helpers that download pinned upstream UAssetGUI v1.1.0 and verify SHA-256 `b7d75c0893f1a60e565853ae638bc21f2416cd12c2d9d854e297abb87ceb3263` before installing it into `tools`.
 - Publish and dev helpers now prepare the verified UAssetGUI dependency automatically instead of trusting a stale executable already present in the source/runtime tree.
 - Runtime explicitly rejects the known-bad v0.8.0-v0.8.2 UAssetGUI hash `e9b953245fd3716545558d751a8855d14490cd0e9e377a828e5ab4e0f34e7109`.
-- Fixed UAssetGUI v1.1.0 mappings invocation: the selected `.usmap` is installed under `%LOCALAPPDATA%\UAssetGUI\Mappings\STALKER2LocalizationTool.usmap` and the CLI receives the mapping name rather than an unsupported full mappings path.
+- Fixed UAssetGUI v1.1.0 mappings invocation: the selected `.usmap` is installed under `%LOCALAPPDATA%\UAssetGUI\Mappings\LocalizationWorkbench.usmap` and the CLI receives the mapping name rather than an unsupported full mappings path.
 - Preserved the v0.8.1 `MatchedSids` build fix and manifest schema version 7; existing v0.8.x Extracted/Ready workspaces remain compatible.
 
 ## 0.8.2
@@ -189,7 +189,7 @@
 - English is the only build language selected by default on a fresh install.
 - Expanded the MODS list by reducing unused padding and the shared language/log areas.
 - Changed **Open Extracted** to open the normal `Ready` folder.
-- Renamed the user-facing application to **The STALKER2 Localization Tool** and removed the version number from the window header.
+- Renamed the user-facing application to **Localization Workbench** and removed the version number from the window header.
 
 ## 0.6.0
 
@@ -205,7 +205,7 @@
 - Split the main window into separate **GAME** and **MODS** workflows.
 - Added base-game scanning, extraction of all supported language JSON files, and rebuilding from `Ready\Game\<language>.json`.
 - Renamed **BUILD MONOLITHIC OVERRIDE** to **BUILD ALL-IN-ONE** and simplified its help text.
-- First-run workspace and tool paths now default beside `STALKER2LocalizationTool.exe`.
+- First-run workspace and tool paths now default beside `LocalizationWorkbench.exe`.
 - Removed duplicate-alias accounting from the Details column; chunk alias deduplication remains in the scan log.
 - Limited repak extraction to discovered `Game.locres` entries instead of unpacking an entire source PAK.
 
@@ -235,7 +235,7 @@
 ## 0.2.0
 
 - Renamed the application to **S.T.A.L.K.E.R. 2 Localization Tool**.
-- Renamed the project/executable identifier to `STALKER2LocalizationTool`.
+- Renamed the project/executable identifier to `LocalizationWorkbench`.
 - Added standard `Game.locres` discovery inside `.pak` files.
 - Added LOCRES JSON workspace generation and build-language selection.
 - Added final LOCRES PAK creation with S.T.A.L.K.E.R. 2 V11/path-hash-seed settings.
