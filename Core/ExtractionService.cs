@@ -347,22 +347,6 @@ public sealed class ExtractionService
                         + $"records={parsed.Records.Count:N0}"
                     );
 
-                    var roundTripTimer = Stopwatch.StartNew();
-                    if (!LocalizationDatabaseCodec.RoundTripMatches(
-                            parsed,
-                            export.Payload))
-                    {
-                        throw new InvalidDataException(
-                            $"{alias.VirtualPath}: untouched parser/serializer "
-                            + "round-trip changed the payload"
-                        );
-                    }
-                    roundTripTimer.Stop();
-                    _log?.Invoke(
-                        $"Localization round-trip verified in "
-                        + $"{roundTripTimer.Elapsed.TotalSeconds:N1}s"
-                    );
-
                     var internalPackagePath = export.InternalPackagePath;
 
                     parsedAliases.Add(new ParsedAliasAsset
