@@ -1415,29 +1415,42 @@ internal sealed class StalkerLanguageSelector : Panel
         if (_items.Count == 0 || ClientSize.Width <= 0 || ClientSize.Height <= 0)
             return;
 
-        const int columns = 6;
+        const int columns = 5;
+        const int preferredColumnWidth = 220;
+        const int preferredRowHeight = 27;
+
         var rows = Math.Max(1, (int)Math.Ceiling(_items.Count / (double)columns));
 
         var contentLeft = Padding.Left;
         var contentTop = Padding.Top;
-        var contentWidth = Math.Max(1, ClientSize.Width - Padding.Horizontal);
-        var contentHeight = Math.Max(1, ClientSize.Height - Padding.Vertical);
+        var availableWidth = Math.Max(1, ClientSize.Width - Padding.Horizontal);
+        var availableHeight = Math.Max(1, ClientSize.Height - Padding.Vertical);
+
+        var columnWidth = Math.Min(
+            preferredColumnWidth,
+            Math.Max(1, availableWidth / columns)
+        );
+        var contentWidth = Math.Min(availableWidth, columnWidth * columns);
+
+        var rowHeight = Math.Min(
+            preferredRowHeight,
+            Math.Max(1, availableHeight / rows)
+        );
 
         for (var index = 0; index < _items.Count; index++)
         {
             var column = index / rows;
             var row = index % rows;
 
-            var left = contentLeft + (int)Math.Round(contentWidth * column / (double)columns);
-            var right = contentLeft + (int)Math.Round(contentWidth * (column + 1) / (double)columns);
-            var top = contentTop + (int)Math.Round(contentHeight * row / (double)rows);
-            var bottom = contentTop + (int)Math.Round(contentHeight * (row + 1) / (double)rows);
+            var left = contentLeft + column * columnWidth;
+            var top = contentTop + row * rowHeight;
 
             _items[index].Bounds = new Rectangle(
                 left,
                 top,
-                Math.Max(1, right - left),
-                Math.Max(1, bottom - top));
+                Math.Max(1, columnWidth),
+                Math.Max(1, rowHeight)
+            );
         }
     }
 }
