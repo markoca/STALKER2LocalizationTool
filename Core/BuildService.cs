@@ -195,8 +195,41 @@ public sealed class BuildService
                 RequireFile(sourceJson, "UAssetGUI JSON");
                 RequireFile(scriptObjects, "scriptobjects.bin");
 
-                var export = UAssetInspector.ReadLocalizationExport(sourceJson, asset.VirtualPath);
-                var patch = LocalizationDatabaseCodec.Patch(export.Payload, translations, language.Id, asset.VirtualPath);
+                var assetTimer = Stopwatch.StartNew();
+                _log?.Invoke(
+                    $"{mod.ModName} / {asset.DatabaseName}: "
+                    + "reading cached LocalizationDatabase for All-in-One..."
+                );
+
+                var export = UAssetInspector.ReadLocalizationExport(
+                    sourceJson,
+                    asset.VirtualPath
+                );
+
+                _log?.Invoke(
+                    $"{mod.ModName} / {asset.DatabaseName}: "
+                    + $"cached database loaded in "
+                    + $"{assetTimer.Elapsed.TotalSeconds:N1}s; "
+                    + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB"
+                );
+
+                var patchTimer = Stopwatch.StartNew();
+                var patch = LocalizationDatabaseCodec.Patch(
+                    export.Payload,
+                    translations,
+                    language.Id,
+                    asset.VirtualPath
+                );
+                patchTimer.Stop();
+
+                _log?.Invoke(
+                    $"{mod.ModName} / {asset.DatabaseName}: "
+                    + $"localization patch prepared in "
+                    + $"{patchTimer.Elapsed.TotalSeconds:N1}s; "
+                    + $"matched={patch.MatchedSids.Count}, "
+                    + $"changed={patch.ChangedSids.Count}"
+                );
+
                 result.MatchedSids += patch.MatchedSids.Count;
                 result.ChangedSids += patch.ChangedSids.Count;
 
@@ -226,6 +259,7 @@ public sealed class BuildService
                 chunkOwners[asset.ZenChunkId] = mod.ModName;
 
                 var outputUasset = Path.Combine(legacyRoot, asset.LegacyRelativePath);
+                var packageTimer = Stopwatch.StartNew();
                 var patchInfo = PackagePatcher.PatchLegacyPackage(
                     sourceUasset,
                     sourceUexp,
@@ -233,6 +267,12 @@ public sealed class BuildService
                     patch.Payload,
                     outputUasset,
                     asset.VirtualPath
+                );
+                packageTimer.Stop();
+                _log?.Invoke(
+                    $"{mod.ModName} / {asset.DatabaseName}: "
+                    + $"legacy package patched in "
+                    + $"{packageTimer.Elapsed.TotalSeconds:N1}s"
                 );
 
                 _log?.Invoke(
@@ -357,8 +397,42 @@ public sealed class BuildService
             RequireFile(sourceJson, "UAssetGUI JSON");
             RequireFile(scriptObjects, "scriptobjects.bin");
 
-            var export = UAssetInspector.ReadLocalizationExport(sourceJson, asset.VirtualPath);
-            var patch = LocalizationDatabaseCodec.Patch(export.Payload, translations, language.Id, asset.VirtualPath);
+            var assetTimer = Stopwatch.StartNew();
+            _log?.Invoke(
+                $"{manifest.ModName} / {asset.DatabaseName}: "
+                + "reading cached LocalizationDatabase..."
+            );
+
+            var export = UAssetInspector.ReadLocalizationExport(
+                sourceJson,
+                asset.VirtualPath
+            );
+
+            var inspectElapsed = assetTimer.Elapsed;
+            _log?.Invoke(
+                $"{manifest.ModName} / {asset.DatabaseName}: "
+                + $"cached database loaded in "
+                + $"{inspectElapsed.TotalSeconds:N1}s; "
+                + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB"
+            );
+
+            var patchTimer = Stopwatch.StartNew();
+            var patch = LocalizationDatabaseCodec.Patch(
+                export.Payload,
+                translations,
+                language.Id,
+                asset.VirtualPath
+            );
+            patchTimer.Stop();
+
+            _log?.Invoke(
+                $"{manifest.ModName} / {asset.DatabaseName}: "
+                + $"localization patch prepared in "
+                + $"{patchTimer.Elapsed.TotalSeconds:N1}s; "
+                + $"matched={patch.MatchedSids.Count}, "
+                + $"changed={patch.ChangedSids.Count}"
+            );
+
             matchedTotal += patch.MatchedSids.Count;
             changedTotal += patch.ChangedSids.Count;
 
@@ -369,6 +443,7 @@ public sealed class BuildService
 
             assetsPatched++;
             var outputUasset = Path.Combine(legacyRoot, asset.LegacyRelativePath);
+            var packageTimer = Stopwatch.StartNew();
             var patchInfo = PackagePatcher.PatchLegacyPackage(
                 sourceUasset,
                 sourceUexp,
@@ -376,6 +451,12 @@ public sealed class BuildService
                 patch.Payload,
                 outputUasset,
                 asset.VirtualPath
+            );
+            packageTimer.Stop();
+            _log?.Invoke(
+                $"{manifest.ModName} / {asset.DatabaseName}: "
+                + $"legacy package patched in "
+                + $"{packageTimer.Elapsed.TotalSeconds:N1}s"
             );
 
             _log?.Invoke(
