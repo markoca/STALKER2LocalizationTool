@@ -238,9 +238,9 @@ public sealed class SettingsForm : Form
 
         AddFolderRow(grid, "game", _l.T("ui.game_paks"), _settings.GamePaksFolder);
         AddFolderRow(grid, "mods", _l.T("ui.mods_folder"), _settings.ModsFolder);
-        AddFolderRow(grid, "cached", _l.T("ui.cached_folder"), _settings.CachedFolder);
-        AddFolderRow(grid, "editable", _l.T("ui.editable_folder"), _settings.EditableFolder);
-        AddFolderRow(grid, "output", _l.T("ui.output_folder"), _settings.OutputFolder);
+        AddResolvedPathRow(grid, _l.T("ui.cached_folder"), _settings.CachedFolder);
+        AddResolvedPathRow(grid, _l.T("ui.editable_folder"), _settings.EditableFolder);
+        AddResolvedPathRow(grid, _l.T("ui.output_folder"), _settings.OutputFolder);
 
         layout.Controls.Add(grid, 0, 1);
         card.Controls.Add(layout);
@@ -253,41 +253,11 @@ public sealed class SettingsForm : Form
         var layout = CreateSectionLayout(_l.T("ui.tools"));
         var grid = CreateSettingsGrid();
 
-        AddFileRow(
-            grid,
-            "retoc",
-            _l.T("ui.retoc"),
-            _settings.RetocPath,
-            "Executable (*.exe)|*.exe|All files (*.*)|*.*"
-        );
-        AddFileRow(
-            grid,
-            "uassetgui",
-            _l.T("ui.uassetgui"),
-            _settings.UAssetGuiPath,
-            "Executable (*.exe)|*.exe|All files (*.*)|*.*"
-        );
-        AddFileRow(
-            grid,
-            "mappings",
-            _l.T("ui.mappings"),
-            _settings.MappingsPath,
-            "USMAP (*.usmap)|*.usmap|All files (*.*)|*.*"
-        );
-        AddFileRow(
-            grid,
-            "repak",
-            _l.T("ui.repak"),
-            _settings.RepakPath,
-            "Executable (*.exe)|*.exe|All files (*.*)|*.*"
-        );
-        AddFileRow(
-            grid,
-            "s2hocmm",
-            _l.T("ui.s2hocmm"),
-            _settings.S2HocmmPath,
-            "Executable (*.exe)|*.exe|All files (*.*)|*.*"
-        );
+        AddResolvedPathRow(grid, _l.T("ui.retoc"), _settings.RetocPath);
+        AddResolvedPathRow(grid, _l.T("ui.uassetgui"), _settings.UAssetGuiPath);
+        AddResolvedPathRow(grid, _l.T("ui.mappings"), _settings.MappingsPath);
+        AddResolvedPathRow(grid, _l.T("ui.repak"), _settings.RepakPath);
+        AddResolvedPathRow(grid, _l.T("ui.s2hocmm"), _settings.S2HocmmPath);
 
         layout.Controls.Add(grid, 0, 1);
         card.Controls.Add(layout);
@@ -536,6 +506,48 @@ public sealed class SettingsForm : Form
     {
         AddPathRow(grid, key, labelText, value, true, null);
     }
+    private void AddResolvedPathRow(
+        TableLayoutPanel grid,
+        string labelText,
+        string value)
+    {
+        var row = grid.RowCount++;
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
+
+        var label = new Label
+        {
+            Text = labelText,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(0, 0, 10, 0),
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+        };
+
+        var box = new TextBox
+        {
+            Text = value,
+            Dock = DockStyle.Fill,
+            Anchor = AnchorStyles.Left | AnchorStyles.Right,
+            Margin = new Padding(0, 5, 6, 5),
+            ReadOnly = true,
+            TabStop = false,
+        };
+
+        var auto = new Label
+        {
+            Text = "AUTO",
+            AutoSize = true,
+            Anchor = AnchorStyles.Right,
+            Margin = new Padding(4, 8, 0, 0),
+            Font = new Font("Segoe UI", 8F, FontStyle.Bold),
+            Tag = StalkerTheme.MutedLabelTag,
+        };
+
+        grid.Controls.Add(label, 0, row);
+        grid.Controls.Add(box, 1, row);
+        grid.Controls.Add(auto, 2, row);
+    }
+
 
     private void AddFileRow(
         TableLayoutPanel grid,
@@ -625,9 +637,7 @@ public sealed class SettingsForm : Form
 
     private void DeleteCache()
     {
-        var cachedRoot = _boxes.TryGetValue("cached", out var cachedBox)
-            ? cachedBox.Text.Trim()
-            : _settings.CachedFolder.Trim();
+        var cachedRoot = _settings.CachedFolder.Trim();
 
         if (string.IsNullOrWhiteSpace(cachedRoot))
         {
@@ -710,11 +720,7 @@ public sealed class SettingsForm : Form
 
     private void ResetWorkspacePaths()
     {
-        var baseDir = AppContext.BaseDirectory;
-        _boxes["mods"].Text = Path.Combine(baseDir, "Mods");
-        _boxes["cached"].Text = Path.Combine(baseDir, "Cached");
-        _boxes["editable"].Text = Path.Combine(baseDir, "Editable");
-        _boxes["output"].Text = Path.Combine(baseDir, "Output");
+        _boxes["mods"].Text = Path.Combine(AppContext.BaseDirectory, "Mods");
     }
 
     protected override void WndProc(ref Message m)
@@ -805,42 +811,17 @@ public sealed class SettingsForm : Form
 
     private void SaveAndClose()
     {
+        // External locations and UI preferences are session-only. Internal workspace
+        // and tool paths are always derived from the currently running executable.
         _settings.GamePaksFolder = _boxes["game"].Text.Trim();
         _settings.ModsFolder = _boxes["mods"].Text.Trim();
-        _settings.CachedFolder = _boxes["cached"].Text.Trim();
-        _settings.EditableFolder = _boxes["editable"].Text.Trim();
-        _settings.OutputFolder = _boxes["output"].Text.Trim();
-
-        _settings.RetocPath = _boxes["retoc"].Text.Trim();
-        _settings.UAssetGuiPath = _boxes["uassetgui"].Text.Trim();
-        _settings.MappingsPath = _boxes["mappings"].Text.Trim();
-        _settings.RepakPath = _boxes["repak"].Text.Trim();
-        _settings.S2HocmmPath = _boxes["s2hocmm"].Text.Trim();
-
         _settings.AutoScan = _autoScan.Checked;
 
-        foreach (var path in new[]
-                 {
-                     _settings.ModsFolder,
-                     _settings.CachedFolder,
-                     _settings.EditableFolder,
-                     _settings.OutputFolder,
-                 })
+        if (!string.IsNullOrWhiteSpace(_settings.ModsFolder))
         {
-            if (string.IsNullOrWhiteSpace(path))
-                continue;
-
-            try
-            {
-                Directory.CreateDirectory(path);
-            }
-            catch
-            {
-                // Settings validation elsewhere reports inaccessible paths.
-            }
+            try { Directory.CreateDirectory(_settings.ModsFolder); } catch { }
         }
 
         DialogResult = DialogResult.OK;
         Close();
-    }
-}
+    }}
