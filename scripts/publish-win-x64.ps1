@@ -157,7 +157,7 @@ try {
     Write-Host ""
     Write-Host "Runtime: $Out"
     Write-Host "No Git, Rust/cargo, dependency download, or retoc compilation was used."
-    Write-Host "Project tools\ is authoritative and was copied into the runtime."
+    Write-Host "Project tools\win-x64\ is authoritative and was copied into runtime tools\."
     Write-Host "Existing settings and workspace data were preserved."
 }
 finally {
