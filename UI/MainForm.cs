@@ -360,12 +360,10 @@ public sealed class MainForm : Form
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        _progress.Dock = DockStyle.None;
-        _progress.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+        _progress.Dock = DockStyle.Fill;
         _progress.Minimum = 0;
         _progress.Maximum = 100;
-        _progress.Height = 8;
-        _progress.Margin = new Padding(0, 14, 12, 14);
+        _progress.Margin = new Padding(0, 0, 12, 0);
 
         var openButtons = new FlowLayoutPanel
         {
@@ -1340,8 +1338,10 @@ public sealed class MainForm : Form
         _busy = busy;
         _brandMark.Spinning = busy;
         _statusText.Text = message;
-        _progress.Value = 0;
-        _progress.Style = ProgressBarStyle.Continuous;
+
+        if (busy)
+            _progress.Value = 0;
+
         UpdateButtons();
     }
 
