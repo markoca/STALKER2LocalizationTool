@@ -10,6 +10,8 @@ public sealed class SettingsForm : Form
     private readonly Dictionary<string, TextBox> _boxes = new();
     private readonly StalkerToggleCheckBox _autoScan = new();
 
+    public bool GameCacheCleared { get; private set; }
+
     public SettingsForm(AppSettings settings, Localizer localizer)
     {
         _settings = settings;
@@ -553,6 +555,8 @@ public sealed class SettingsForm : Form
                     removed = true;
                 }
             }
+
+            GameCacheCleared = true;
 
             MessageBox.Show(
                 this,
