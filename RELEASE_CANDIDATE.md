@@ -77,6 +77,8 @@ publish/win-x64/
 
 ## Workflow expectations
 
+GAME uses the compact action labels **SCAN GAME**, **EXTRACT**, and **BUILD**.
+
 GAME opens without an automatic scan. When all required GAME resources are available, the log reports:
 
 ```text
