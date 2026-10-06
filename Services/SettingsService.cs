@@ -99,7 +99,12 @@ public sealed class SettingsService
             settings.MigrationMessages
         );
 
-        settings.ModsFolder = DefaultIfEmpty(settings.ModsFolder, Path.Combine(baseDir, "Mods"));
+        settings.ModsFolder = ResolvePortableDefaultFolder(
+            settings.ModsFolder,
+            Path.Combine(baseDir, "Mods"),
+            "Mods",
+            settings.MigrationMessages
+        );
         settings.CachedFolder = ResolveWorkspaceFolder(
             settings.CachedFolder,
             settings.ExtractedFolder,
@@ -118,7 +123,12 @@ public sealed class SettingsService
             "Editable",
             settings.MigrationMessages
         );
-        settings.OutputFolder = DefaultIfEmpty(settings.OutputFolder, Path.Combine(baseDir, "Output"));
+        settings.OutputFolder = ResolvePortableDefaultFolder(
+            settings.OutputFolder,
+            Path.Combine(baseDir, "Output"),
+            "Output",
+            settings.MigrationMessages
+        );
 
         // Legacy JSON properties disappear on the next save.
         settings.ExtractedFolder = null;
@@ -167,6 +177,13 @@ public sealed class SettingsService
         var desired = currentPointsAtOldDefault || string.IsNullOrWhiteSpace(currentValue)
             ? newDefault
             : currentValue;
+
+        desired = ResolvePortableDefaultFolder(
+            desired,
+            newDefault,
+            newName,
+            messages
+        );
 
         // Only migrate the physical default workspace when this settings record is
         // actually using the default workspace family. Never rename a custom path.
@@ -278,6 +295,57 @@ public sealed class SettingsService
         // project-local tools directory. Custom paths remain supported through
         // settings, but normal users never need a sibling developer checkout.
         return Path.Combine(baseDir, "tools", "S2HOCMM.exe");
+    }
+
+    private static string ResolvePortableDefaultFolder(
+        string? currentValue,
+        string currentDefault,
+        string folderName,
+        List<string> messages)
+    {
+        if (string.IsNullOrWhiteSpace(currentValue))
+            return currentDefault;
+
+        if (PathsEqual(currentValue, currentDefault))
+            return currentDefault;
+
+        // Default runtime workspaces are portable. If settings.json was preserved
+        // across a project/runtime folder rename, the saved absolute path still
+        // points at the previous <project>/publish/win-x64/<folder> location.
+        // Recognize only that exact default layout; arbitrary custom paths remain
+        // untouched.
+        if (LooksLikePortableRuntimeDefault(currentValue, folderName))
+        {
+            messages.Add(
+                $"Settings relocated: {folderName} now follows the current runtime folder: {currentDefault}"
+            );
+            return currentDefault;
+        }
+
+        return currentValue;
+    }
+
+    private static bool LooksLikePortableRuntimeDefault(string path, string folderName)
+    {
+        try
+        {
+            var full = Path.GetFullPath(path)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var leaf = Path.GetFileName(full);
+            if (!string.Equals(leaf, folderName, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var runtimeDir = Directory.GetParent(full);
+            var publishDir = runtimeDir?.Parent;
+            return runtimeDir is not null
+                   && publishDir is not null
+                   && string.Equals(runtimeDir.Name, "win-x64", StringComparison.OrdinalIgnoreCase)
+                   && string.Equals(publishDir.Name, "publish", StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string RepairBundledFilePath(
