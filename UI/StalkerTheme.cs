@@ -68,9 +68,13 @@ internal static class StalkerTheme
                 control.ForeColor = Text;
                 break;
 
+            case StalkerProgressBar:
+                control.BackColor = PanelAlt;
+                control.ForeColor = Accent;
+                break;
+
             case StalkerLanguageSelector:
             case StalkerLanguageCheckBox:
-            case StalkerProgressBar:
             case StalkerCheckedListBox:
             case StalkerToggleCheckBox:
             case StalkerTabControl:
@@ -996,7 +1000,7 @@ internal sealed class StalkerProgressBar : Control
             actualRailHeight
         );
 
-        using (var track = new SolidBrush(StalkerTheme.TitleBar))
+        using (var track = new SolidBrush(BackColor))
             e.Graphics.FillRectangle(track, rail);
 
         using (var border = new Pen(StalkerTheme.Border))
