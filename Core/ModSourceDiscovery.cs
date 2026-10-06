@@ -337,6 +337,7 @@ public static class ModSourceDiscovery
                     .ToList(),
             };
         }
+    }
 
     private static IEnumerable<SourceGroup> DiscoverArchive(
         string modsRoot,
@@ -534,6 +535,7 @@ public static class ModSourceDiscovery
             ContainerLabelsByPath = labels,
             OriginalSourceFiles = new List<string> { archivePath },
         };
+    }
 
     private static ArchiveDiscoveryCache? TryLoadArchiveDiscoveryCache(
         string cachePath,
@@ -669,6 +671,7 @@ public static class ModSourceDiscovery
             ContainerLabelsByPath = labels,
             OriginalSourceFiles = new List<string> { archivePath },
         };
+    }
 
     private static string MaterializedTripletDirectory(
         string materializationRoot,
