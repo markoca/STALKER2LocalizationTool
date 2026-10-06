@@ -11,7 +11,7 @@ $Preserve = Join-Path $PublishRoot (".win-x64-preserve-" + [guid]::NewGuid().ToS
 
 # User data survives republishing. Runtime tools/locales do NOT: source-tree files
 # are authoritative and are refreshed on every deployment.
-$PreservedNames = @("user-paths.json", "Mods", "Cached", "Editable", "Output", "Extracted", "Ready")
+$PreservedNames = @("user-paths.json", "Mods", "Cached", "Editable", "Output")
 $RequiredTools = @("retoc.exe", "repak.exe", "UAssetGUI.exe", "Mappings.usmap", "S2HOCMM.exe")
 $PinnedUAssetGuiSha256 = "b7d75c0893f1a60e565853ae638bc21f2416cd12c2d9d854e297abb87ceb3263"
 $KnownBadUAssetGuiSha256 = "e9b953245fd3716545558d751a8855d14490cd0e9e377a828e5ab4e0f34e7109"
@@ -27,43 +27,6 @@ function Restore-RuntimeData {
             Move-Item $Saved $Destination
         }
     }
-}
-
-function Test-DirectoryHasEntries([string]$Path) {
-    if (-not (Test-Path $Path -PathType Container)) { return $false }
-    return $null -ne (Get-ChildItem -LiteralPath $Path -Force -ErrorAction SilentlyContinue | Select-Object -First 1)
-}
-
-function Migrate-WorkspaceName([string]$OldName, [string]$NewName) {
-    $OldPath = Join-Path $Out $OldName
-    $NewPath = Join-Path $Out $NewName
-    if (-not (Test-Path $OldPath)) { return }
-
-    if (-not (Test-Path $NewPath)) {
-        Move-Item $OldPath $NewPath
-        Write-Host "Workspace migrated: $OldName -> $NewName"
-        return
-    }
-
-    if ((Test-Path $OldPath -PathType Container) -and (Test-Path $NewPath -PathType Container)) {
-        $OldHasEntries = Test-DirectoryHasEntries $OldPath
-        $NewHasEntries = Test-DirectoryHasEntries $NewPath
-
-        if (-not $OldHasEntries) {
-            Remove-Item $OldPath -Force
-            Write-Host "Removed empty legacy workspace: $OldName"
-            return
-        }
-
-        if (-not $NewHasEntries) {
-            Remove-Item $NewPath -Force
-            Move-Item $OldPath $NewPath
-            Write-Host "Workspace migrated: $OldName -> $NewName (empty destination replaced safely)"
-            return
-        }
-    }
-
-    Write-Warning "Both $OldName and $NewName contain data; nothing was merged or overwritten. The app will use only $NewName."
 }
 
 function Assert-ProjectToolBundle {
@@ -137,11 +100,6 @@ try {
 
     New-Item -ItemType Directory -Force $Out | Out-Null
     Restore-RuntimeData
-    Migrate-WorkspaceName "Extracted" "Cached"
-    Migrate-WorkspaceName "Ready" "Editable"
-
-    Remove-Item (Join-Path $Out "settings.json") -Force -ErrorAction SilentlyContinue
-
     # Copy the complete SDK publish output. tools/ and locales/ are already present
     # because the csproj marks them as publish content.
     Copy-Item (Join-Path $Stage "*") $Out -Recurse -Force
@@ -150,7 +108,7 @@ try {
         New-Item -ItemType Directory -Force (Join-Path $Out $Name) | Out-Null
     }
 
-    foreach ($Doc in @("README.md", "CHANGELOG.md", "RC_CHECKLIST.md", "RC7_PUBLISH_AND_TEST.md")) {
+    foreach ($Doc in @("README.md", "CHANGELOG.md", "RC_CHECKLIST.md", "RELEASE_CANDIDATE.md")) {
         $SourceDoc = Join-Path $Root $Doc
         if (Test-Path $SourceDoc) {
             Copy-Item $SourceDoc (Join-Path $Out $Doc) -Force
@@ -161,7 +119,7 @@ try {
     Write-Host "Runtime: $Out"
     Write-Host "No Git, Rust/cargo, dependency download, or retoc compilation was used."
     Write-Host "Project tools\win-x64\ is authoritative and was copied into runtime tools\."
-    Write-Host "Existing settings and workspace data were preserved."
+    Write-Host "Existing user paths and workspace data were preserved."
 }
 finally {
     Restore-RuntimeData
