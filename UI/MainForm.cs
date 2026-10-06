@@ -7,7 +7,6 @@ namespace LocalizationWorkbench.UI;
 
 public sealed class MainForm : Form
 {
-    private readonly SettingsService _settingsService;
     private readonly AppSettings _settings;
     private readonly Localizer _l;
     private readonly ToolTip _toolTip = new();
@@ -62,9 +61,8 @@ public sealed class MainForm : Form
     private FileSystemWatcher? _cachedWatcher;
     private readonly System.Windows.Forms.Timer _watchDebounce = new() { Interval = 900 };
 
-    public MainForm(SettingsService settingsService, AppSettings settings, Localizer localizer)
+    public MainForm(AppSettings settings, Localizer localizer)
     {
-        _settingsService = settingsService;
         _settings = settings;
         _l = localizer;
 
@@ -101,19 +99,6 @@ public sealed class MainForm : Form
         {
             if (_shownOnce) return;
             _shownOnce = true;
-
-            if (_settings.MigrationMessages.Count > 0)
-            {
-                foreach (var message in _settings.MigrationMessages)
-                    AppendLog("Migration: " + message);
-                MessageBox.Show(
-                    this,
-                    string.Join(Environment.NewLine + Environment.NewLine, _settings.MigrationMessages),
-                    AppConstants.AppName,
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information
-                );
-            }
 
             if (NeedsInitialSetup())
             {
@@ -1850,10 +1835,7 @@ public sealed class MainForm : Form
                 MarkCacheDeleted();
 
             if (result == DialogResult.OK)
-            {
-                _settingsService.Save(_settings);
                 ConfigureWatchers();
-            }
 
             return result;
         }
@@ -2102,8 +2084,6 @@ public sealed class MainForm : Form
         _settings.BuildLanguageIds = _buildLanguages.CheckedIds
             .OrderBy(id => id)
             .ToList();
-
-        _settingsService.Save(_settings);
 
         BeginInvoke(new Action(() =>
         {
