@@ -11,7 +11,7 @@ $Preserve = Join-Path $PublishRoot (".win-x64-preserve-" + [guid]::NewGuid().ToS
 
 # User data survives republishing. Runtime tools/locales do NOT: source-tree files
 # are authoritative and are refreshed on every deployment.
-$PreservedNames = @("Mods", "Cached", "Editable", "Output", "Extracted", "Ready")
+$PreservedNames = @("user-paths.json", "Mods", "Cached", "Editable", "Output", "Extracted", "Ready")
 $RequiredTools = @("retoc.exe", "repak.exe", "UAssetGUI.exe", "Mappings.usmap", "S2HOCMM.exe")
 $PinnedUAssetGuiSha256 = "b7d75c0893f1a60e565853ae638bc21f2416cd12c2d9d854e297abb87ceb3263"
 $KnownBadUAssetGuiSha256 = "e9b953245fd3716545558d751a8855d14490cd0e9e377a828e5ab4e0f34e7109"
