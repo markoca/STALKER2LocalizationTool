@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-rc.7
+- Publish helper tools are selected by target runtime, not by build-host OS.
+- Windows runtime bundle moved to `tools/win-x64/`.
+- Linux can cross-publish the self-contained `win-x64` release without Wine and without executing Windows helper tools.
+- The final Windows machine does not require .NET to be installed.
+- Removed the unused placeholder `tools/linux-x64/` tree and duplicate root-level helper binaries; `tools/win-x64/` is the only authoritative source bundle.
+- Removed obsolete RC6 publish notes and unused legacy WinForms tab/checked-list controls.
+- Updated RC7 documentation/checklist to match the current Extracted/Cached/Editable workflow and recovery behavior.
+
 ## 1.0.0-rc.6
 
 - Switched MODS packaging to the proven stock-retoc baseline after the full current launch.py build passed with unmodified retoc.
@@ -233,12 +242,3 @@
 - A single `translations.json` can feed LocalizationDatabase assets, Game.locres, or both.
 - Added a Linux/CachyOS `publish-win-x64.sh` helper.
 - Added `EnableWindowsTargeting=true` for cross-publishing the WinForms app from Linux.
-
-## 1.0.0-rc.7
-- Publish helper tools are selected by target runtime, not by build-host OS.
-- Windows runtime bundle moved to `tools/win-x64/`.
-- Linux can cross-publish the self-contained `win-x64` release without Wine and without executing Windows helper tools.
-- The final Windows machine does not require .NET to be installed.
-- Removed the unused placeholder `tools/linux-x64/` tree and duplicate root-level helper binaries; `tools/win-x64/` is the only authoritative source bundle.
-- Removed obsolete RC6 publish notes and unused legacy WinForms tab/checked-list controls.
-- Updated RC7 documentation/checklist to match the current Extracted/Cached/Editable workflow and recovery behavior.
