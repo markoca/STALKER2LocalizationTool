@@ -275,8 +275,12 @@ public static class ModSourceDiscovery
                          StringComparer.OrdinalIgnoreCase))
             {
                 var containers = familyGroup
+                    .Where(item => !PathUtil.IsNewContentContainer(item.Stem))
                     .OrderBy(item => item.UtocPath, StringComparer.OrdinalIgnoreCase)
                     .ToList();
+
+                if (containers.Count == 0)
+                    continue;
 
                 var displayName = sourceGroup.Key == "<mods-root>"
                     ? familyGroup.Key
@@ -454,8 +458,12 @@ public static class ModSourceDiscovery
             cancellationToken.ThrowIfCancellationRequested();
 
             var family = familyGroup
+                .Where(item => !PathUtil.IsNewContentContainer(item.Stem))
                 .OrderBy(item => item.UtocMember, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            if (family.Count == 0)
+                continue;
 
             var displayName = triplets.Count == family.Count
                 ? archiveDisplay
@@ -489,7 +497,7 @@ public static class ModSourceDiscovery
             }
 
             log?.Invoke(
-                $"Archive mod source: {archiveRelative} -> {family.Count} complete IoStore container(s) [{familyGroup.Key}]"
+                $"Archive mod source: {archiveRelative} -> {family.Count} IoStore container(s) after NewContent exclusion [{familyGroup.Key}]"
             );
 
             yield return new SourceGroup
@@ -604,8 +612,12 @@ public static class ModSourceDiscovery
                      StringComparer.OrdinalIgnoreCase))
         {
             var family = familyGroup
+                .Where(item => !PathUtil.IsNewContentContainer(item.Stem))
                 .OrderBy(item => item.UtocMember, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+            if (family.Count == 0)
+                continue;
 
             var displayName = cache.Triplets.Count == family.Count
                 ? archiveDisplay
