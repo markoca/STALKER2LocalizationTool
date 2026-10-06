@@ -58,10 +58,21 @@ The publish scripts do not download, validate, copy, or redistribute these third
 
 GAME handles the game's localization workflow.
 
-1. **Scan the game**
-2. **Extract all language JSON files**
-3. **Edit JSONs in /Editable/Game**
-4. **Build for selected languages**
+The GAME action buttons are deliberately simple:
+
+```text
+SCAN GAME
+EXTRACT
+BUILD
+```
+
+Workflow:
+
+1. **SCAN GAME** scans the game localization source.
+2. **EXTRACT** creates all supported editable language JSON files.
+3. Edit JSONs in `Editable/Game`.
+4. Select one or more languages.
+5. **BUILD** creates the selected localization package(s).
 
 **SCAN GAME** inspects the supported game localization sources. A successful discovery reports:
 
@@ -221,3 +232,5 @@ Before promoting it to a final Version 2 release, run the complete regression pa
 
 - `RC_CHECKLIST.md`
 - `RELEASE_CANDIDATE.md`
+
+For end-user instructions, see `QUICK_USER_HANDBOOK.md`.
