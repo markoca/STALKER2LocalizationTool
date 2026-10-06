@@ -948,7 +948,15 @@ public sealed class MainForm : Form
                 hashSourceFiles: false
             );
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
-            await service.ExtractAsync(new[] { _game! }, progress, _operationCts.Token);
+            var extractionToken = _operationCts.Token;
+            await Task.Run(
+                () => service.ExtractAsync(
+                    new[] { _game! },
+                    progress,
+                    extractionToken
+                ),
+                extractionToken
+            );
             CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -1103,7 +1111,15 @@ public sealed class MainForm : Form
                 hashSourceFiles: false
             );
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
-            await service.ExtractAsync(targets, progress, _operationCts.Token);
+            var extractionToken = _operationCts.Token;
+            await Task.Run(
+                () => service.ExtractAsync(
+                    targets,
+                    progress,
+                    extractionToken
+                ),
+                extractionToken
+            );
             CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
