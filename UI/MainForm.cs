@@ -321,8 +321,8 @@ public sealed class MainForm : Form
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             BackColor = StalkerTheme.Panel,
-            Padding = new Padding(12, 10, 12, 10),
-            Margin = new Padding(14, 10, 14, 10),
+            Padding = new Padding(12, 8, 12, 8),
+            Margin = new Padding(14, 8, 14, 8),
             AccentEdge = false,
         };
         var languagesLayout = new TableLayoutPanel
@@ -339,15 +339,21 @@ public sealed class MainForm : Form
 
         var languagesHeader = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
+            RowCount = 1,
             Margin = new Padding(0),
+            Padding = new Padding(0),
         };
         languagesHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        languagesHeader.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
         _buildLanguageLabel.AutoSize = true;
         _buildLanguageLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         _buildLanguageLabel.Tag = StalkerTheme.SectionLabelTag;
-        _buildLanguageLabel.Margin = new Padding(0, 4, 0, 0);
+        _buildLanguageLabel.Margin = new Padding(0, 0, 0, 6);
         languagesHeader.Controls.Add(_buildLanguageLabel, 0, 0);
 
         _buildLanguages.Dock = DockStyle.Top;
