@@ -12,12 +12,16 @@ public sealed class MainForm : Form
     private readonly Localizer _l;
     private readonly ToolTip _toolTip = new();
 
-    private readonly Label _title = new();
+    private readonly Label _titleAccent = new();
+    private readonly Label _titleRest = new();
     private readonly StalkerBrandMark _brandMark = new();
+    private readonly StalkerWindowButton _minimizeButton = new();
+    private readonly StalkerWindowButton _maximizeButton = new();
+    private readonly StalkerWindowButton _closeButton = new() { IsCloseButton = true };
     private readonly Label _buildLanguageLabel = new();
     private readonly StalkerLanguageSelector _buildLanguages = new();
-    private readonly Button _settingsButton = new();
-    private readonly Button _refreshButton = new();
+    private readonly Button _settingsButton = new StalkerUtilityButton();
+    private readonly Button _refreshButton = new StalkerUtilityButton();
     private readonly Button _extractButton = new();
     private readonly Button _buildModularButton = new();
     private readonly Button _buildAllInOneButton = new();
@@ -31,14 +35,13 @@ public sealed class MainForm : Form
     private readonly Button _scanGameButton = new();
     private readonly Button _extractGameButton = new();
     private readonly Button _buildGameButton = new();
-    private readonly Button _openJsons = new();
-    private readonly Button _openOutput = new();
+    private readonly Button _openJsons = new StalkerUtilityButton();
+    private readonly Button _openOutput = new StalkerUtilityButton();
     private readonly DataGridView _grid = new();
     private readonly TextBox _logBox = new();
     private readonly Label _logLabel = new();
     private readonly StalkerProgressBar _progress = new();
-    private readonly ToolStripStatusLabel _statusText = new();
-    private readonly StatusStrip _statusStrip = new();
+    private readonly Label _statusText = new();
 
 
     private List<ModScanResult> _mods = new();
@@ -68,7 +71,11 @@ public sealed class MainForm : Form
         MinimumSize = new Size(1180, 720);
         Size = new Size(1360, 820);
         Font = new Font("Segoe UI", 9F);
+        FormBorderStyle = FormBorderStyle.None;
         ShowIcon = false;
+        Padding = new Padding(1);
+        BackColor = StalkerTheme.Border;
+        DoubleBuffered = true;
 
         BuildUi();
         ApplyLocalization();
@@ -126,59 +133,157 @@ public sealed class MainForm : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(14, 12, 14, 10),
+            Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 6,
+            Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
         Controls.Add(root);
 
-        // Header: large tool identity on the left, compact utility actions on the right.
-        var header = new TableLayoutPanel
+        // TCD-style custom window chrome: one strong identity band, no native title bar.
+        var titleBar = new StalkerTitleBar
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
-            ColumnCount = 2,
-            Margin = new Padding(0, 0, 0, 10),
+            Margin = new Padding(0),
+            Padding = new Padding(14, 8, 10, 8),
         };
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        var identity = new TableLayoutPanel
+        var titleLayout = new TableLayoutPanel
         {
-            AutoSize = true,
+            Dock = DockStyle.Fill,
             ColumnCount = 2,
             RowCount = 1,
-            Margin = new Padding(2, 0, 0, 0),
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
         };
-        identity.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 54));
-        identity.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
 
-        _brandMark.Anchor = AnchorStyles.Left | AnchorStyles.Top;
-        _brandMark.Margin = new Padding(0, 0, 10, 0);
-        _title.AutoSize = true;
-        _title.Font = new Font("Segoe UI", 19F, FontStyle.Bold);
-        _title.Margin = new Padding(0, 7, 0, 0);
-        _title.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+        var identity = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
 
-        identity.Controls.Add(_brandMark, 0, 0);
-        identity.Controls.Add(_title, 1, 0);
+        _brandMark.Width = 52;
+        _brandMark.Height = 52;
+        _brandMark.Margin = new Padding(0, 2, 14, 0);
 
-        var headerActions = new FlowLayoutPanel
+        var titleWords = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0, 12, 0, 0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+
+        _titleAccent.AutoSize = true;
+        _titleAccent.Font = new Font("Bahnschrift SemiCondensed", 22F, FontStyle.Bold);
+        _titleAccent.Tag = StalkerTheme.SectionLabelTag;
+        _titleAccent.Margin = new Padding(0, 0, 8, 0);
+
+        _titleRest.AutoSize = true;
+        _titleRest.Font = new Font("Bahnschrift SemiCondensed", 22F, FontStyle.Bold);
+        _titleRest.Margin = new Padding(0);
+
+        titleWords.Controls.Add(_titleAccent);
+        titleWords.Controls.Add(_titleRest);
+        identity.Controls.Add(_brandMark);
+        identity.Controls.Add(titleWords);
+
+        var captionButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+
+        _minimizeButton.Text = "—";
+        _maximizeButton.Text = "□";
+        _closeButton.Text = "×";
+        _minimizeButton.Click += (_, _) => WindowState = FormWindowState.Minimized;
+        _maximizeButton.Click += (_, _) => ToggleMaximize();
+        _closeButton.Click += (_, _) => Close();
+        captionButtons.Controls.Add(_minimizeButton);
+        captionButtons.Controls.Add(_maximizeButton);
+        captionButtons.Controls.Add(_closeButton);
+
+        titleLayout.Controls.Add(identity, 0, 0);
+        titleLayout.Controls.Add(captionButtons, 1, 0);
+        titleBar.Controls.Add(titleLayout);
+        root.Controls.Add(titleBar, 0, 0);
+
+        Resize += (_, _) => UpdateMaximizeButtonGlyph();
+
+        // Navigation is a separate chrome band, like TCD's tab strip.
+        var navBar = new StalkerNavigationBar
+        {
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0),
+            Padding = new Padding(14, 0, 10, 0),
+        };
+
+        var navLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+        navLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        navLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var tabStrip = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+
+        _gameTabButton.Width = 150;
+        _modsTabButton.Width = 150;
+        _gameTabButton.Click += (_, _) => SetWorkspace(_gameTab);
+        _modsTabButton.Click += (_, _) => SetWorkspace(_modsTab);
+        tabStrip.Controls.Add(_gameTabButton);
+        tabStrip.Controls.Add(_modsTabButton);
+
+        var navActions = new FlowLayoutPanel
         {
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             Anchor = AnchorStyles.Right,
-            Margin = new Padding(0, 8, 0, 0),
+            Margin = new Padding(0, 4, 0, 4),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
         };
-        ConfigureActionButton(_refreshButton, 94);
-        ConfigureActionButton(_settingsButton, 104);
+
+        ConfigureChromeButton(_refreshButton, 92);
+        ConfigureChromeButton(_settingsButton, 102);
         _refreshButton.Click += async (_, _) => await ScanActiveAsync();
         _settingsButton.Click += async (_, _) =>
         {
@@ -190,21 +295,22 @@ public sealed class MainForm : Form
 
             await ScanActiveAsync();
         };
-        headerActions.Controls.Add(_refreshButton);
-        headerActions.Controls.Add(_settingsButton);
+        navActions.Controls.Add(_refreshButton);
+        navActions.Controls.Add(_settingsButton);
 
-        header.Controls.Add(identity, 0, 0);
-        header.Controls.Add(headerActions, 1, 0);
-        root.Controls.Add(header, 0, 0);
+        navLayout.Controls.Add(tabStrip, 0, 0);
+        navLayout.Controls.Add(navActions, 1, 0);
+        navBar.Controls.Add(navLayout);
+        root.Controls.Add(navBar, 0, 1);
 
-        // Build languages: a dedicated compact card instead of a raw full-width WinForms list.
+        // Languages remains a normal content card, not part of the window chrome.
         var languagesCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
             BackColor = StalkerTheme.Panel,
             Padding = new Padding(12, 10, 12, 10),
-            Margin = new Padding(0, 0, 0, 10),
-            AccentEdge = true,
+            Margin = new Padding(14, 10, 14, 10),
+            AccentEdge = false,
         };
         var languagesLayout = new TableLayoutPanel
         {
@@ -236,48 +342,16 @@ public sealed class MainForm : Form
         languagesLayout.Controls.Add(languagesHeader, 0, 0);
         languagesLayout.Controls.Add(_buildLanguages, 0, 1);
         languagesCard.Controls.Add(languagesLayout);
-        root.Controls.Add(languagesCard, 0, 1);
+        root.Controls.Add(languagesCard, 0, 2);
 
-        // Workspace: custom TCD tab bar + content host. No native TabControl chrome.
+        // Workspace body: tabs now live in the global nav band above.
         var workspaceCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
             BackColor = StalkerTheme.Panel,
             Padding = new Padding(0),
-            Margin = new Padding(0, 0, 0, 10),
+            Margin = new Padding(14, 0, 14, 10),
         };
-        var workspaceLayout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(0),
-            BackColor = StalkerTheme.Panel,
-        };
-        workspaceLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-        workspaceLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        var tabStrip = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Margin = new Padding(0),
-            Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
-        };
-        _gameTabButton.Width = 154;
-        _modsTabButton.Width = 154;
-        _gameTabButton.Click += (_, _) =>
-        {
-            SetWorkspace(_gameTab);
-        };
-        _modsTabButton.Click += (_, _) =>
-        {
-            SetWorkspace(_modsTab);
-        };
-        tabStrip.Controls.Add(_gameTabButton);
-        tabStrip.Controls.Add(_modsTabButton);
 
         _workspaceHost.Dock = DockStyle.Fill;
         _workspaceHost.Margin = new Padding(0);
@@ -298,19 +372,17 @@ public sealed class MainForm : Form
 
         _workspaceHost.Controls.Add(_modsTab);
         _workspaceHost.Controls.Add(_gameTab);
-        workspaceLayout.Controls.Add(tabStrip, 0, 0);
-        workspaceLayout.Controls.Add(_workspaceHost, 0, 1);
-        workspaceCard.Controls.Add(workspaceLayout);
-        root.Controls.Add(workspaceCard, 0, 2);
+        workspaceCard.Controls.Add(_workspaceHost);
+        root.Controls.Add(workspaceCard, 0, 3);
         SetWorkspace(_gameTab);
 
-        // Log card.
+        // LOG is still content, therefore it keeps the same bordered graphite card language.
         var logCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
             BackColor = StalkerTheme.Panel,
             Padding = new Padding(10, 8, 10, 10),
-            Margin = new Padding(0, 0, 0, 8),
+            Margin = new Padding(14, 0, 14, 10),
         };
         var logLayout = new TableLayoutPanel
         {
@@ -328,10 +400,6 @@ public sealed class MainForm : Form
         _logBox.Dock = DockStyle.Fill;
         _logBox.Multiline = true;
         _logBox.ReadOnly = true;
-        // Windows is the primary target: keep the native vertical scrollbar there
-        // and let the Windows dark common-control theme render it. Wine currently
-        // ignores that scrollbar theme, so hide only the Wine scrollbar chrome;
-        // the multiline TextBox still scrolls normally with wheel/keyboard.
         _logBox.ScrollBars = StalkerTheme.IsWine
             ? ScrollBars.None
             : ScrollBars.Vertical;
@@ -340,31 +408,40 @@ public sealed class MainForm : Form
         logLayout.Controls.Add(_logLabel, 0, 0);
         logLayout.Controls.Add(_logBox, 0, 1);
         logCard.Controls.Add(logLayout);
-        root.Controls.Add(logCard, 0, 3);
+        root.Controls.Add(logCard, 0, 4);
 
-        // Utility footer: progress remains visually separate from the scrolling log.
-        var footerCard = new StalkerCardPanel
+        // TCD-style bottom chrome: one edge-to-edge footer band, not a card + StatusStrip.
+        var footerBar = new StalkerFooterBar
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
-            BackColor = StalkerTheme.PanelAlt,
-            Padding = new Padding(10, 8, 10, 8),
             Margin = new Padding(0),
+            Padding = new Padding(14, 7, 10, 7),
         };
+
         var footer = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
-            ColumnCount = 2,
+            ColumnCount = 3,
+            RowCount = 1,
             Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
         };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        _statusText.Dock = DockStyle.Fill;
+        _statusText.AutoEllipsis = true;
+        _statusText.TextAlign = ContentAlignment.MiddleLeft;
+        _statusText.Font = new Font("Segoe UI", 8.5F);
+        _statusText.Tag = StalkerTheme.MutedLabelTag;
+        _statusText.Margin = new Padding(0, 0, 12, 0);
 
         _progress.Dock = DockStyle.Fill;
         _progress.Minimum = 0;
         _progress.Maximum = 100;
-        _progress.Margin = new Padding(0, 0, 12, 0);
+        _progress.Margin = new Padding(0, 8, 12, 8);
 
         var openButtons = new FlowLayoutPanel
         {
@@ -372,9 +449,12 @@ public sealed class MainForm : Form
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
         };
-        ConfigureActionButton(_openJsons, 132);
-        ConfigureActionButton(_openOutput, 132);
+
+        ConfigureChromeButton(_openJsons, 132);
+        ConfigureChromeButton(_openOutput, 132);
         _openJsons.Click += (_, _) => OpenFolder(
             IsGameWorkspace
                 ? Path.Combine(_settings.EditableFolder, "Game")
@@ -384,15 +464,13 @@ public sealed class MainForm : Form
         openButtons.Controls.Add(_openJsons);
         openButtons.Controls.Add(_openOutput);
 
-        footer.Controls.Add(_progress, 0, 0);
-        footer.Controls.Add(openButtons, 1, 0);
-        footerCard.Controls.Add(footer);
-        root.Controls.Add(footerCard, 0, 4);
+        footer.Controls.Add(_statusText, 0, 0);
+        footer.Controls.Add(_progress, 1, 0);
+        footer.Controls.Add(openButtons, 2, 0);
+        footerBar.Controls.Add(footer);
+        root.Controls.Add(footerBar, 0, 5);
 
-        _statusStrip.Dock = DockStyle.Bottom;
-        _statusStrip.Items.Add(_statusText);
-        Controls.Add(_statusStrip);
-        _statusStrip.BringToFront();
+        UpdateMaximizeButtonGlyph();
     }
 
     private void BuildGameTab()
@@ -418,7 +496,7 @@ public sealed class MainForm : Form
             BackColor = StalkerTheme.PanelAlt,
             Padding = new Padding(14, 10, 14, 11),
             Margin = new Padding(0, 0, 0, 12),
-            AccentEdge = true,
+            AccentEdge = false,
         };
         var workflow = new TableLayoutPanel
         {
@@ -550,6 +628,30 @@ public sealed class MainForm : Form
         button.Tag = primary ? StalkerTheme.PrimaryButtonTag : null;
     }
 
+    private static void ConfigureChromeButton(Button button, int width)
+    {
+        button.AutoSize = false;
+        button.Width = width;
+        button.Height = 34;
+        button.Margin = new Padding(0, 0, 6, 0);
+        button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+    }
+
+    private void ToggleMaximize()
+    {
+        WindowState = WindowState == FormWindowState.Maximized
+            ? FormWindowState.Normal
+            : FormWindowState.Maximized;
+        UpdateMaximizeButtonGlyph();
+    }
+
+    private void UpdateMaximizeButtonGlyph()
+    {
+        _maximizeButton.Text = WindowState == FormWindowState.Maximized
+            ? "❐"
+            : "□";
+    }
+
     private void SetWorkspace(Panel tab)
     {
         _activeWorkspaceTab = tab;
@@ -600,10 +702,23 @@ public sealed class MainForm : Form
         };
     }
 
+    private void ApplyWindowTitle()
+    {
+        var title = _l.T("app.title").Trim();
+        var split = title.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+
+        _titleAccent.Text = split.Length > 0
+            ? split[0].ToUpperInvariant()
+            : "LOCALIZATION";
+        _titleRest.Text = split.Length > 1
+            ? split[1].ToUpperInvariant()
+            : "WORKBENCH";
+    }
+
     private void ApplyLocalization()
     {
         Text = AppConstants.AppName;
-        _title.Text = _l.T("app.title");
+        ApplyWindowTitle();
         _gameTabButton.Text = _l.T("ui.tab_game");
         _modsTabButton.Text = _l.T("ui.tab_mods");
         _scanGameButton.Text = _l.T("ui.scan_game");
@@ -1746,6 +1861,60 @@ public sealed class MainForm : Form
             Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
         }
         catch { }
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        const int WmNcHitTest = 0x0084;
+        const int HtClient = 1;
+        const int HtCaption = 2;
+        const int HtLeft = 10;
+        const int HtRight = 11;
+        const int HtTop = 12;
+        const int HtTopLeft = 13;
+        const int HtTopRight = 14;
+        const int HtBottom = 15;
+        const int HtBottomLeft = 16;
+        const int HtBottomRight = 17;
+
+        base.WndProc(ref m);
+
+        if (m.Msg != WmNcHitTest || (int)m.Result != HtClient)
+            return;
+
+        var raw = m.LParam.ToInt64();
+        var screenPoint = new Point(
+            unchecked((short)(raw & 0xFFFF)),
+            unchecked((short)((raw >> 16) & 0xFFFF))
+        );
+        var point = PointToClient(screenPoint);
+
+        if (WindowState == FormWindowState.Normal)
+        {
+            const int grip = 6;
+            var left = point.X <= grip;
+            var right = point.X >= ClientSize.Width - grip;
+            var top = point.Y <= grip;
+            var bottom = point.Y >= ClientSize.Height - grip;
+
+            if (left && top) { m.Result = (IntPtr)HtTopLeft; return; }
+            if (right && top) { m.Result = (IntPtr)HtTopRight; return; }
+            if (left && bottom) { m.Result = (IntPtr)HtBottomLeft; return; }
+            if (right && bottom) { m.Result = (IntPtr)HtBottomRight; return; }
+            if (left) { m.Result = (IntPtr)HtLeft; return; }
+            if (right) { m.Result = (IntPtr)HtRight; return; }
+            if (top) { m.Result = (IntPtr)HtTop; return; }
+            if (bottom) { m.Result = (IntPtr)HtBottom; return; }
+        }
+
+        // Leave the right-hand caption-button zone clickable; the rest of the
+        // 74px title band behaves like a native draggable title bar.
+        if (point.Y >= 0
+            && point.Y < 74
+            && point.X < ClientSize.Width - 160)
+        {
+            m.Result = (IntPtr)HtCaption;
+        }
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
