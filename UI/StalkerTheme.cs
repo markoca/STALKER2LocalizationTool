@@ -377,6 +377,137 @@ internal static class StalkerTheme
         }
     }
 
+    private static bool DetectWineRuntime()
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        try
+        {
+            return wine_get_version() != IntPtr.Zero;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void TryApplyDarkNativeScrollbarTheme(Control control)
+    {
+        var mayOwnNativeScrollbars =
+            control is TextBoxBase
+            || control is ListBox
+            || control is CheckedListBox
+            || control is DataGridView
+            || control is ScrollBar
+            || (control is Panel panel && panel.AutoScroll);
+
+        if (!mayOwnNativeScrollbars)
+            return;
+
+        void Apply()
+        {
+            if (!OperatingSystem.IsWindows() || IsWine)
+                return;
+
+            try
+            {
+                // "DarkMode_Explorer" asks Windows common controls to render their
+                // native chrome (including scrollbars) with dark-mode metrics/colors.
+                // Wine may emulate this; unsupported builds simply ignore the call.
+                _ = SetWindowTheme(control.Handle, "DarkMode_Explorer", null);
+                _ = SendMessage(control.Handle, WmThemeChanged, IntPtr.Zero, IntPtr.Zero);
+            }
+            catch
+            {
+                // Presentation enhancement only.
+            }
+        }
+
+        if (control.IsHandleCreated)
+            Apply();
+        else
+            control.HandleCreated += (_, _) => Apply();
+    }
+
+    private static void TryHideNativeTitleBarIcon(Form form)
+    {
+        void Apply()
+        {
+            if (!OperatingSystem.IsWindows())
+                return;
+
+            try
+            {
+                form.ShowIcon = false;
+
+                // Explicitly clear both caption icon slots. Native Windows honours
+                // ShowIcon, while Wine window managers may still paint the class icon
+                // unless WM_SETICON is also cleared.
+                _ = SendMessage(
+                    form.Handle,
+                    WmSetIcon,
+                    new IntPtr(IconSmall),
+                    IntPtr.Zero
+                );
+                _ = SendMessage(
+                    form.Handle,
+                    WmSetIcon,
+                    new IntPtr(IconBig),
+                    IntPtr.Zero
+                );
+
+                if (IsWine)
+                {
+                    var blank = CreateTransparentWindowIcon();
+                    if (blank is not null)
+                        form.Icon = blank;
+                }
+            }
+            catch
+            {
+                // Presentation-only. Never block startup over window chrome.
+            }
+        }
+
+        if (form.IsHandleCreated)
+            Apply();
+        else
+            form.HandleCreated += (_, _) => Apply();
+    }
+
+    private static Icon? CreateTransparentWindowIcon()
+    {
+        try
+        {
+            using var bitmap = new Bitmap(32, 32);
+            bitmap.MakeTransparent();
+
+            var hIcon = bitmap.GetHicon();
+            try
+            {
+                using var temporary = Icon.FromHandle(hIcon);
+                return (Icon)temporary.Clone();
+            }
+            finally
+            {
+                _ = DestroyIcon(hIcon);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static void TryEnableDarkTitleBar(Form form)
     {
         void ApplyDarkChrome()
