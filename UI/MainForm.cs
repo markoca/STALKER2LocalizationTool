@@ -139,25 +139,30 @@ public sealed class MainForm : Form
             Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // title chrome
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // navigation
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // languages
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // workspace
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152)); // log
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));   // footer
         Controls.Add(root);
 
         // TCD-style custom window chrome: one strong identity band, no native title bar.
         var titleBar = new StalkerTitleBar
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(0, 68),
             Margin = new Padding(0),
             Padding = new Padding(14, 8, 10, 8),
         };
 
         var titleLayout = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 2,
             RowCount = 1,
             Margin = new Padding(0),
@@ -170,7 +175,7 @@ public sealed class MainForm : Form
         var identity = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = false,
+            AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             Margin = new Padding(0),
@@ -237,14 +242,19 @@ public sealed class MainForm : Form
         // Navigation is a separate chrome band, like TCD's tab strip.
         var navBar = new StalkerNavigationBar
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(0, 48),
             Margin = new Padding(0),
-            Padding = new Padding(14, 0, 10, 0),
+            Padding = new Padding(14, 6, 10, 6),
         };
 
         var navLayout = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 2,
             RowCount = 1,
             Margin = new Padding(0),
@@ -274,11 +284,11 @@ public sealed class MainForm : Form
         var navActions = new FlowLayoutPanel
         {
             AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            Anchor = AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom,
+            Anchor = AnchorStyles.Right,
             Margin = new Padding(0),
-            Padding = new Padding(0, 8, 0, 8),
             Padding = new Padding(0),
             BackColor = StalkerTheme.TitleBar,
         };
@@ -307,7 +317,9 @@ public sealed class MainForm : Form
         // Languages remains a normal content card, not part of the window chrome.
         var languagesCard = new StalkerCardPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             BackColor = StalkerTheme.Panel,
             Padding = new Padding(12, 10, 12, 10),
             Margin = new Padding(14, 10, 14, 10),
@@ -315,13 +327,15 @@ public sealed class MainForm : Form
         };
         var languagesLayout = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0),
         };
-        languagesLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
-        languagesLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        languagesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        languagesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var languagesHeader = new TableLayoutPanel
         {
@@ -336,7 +350,8 @@ public sealed class MainForm : Form
         _buildLanguageLabel.Margin = new Padding(0, 4, 0, 0);
         languagesHeader.Controls.Add(_buildLanguageLabel, 0, 0);
 
-        _buildLanguages.Dock = DockStyle.Fill;
+        _buildLanguages.Dock = DockStyle.Top;
+        _buildLanguages.AutoSize = false;
         _buildLanguages.Margin = new Padding(0);
         _buildLanguages.SelectionChanged += BuildLanguagesSelectionChanged;
 
@@ -414,14 +429,19 @@ public sealed class MainForm : Form
         // TCD-style bottom chrome: one edge-to-edge footer band, not a card + StatusStrip.
         var footerBar = new StalkerFooterBar
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Bottom,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(0, 48),
             Margin = new Padding(0),
             Padding = new Padding(14, 7, 10, 7),
         };
 
         var footer = new TableLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.Bottom,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 3,
             RowCount = 1,
             Margin = new Padding(0),
