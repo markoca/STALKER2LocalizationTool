@@ -285,15 +285,13 @@ public sealed class MainForm : Form
         };
         _gameTabButton.Width = 154;
         _modsTabButton.Width = 154;
-        _gameTabButton.Click += async (_, _) =>
+        _gameTabButton.Click += (_, _) =>
         {
             SetWorkspace(_gameTab);
-            if (_shownOnce && !_busy) await ScanActiveAsync();
         };
-        _modsTabButton.Click += async (_, _) =>
+        _modsTabButton.Click += (_, _) =>
         {
             SetWorkspace(_modsTab);
-            if (_shownOnce && !_busy) await ScanActiveAsync();
         };
         tabStrip.Controls.Add(_gameTabButton);
         tabStrip.Controls.Add(_modsTabButton);
