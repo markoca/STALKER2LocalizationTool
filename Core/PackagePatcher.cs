@@ -84,21 +84,25 @@ public static class PackagePatcher
             throw new InvalidDataException($"{label}: patched RawExport was not found exactly once in {uexpPath}");
     }
 
-    public static int IndexOf(byte[] haystack, byte[] needle, int startIndex)
+    public static int IndexOf(
+        byte[] haystack,
+        byte[] needle,
+        int startIndex)
     {
-        if (needle.Length == 0) return startIndex <= haystack.Length ? startIndex : -1;
-        for (var i = Math.Max(0, startIndex); i <= haystack.Length - needle.Length; i++)
-        {
-            var match = true;
-            for (var j = 0; j < needle.Length; j++)
-            {
-                if (haystack[i + j] == needle[j]) continue;
-                match = false;
-                break;
-            }
-            if (match) return i;
-        }
-        return -1;
+        if (needle.Length == 0)
+            return startIndex <= haystack.Length ? startIndex : -1;
+
+        startIndex = Math.Max(0, startIndex);
+        if (startIndex > haystack.Length - needle.Length)
+            return -1;
+
+        var relative = haystack
+            .AsSpan(startIndex)
+            .IndexOf(needle);
+
+        return relative < 0
+            ? -1
+            : startIndex + relative;
     }
 
     private static List<int> FindAll(byte[] haystack, byte[] needle)
