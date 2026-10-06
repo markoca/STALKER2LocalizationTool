@@ -41,7 +41,7 @@ public sealed class GameScanner
         var game = new ModScanResult
         {
             ModId = "Game",
-            ModName = "Base Game",
+            ModName = "Game",
             ModSourceRoot = _gamePaksRoot,
         };
 
@@ -52,7 +52,7 @@ public sealed class GameScanner
             return game;
         }
 
-        // Base-game localization lives in pakchunk0. Do not walk every game chunk: doing so
+        // Game localization lives in pakchunk0. Do not walk every game chunk: doing so
         // can discover unrelated or duplicate localization-like assets from other containers.
         game.Containers = Directory.EnumerateFiles(_gamePaksRoot, "*.utoc", SearchOption.TopDirectoryOnly)
             .Where(IsBaseGamePakChunk0)
@@ -64,7 +64,7 @@ public sealed class GameScanner
             .ToList();
 
         _log?.Invoke(
-            $"Base Game: scanning pakchunk0 only ({game.Containers.Count} IoStore container(s), {game.PakFiles.Count} PAK file(s))."
+            $"Game: scanning pakchunk0 only ({game.Containers.Count} IoStore container(s), {game.PakFiles.Count} PAK file(s))."
         );
 
         var aliases = new List<LocalizationAlias>();
@@ -119,7 +119,7 @@ public sealed class GameScanner
         if (aliasGrouping.ExactChunkAliasesCollapsed > 0)
         {
             _log?.Invoke(
-                $"Base Game: ignored {aliasGrouping.ExactChunkAliasesCollapsed} duplicate localization alias(es) for identical Zen chunks."
+                $"Game: ignored {aliasGrouping.ExactChunkAliasesCollapsed} duplicate localization alias(es) for identical Zen chunks."
             );
         }
 
