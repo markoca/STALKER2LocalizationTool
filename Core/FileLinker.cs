@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace STALKER2LocalizationTool.Core;
+namespace LocalizationWorkbench.Core;
 
 public static class FileLinker
 {
