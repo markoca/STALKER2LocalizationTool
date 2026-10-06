@@ -8,7 +8,6 @@ if [[ -z "$PROJECT" ]]; then
     echo "ERROR: no .csproj found in project root: $ROOT" >&2
     exit 1
 fi
-TOOLS_ROOT="$ROOT/tools/win-x64"
 PUBLISH_ROOT="$ROOT/publish"
 OUT="$PUBLISH_ROOT/win-x64"
 
@@ -16,8 +15,7 @@ mkdir -p "$PUBLISH_ROOT"
 STAGE="$(mktemp -d "$PUBLISH_ROOT/.win-x64-stage.XXXXXX")"
 PRESERVE="$(mktemp -d "$PUBLISH_ROOT/.win-x64-preserve.XXXXXX")"
 
-PRESERVED_NAMES=(user-paths.json Mods Cached Editable Output)
-REQUIRED_TOOLS=(retoc.exe repak.exe UAssetGUI.exe Mappings.usmap S2HOCMM.exe)
+PRESERVED_NAMES=(user-paths.json Mods Cached Editable Output tools)
 
 restore_runtime_data() {
     mkdir -p "$OUT"
@@ -34,15 +32,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for tool in "${REQUIRED_TOOLS[@]}"; do
-    if [[ ! -f "$TOOLS_ROOT/$tool" ]]; then
-        echo "ERROR: required Windows runtime tool is missing: tools/win-x64/$tool" >&2
-        echo "The build host may be Linux, but the TARGET is win-x64, so Windows helper binaries are required." >&2
-        exit 1
-    fi
-done
-
-echo "Windows target tool bundle found: tools/win-x64/"
 echo "Cross-publishing Localization Workbench (win-x64, self-contained)..."
 echo "Build host: $(uname -s) / $(uname -m)"
 
@@ -72,7 +61,8 @@ restore_runtime_data
 
 
 cp -a "$STAGE/." "$OUT/"
-mkdir -p "$OUT/Mods" "$OUT/Cached" "$OUT/Editable" "$OUT/Output"
+mkdir -p "$OUT/Mods" "$OUT/Cached" "$OUT/Editable" "$OUT/Output" "$OUT/tools"
+[[ -f "$ROOT/tools/README.txt" ]] && cp -f "$ROOT/tools/README.txt" "$OUT/tools/README.txt"
 
 for doc in README.md CHANGELOG.md RC_CHECKLIST.md RELEASE_CANDIDATE.md; do
     [[ -f "$ROOT/$doc" ]] && cp -f "$ROOT/$doc" "$OUT/$doc"
@@ -81,4 +71,4 @@ done
 echo
 echo "Windows runtime: $OUT"
 echo "The target Windows machine does NOT need the .NET runtime because this publish is self-contained."
-echo "No Wine, Git, cargo/Rust, helper-tool execution, download, or retoc compilation was used during publish."
+echo "Runtime helper tools are NOT bundled. Put user-supplied tools in: $OUT/tools"
