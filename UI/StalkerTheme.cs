@@ -41,6 +41,7 @@ internal static class StalkerTheme
             form.ForeColor = Text;
             ThemeControlTree(form, form);
             TryEnableDarkTitleBar(form);
+            TryHideNativeTitleBarIcon(form);
         }
         finally
         {
@@ -391,6 +392,76 @@ internal static class StalkerTheme
             control.HandleCreated += (_, _) => Apply();
     }
 
+    private static void TryHideNativeTitleBarIcon(Form form)
+    {
+        void Apply()
+        {
+            if (!OperatingSystem.IsWindows())
+                return;
+
+            try
+            {
+                form.ShowIcon = false;
+
+                // Explicitly clear both caption icon slots. Native Windows honours
+                // ShowIcon, while Wine window managers may still paint the class icon
+                // unless WM_SETICON is also cleared.
+                _ = SendMessage(
+                    form.Handle,
+                    WmSetIcon,
+                    new IntPtr(IconSmall),
+                    IntPtr.Zero
+                );
+                _ = SendMessage(
+                    form.Handle,
+                    WmSetIcon,
+                    new IntPtr(IconBig),
+                    IntPtr.Zero
+                );
+
+                if (IsWine)
+                {
+                    var blank = CreateTransparentWindowIcon();
+                    if (blank is not null)
+                        form.Icon = blank;
+                }
+            }
+            catch
+            {
+                // Presentation-only. Never block startup over window chrome.
+            }
+        }
+
+        if (form.IsHandleCreated)
+            Apply();
+        else
+            form.HandleCreated += (_, _) => Apply();
+    }
+
+    private static Icon? CreateTransparentWindowIcon()
+    {
+        try
+        {
+            using var bitmap = new Bitmap(32, 32);
+            bitmap.MakeTransparent();
+
+            var hIcon = bitmap.GetHicon();
+            try
+            {
+                using var temporary = Icon.FromHandle(hIcon);
+                return (Icon)temporary.Clone();
+            }
+            finally
+            {
+                _ = DestroyIcon(hIcon);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static void TryEnableDarkTitleBar(Form form)
     {
         void ApplyDarkChrome()
@@ -435,6 +506,9 @@ internal static class StalkerTheme
     }
 
     private const int WmThemeChanged = 0x031A;
+    private const int WmSetIcon = 0x0080;
+    private const int IconSmall = 0;
+    private const int IconBig = 1;
 
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const int DwmwaBorderColor = 34;
@@ -483,9 +557,10 @@ internal static class StalkerTheme
 /// </summary>
 internal sealed class StalkerBrandMark : Control
 {
-    private readonly System.Windows.Forms.Timer _spinTimer;
+    private readonly System.Threading.Timer _spinTimer;
     private float _rotation;
     private bool _spinning;
+    private int _paintPending;
 
     public bool Spinning
     {
@@ -498,11 +573,14 @@ internal sealed class StalkerBrandMark : Control
             _spinning = value;
             if (_spinning)
             {
-                _spinTimer.Start();
+                _spinTimer.Change(0, 33);
             }
             else
             {
-                _spinTimer.Stop();
+                _spinTimer.Change(
+                    Timeout.Infinite,
+                    Timeout.Infinite
+                );
                 _rotation = 0F;
                 Invalidate();
             }
@@ -522,15 +600,44 @@ internal sealed class StalkerBrandMark : Control
             true);
         BackColor = Color.Transparent;
 
-        _spinTimer = new System.Windows.Forms.Timer
+        _spinTimer = new System.Threading.Timer(
+            _ => QueueSpinFrame(),
+            null,
+            Timeout.Infinite,
+            Timeout.Infinite
+        );
+    }
+
+    private void QueueSpinFrame()
+    {
+        if (IsDisposed || Disposing || !IsHandleCreated)
+            return;
+
+        if (Interlocked.Exchange(ref _paintPending, 1) != 0)
+            return;
+
+        try
         {
-            Interval = 40,
-        };
-        _spinTimer.Tick += (_, _) =>
+            BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    if (_spinning)
+                    {
+                        _rotation = (_rotation + 10F) % 360F;
+                        Invalidate();
+                    }
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _paintPending, 0);
+                }
+            }));
+        }
+        catch
         {
-            _rotation = (_rotation + 8F) % 360F;
-            Invalidate();
-        };
+            Interlocked.Exchange(ref _paintPending, 0);
+        }
     }
 
     protected override void OnPaint(PaintEventArgs e)
