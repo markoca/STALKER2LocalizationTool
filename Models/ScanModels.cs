@@ -8,6 +8,7 @@ public enum ModUiStatus
     MissingTranslation,
     NoLanguageSelected,
     Available,
+    Extracted,
     BuiltVerified,
     Error,
 }
