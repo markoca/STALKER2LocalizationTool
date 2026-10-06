@@ -3,7 +3,7 @@ namespace LocalizationWorkbench;
 internal static class AppConstants
 {
     public const string AppName = "Localization Workbench";
-    public const string Version = "1.0.0-rc.7";
+    public const string Version = "2.0.0-rc.1";
     public const string EngineVersion = "VER_UE5_5";
     public const string RetocEngineVersion = "UE5_5";
     public const string UAssetGuiVersion = "v1.1.0";
