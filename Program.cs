@@ -1,8 +1,8 @@
-using STALKER2LocalizationTool.Localization;
-using STALKER2LocalizationTool.Models;
-using STALKER2LocalizationTool.UI;
+using LocalizationWorkbench.Localization;
+using LocalizationWorkbench.Models;
+using LocalizationWorkbench.UI;
 
-namespace STALKER2LocalizationTool;
+namespace LocalizationWorkbench;
 
 internal static class Program
 {
