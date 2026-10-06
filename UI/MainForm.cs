@@ -117,6 +117,13 @@ public sealed class MainForm : Form
                 }
             }
 
+            if (!NeedsInitialSetup())
+            {
+                AppendLog("=========== GAME FOUND ===========");
+                AppendLog("=========== READY TO SCAN ===========");
+                _statusText.Text = "READY TO SCAN";
+            }
+
             UpdateButtons();
         };
     }
