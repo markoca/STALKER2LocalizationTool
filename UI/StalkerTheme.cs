@@ -1,7 +1,7 @@
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 
-namespace STALKER2LocalizationTool.UI;
+namespace LocalizationWorkbench.UI;
 
 /// <summary>
 /// WinForms adaptation of the True Custom Difficulty graphite / warm-yellow visual system.
