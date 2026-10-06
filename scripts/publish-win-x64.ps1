@@ -9,7 +9,7 @@ $Out = Join-Path $PublishRoot "win-x64"
 $Stage = Join-Path $PublishRoot (".win-x64-stage-" + [guid]::NewGuid().ToString("N"))
 $Preserve = Join-Path $PublishRoot (".win-x64-preserve-" + [guid]::NewGuid().ToString("N"))
 
-# User data survives republishing. Runtime tools/locales do NOT: source-tree files
+# User data survives republishing. Runtime tools do NOT: source-tree files
 # are authoritative and are refreshed on every deployment.
 $PreservedNames = @("user-paths.json", "Mods", "Cached", "Editable", "Output")
 $RequiredTools = @("retoc.exe", "repak.exe", "UAssetGUI.exe", "Mappings.usmap", "S2HOCMM.exe")
@@ -100,8 +100,8 @@ try {
 
     New-Item -ItemType Directory -Force $Out | Out-Null
     Restore-RuntimeData
-    # Copy the complete SDK publish output. tools/ and locales/ are already present
-    # because the csproj marks them as publish content.
+    # Copy the complete SDK publish output. tools/ is already present because
+    # the csproj marks the runtime tool bundle as publish content.
     Copy-Item (Join-Path $Stage "*") $Out -Recurse -Force
 
     foreach ($Name in @("Mods", "Cached", "Editable", "Output")) {
