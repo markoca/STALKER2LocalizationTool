@@ -58,7 +58,6 @@ public sealed class MainForm : Form
     private bool _lastSettingsDeletedCache;
     private bool _modsScanInProgress;
 
-    private FileSystemWatcher? _modsWatcher;
     private FileSystemWatcher? _editableWatcher;
     private FileSystemWatcher? _cachedWatcher;
     private readonly System.Windows.Forms.Timer _watchDebounce = new() { Interval = 900 };
@@ -85,20 +84,20 @@ public sealed class MainForm : Form
         WorkspaceCleanup.RemoveStaleTransientDirectories(_settings, AppendLog);
         ConfigureWatchers();
 
-        _watchDebounce.Tick += async (_, _) =>
+        _watchDebounce.Tick += (_, _) =>
         {
             _watchDebounce.Stop();
-            if (_settings.AutoScan && !_busy)
+            if (!_settings.AutoScan || _busy)
+                return;
+
+            if (IsGameWorkspace)
             {
-                if (IsGameWorkspace)
-                {
-                    if (_game is not null)
-                        RefreshGameEditableTranslation();
-                }
-                else if (IsModsWorkspace)
-                {
-                    await ScanModsAsync();
-                }
+                if (_game is not null)
+                    RefreshGameEditableTranslation();
+            }
+            else if (IsModsWorkspace && _modsScanSuccessful)
+            {
+                RefreshModEditableStatuses();
             }
         };
 
@@ -265,14 +264,10 @@ public sealed class MainForm : Form
         _gameTabButton.Width = 150;
         _modsTabButton.Width = 150;
         _gameTabButton.Click += (_, _) => SetWorkspace(_gameTab);
-        _modsTabButton.Click += async (_, _) =>
+        _modsTabButton.Click += (_, _) =>
         {
             SetWorkspace(_modsTab);
-
-            // MODS discovery is intentionally tab-scoped. Never scan it at startup
-            // or while the user is working in GAME.
-            if (!_busy)
-                await ScanModsAsync();
+            ShowModsReadyToScan();
         };
         tabStrip.Controls.Add(_gameTabButton);
         tabStrip.Controls.Add(_modsTabButton);
@@ -288,7 +283,10 @@ public sealed class MainForm : Form
             if (_lastSettingsDeletedCache)
                 return;
 
-            await ScanActiveAsync();
+            if (IsGameWorkspace)
+                await ScanGameAsync();
+            else
+                ShowModsReadyToScan();
         };
 
         // Keep the navigation geometry deterministic: tabs are physically docked
@@ -708,6 +706,22 @@ public sealed class MainForm : Form
         tab.BringToFront();
     }
 
+    private void ShowModsReadyToScan()
+    {
+        if (!IsModsWorkspace || _busy)
+            return;
+
+        if (!ModSourceDiscovery.HasPotentialModSources(_settings.ModsFolder))
+        {
+            _statusText.Text = _l.T("ui.idle");
+            return;
+        }
+
+        AppendLog("=========== MODS FOUND ===========");
+        AppendLog("=========== READY TO SCAN ===========");
+        _statusText.Text = "READY TO SCAN";
+    }
+
     private void ConfigureGrid()
     {
         _grid.Dock = DockStyle.Fill;
@@ -800,8 +814,6 @@ public sealed class MainForm : Form
         RefreshGrid();
         if (!_busy) _statusText.Text = _l.T("ui.idle");
     }
-
-    private Task ScanActiveAsync() => IsGameWorkspace ? ScanGameAsync() : ScanModsAsync();
 
     private async Task ScanModsAsync()
     {
@@ -1920,17 +1932,14 @@ public sealed class MainForm : Form
 
     private void ConfigureWatchers()
     {
-        _modsWatcher?.Dispose();
         _editableWatcher?.Dispose();
         _cachedWatcher?.Dispose();
-        _modsWatcher = null;
         _editableWatcher = null;
         _cachedWatcher = null;
 
         if (!_settings.AutoScan)
             return;
 
-        _modsWatcher = CreateWatcher(_settings.ModsFolder);
         _editableWatcher = CreateWatcher(_settings.EditableFolder);
         _cachedWatcher = CreateWatcher(_settings.CachedFolder);
     }
@@ -2122,7 +2131,6 @@ public sealed class MainForm : Form
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         _operationCts?.Cancel();
-        _modsWatcher?.Dispose();
         _editableWatcher?.Dispose();
         _cachedWatcher?.Dispose();
         _watchDebounce.Dispose();
