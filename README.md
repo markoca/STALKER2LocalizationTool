@@ -23,9 +23,9 @@ No helper tool is downloaded or compiled by the publish scripts.
 
 ## GAME workflow
 
-GAME handles the base-game `Game.locres` workflow.
+GAME handles the game's `Game.locres` workflow.
 
-1. **SCAN GAME** inspects the supported base-game localization sources.
+1. **SCAN GAME** inspects the supported game localization sources.
 2. **EXTRACT** creates the canonical read-only cache under `Cached/Game` and seeds `Editable/Game`.
 3. Edit `Editable/Game/<language>.json`.
 4. **BUILD** serializes the selected language with S2HOCMM and packages the verified `Game.locres` with repak.
@@ -68,8 +68,6 @@ locales/
 
 `Cached` is rebuild state and should not be edited manually. `Editable` contains user-editable JSON files.
 
-The application retains safe migration support for the old default workspace names `Extracted` -> `Cached` and `Ready` -> `Editable` so existing RC-era workspaces are not silently lost.
-
 ## Build verification
 
 GAME verifies the S2HOCMM result and the final repak output. MODS rebuilds with stock retoc and verifies the final localization package against the expected package/chunk identity and patched payload.
@@ -108,4 +106,4 @@ wine "publish/win-x64/Localization Workbench.exe"
 
 The Wine prefix used for UAssetGUI must provide the .NET 8 Desktop Runtime expected by that tool.
 
-See `RC_CHECKLIST.md` for the release-candidate regression pass.
+See `RC_CHECKLIST.md` and `RELEASE_CANDIDATE.md` for the release-candidate regression pass.
