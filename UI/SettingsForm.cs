@@ -17,7 +17,7 @@ public sealed class SettingsForm : Form
     private readonly StalkerWindowButton _maximizeButton = new();
     private readonly StalkerWindowButton _closeButton = new() { IsCloseButton = true };
 
-    public bool GameCacheCleared { get; private set; }
+    public bool CacheDeleted { get; private set; }
 
     public SettingsForm(AppSettings settings, Localizer localizer)
     {
@@ -436,11 +436,11 @@ public sealed class SettingsForm : Form
         };
         ConfigureFooterButton(resetWorkspace, 180);
 
-        var clearGameCache = new StalkerUtilityButton
+        var deleteCache = new StalkerUtilityButton
         {
-            Text = _l.T("ui.clear_game_cache"),
+            Text = _l.T("ui.delete_cache"),
         };
-        ConfigureFooterButton(clearGameCache, 164);
+        ConfigureFooterButton(deleteCache, 164);
 
         var rightActions = new FlowLayoutPanel
         {
@@ -476,11 +476,11 @@ public sealed class SettingsForm : Form
             DialogResult = DialogResult.Cancel;
             Close();
         };
-        clearGameCache.Click += (_, _) => ClearGameCache();
+        deleteCache.Click += (_, _) => DeleteCache();
         resetWorkspace.Click += (_, _) => ResetWorkspacePaths();
 
         leftActions.Controls.Add(resetWorkspace);
-        leftActions.Controls.Add(clearGameCache);
+        leftActions.Controls.Add(deleteCache);
 
         rightActions.Controls.Add(cancel);
         rightActions.Controls.Add(save);
@@ -629,7 +629,7 @@ public sealed class SettingsForm : Form
         grid.Controls.Add(browse, 2, row);
     }
 
-    private void ClearGameCache()
+    private void DeleteCache()
     {
         var cachedRoot = _boxes.TryGetValue("cached", out var cachedBox)
             ? cachedBox.Text.Trim()
@@ -639,7 +639,7 @@ public sealed class SettingsForm : Form
         {
             MessageBox.Show(
                 this,
-                _l.T("ui.game_cache_path_missing"),
+                _l.T("ui.cache_path_missing"),
                 AppConstants.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
@@ -647,10 +647,9 @@ public sealed class SettingsForm : Form
             return;
         }
 
-        var gameCache = Path.Combine(cachedRoot, "Game");
         var confirmation = MessageBox.Show(
             this,
-            string.Format(_l.T("ui.clear_game_cache_confirm"), gameCache),
+            string.Format(_l.T("ui.delete_cache_confirm"), cachedRoot),
             AppConstants.AppName,
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning,
@@ -664,35 +663,40 @@ public sealed class SettingsForm : Form
         {
             var removed = false;
 
-            if (Directory.Exists(gameCache))
-            {
-                Directory.Delete(gameCache, recursive: true);
-                removed = true;
-            }
-
             if (Directory.Exists(cachedRoot))
             {
                 foreach (var directory in Directory.EnumerateDirectories(
                              cachedRoot,
                              "*",
-                             SearchOption.TopDirectoryOnly))
+                             SearchOption.TopDirectoryOnly)
+                         .ToList())
                 {
-                    var name = Path.GetFileName(directory);
-                    if (!name.StartsWith(".Game.staging.", StringComparison.OrdinalIgnoreCase))
-                        continue;
-
                     Directory.Delete(directory, recursive: true);
                     removed = true;
                 }
+
+                foreach (var file in Directory.EnumerateFiles(
+                             cachedRoot,
+                             "*",
+                             SearchOption.TopDirectoryOnly)
+                         .ToList())
+                {
+                    File.Delete(file);
+                    removed = true;
+                }
+            }
+            else
+            {
+                Directory.CreateDirectory(cachedRoot);
             }
 
-            GameCacheCleared = true;
+            CacheDeleted = true;
 
             MessageBox.Show(
                 this,
                 removed
-                    ? _l.T("ui.game_cache_cleared")
-                    : _l.T("ui.game_cache_empty"),
+                    ? _l.T("ui.cache_deleted")
+                    : _l.T("ui.cache_empty"),
                 AppConstants.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
@@ -702,7 +706,7 @@ public sealed class SettingsForm : Form
         {
             MessageBox.Show(
                 this,
-                string.Format(_l.T("ui.game_cache_clear_failed"), ex.Message),
+                string.Format(_l.T("ui.cache_delete_failed"), ex.Message),
                 AppConstants.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error
