@@ -401,25 +401,19 @@ public sealed class SettingsService
 
     private static bool LooksLikePortableRuntimeDefault(string path, string folderName)
     {
-        try
-        {
-            var full = Path.GetFullPath(path)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var leaf = Path.GetFileName(full);
-            if (!string.Equals(leaf, folderName, StringComparison.OrdinalIgnoreCase))
-                return false;
-
-            var runtimeDir = Directory.GetParent(full);
-            var publishDir = runtimeDir?.Parent;
-            return runtimeDir is not null
-                   && publishDir is not null
-                   && string.Equals(runtimeDir.Name, "win-x64", StringComparison.OrdinalIgnoreCase)
-                   && string.Equals(publishDir.Name, "publish", StringComparison.OrdinalIgnoreCase);
-        }
-        catch
-        {
+        if (string.IsNullOrWhiteSpace(path))
             return false;
-        }
+
+        // Do not require the old path to exist. A renamed/moved portable runtime
+        // leaves an absolute path in settings.json that may point to a directory
+        // which no longer exists. Normalize separators and recognize the portable
+        // runtime layout purely by its suffix.
+        var normalized = path.Trim()
+            .TrimEnd('\\', '/')
+            .Replace('\\', '/');
+
+        var suffix = $"/publish/win-x64/{folderName}";
+        return normalized.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string RepairBundledFilePath(
