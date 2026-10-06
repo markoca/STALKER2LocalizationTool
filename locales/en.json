@@ -8,7 +8,6 @@
   "ui.build_all_in_one": "BUILD ALL-IN-ONE",
   "ui.tab_game": "GAME",
   "ui.tab_mods": "MODS",
-  "ui.game_intro": "Extract every supported language from the base game, edit the JSON files directly in Editable\\Game, then build one or more selected languages.",
   "ui.scan_game": "SCAN GAME",
   "ui.extract_game": "EXTRACT",
   "ui.build_game": "BUILD",
