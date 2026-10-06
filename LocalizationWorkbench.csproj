@@ -19,18 +19,5 @@
     <PackageReference Include="SharpCompress" Version="0.50.4" />
   </ItemGroup>
 
-  <!--
-    Runtime helper tools are selected by TARGET runtime, not by the host OS
-    running dotnet publish. This lets Linux cross-publish a self-contained
-    Windows release while bundling the Windows helper binaries.
-  -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
-    <Content Include="tools/win-x64/**/*">
-      <Link>tools/%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-    </Content>
-  </ItemGroup>
 
 </Project>
