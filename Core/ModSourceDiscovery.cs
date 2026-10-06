@@ -326,26 +326,35 @@ public static class ModSourceDiscovery
             archiveInfo
         );
 
-        if (cached is not null
-            && CanReuseMaterializedArchive(
-                materializationRoot,
-                archiveDisplay,
-                cached
-            ))
+        if (cached is not null)
         {
-            log?.Invoke($"Archive discovery cache reused: {archiveRelative}");
-
-            foreach (var group in BuildCachedArchiveGroups(
-                         archivePath,
-                         archiveRelative,
-                         archiveDisplay,
-                         materializationRoot,
-                         cached))
+            if (cached.Triplets.Count == 0)
             {
-                yield return group;
+                log?.Invoke(
+                    $"Archive skipped (no complete IoStore triplets): {archiveRelative}"
+                );
+                yield break;
             }
 
-            yield break;
+            if (CanReuseMaterializedArchive(
+                    materializationRoot,
+                    archiveDisplay,
+                    cached))
+            {
+                log?.Invoke($"Archive discovery cache reused: {archiveRelative}");
+
+                foreach (var group in BuildCachedArchiveGroups(
+                             archivePath,
+                             archiveRelative,
+                             archiveDisplay,
+                             materializationRoot,
+                             cached))
+                {
+                    yield return group;
+                }
+
+                yield break;
+            }
         }
 
         using var archive = ArchiveFactory.OpenArchive(archivePath);
@@ -405,7 +414,24 @@ public static class ModSourceDiscovery
         }
 
         if (triplets.Count == 0)
+        {
+            SaveArchiveDiscoveryCache(
+                discoveryCachePath,
+                new ArchiveDiscoveryCache
+                {
+                    Version = 1,
+                    ArchiveLength = archiveInfo.Length,
+                    ArchiveLastWriteUtcTicks = archiveInfo.LastWriteTimeUtc.Ticks,
+                    ArchiveSha256 = string.Empty,
+                    Triplets = new List<ArchiveTriplet>(),
+                }
+            );
+
+            log?.Invoke(
+                $"Archive skipped (no complete IoStore triplets): {archiveRelative}"
+            );
             yield break;
+        }
 
         var archiveHash = Sha256File(archivePath);
 
@@ -489,11 +515,17 @@ public static class ModSourceDiscovery
         try
         {
             var cache = JsonUtil.Load<ArchiveDiscoveryCache>(cachePath);
-            return cache.Version == 1
-                   && cache.ArchiveLength == archiveInfo.Length
-                   && cache.ArchiveLastWriteUtcTicks == archiveInfo.LastWriteTimeUtc.Ticks
-                   && !string.IsNullOrWhiteSpace(cache.ArchiveSha256)
-                   && cache.Triplets.Count > 0
+            if (cache.Version != 1
+                || cache.ArchiveLength != archiveInfo.Length
+                || cache.ArchiveLastWriteUtcTicks != archiveInfo.LastWriteTimeUtc.Ticks)
+            {
+                return null;
+            }
+
+            if (cache.Triplets.Count == 0)
+                return cache;
+
+            return !string.IsNullOrWhiteSpace(cache.ArchiveSha256)
                 ? cache
                 : null;
         }
