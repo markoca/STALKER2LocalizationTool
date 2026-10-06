@@ -63,7 +63,7 @@ public sealed class GameScanner
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        _log?.Invoke("FOUND GAME LOCALIZATION");
+        _log?.Invoke("=========== FOUND GAME LOCALIZATION ===========");
 
         var aliases = new List<LocalizationAlias>();
         var locres = new List<LocresSource>();
