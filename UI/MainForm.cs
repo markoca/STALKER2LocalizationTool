@@ -820,7 +820,7 @@ public sealed class MainForm : Form
 
         try
         {
-            AppendLog("========== SCANNING MODS ==========");
+            AppendLog("=========== SCANNING MODS ===========");
             var retoc = new RetocService(_settings.RetocPath, AppendLog);
             var scanner = new ModScanner(
                 retoc,
@@ -892,7 +892,7 @@ public sealed class MainForm : Form
         _operationCts = new CancellationTokenSource();
         try
         {
-            AppendLog("========== SCANNING GAME ==========");
+            AppendLog("=========== SCANNING GAME ===========");
             var scanner = new GameScanner(
                 new RetocService(_settings.RetocPath, AppendLog),
                 new RepakService(_settings.RepakPath, AppendLog),
@@ -978,7 +978,7 @@ public sealed class MainForm : Form
             _game!.NeedsExtraction = false;
             RefreshGameEditableTranslation();
             CompleteProgress(_l.T("ui.done"));
-            AppendLog("=========== GAME EXTRACTION DONE ===========");
+            AppendLog("=========== LOCALIZATION EXTRACTION DONE ===========");
             LogGameWorkflowReady();
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -1823,8 +1823,8 @@ public sealed class MainForm : Form
                 || CanRestoreEditableFromCache(_game)
             ))
         {
-            _statusText.Text = "GAME READY FOR EXTRACTION";
-            AppendLog("=========== GAME READY FOR EXTRACTION ===========");
+            _statusText.Text = "LOCALIZATION READY FOR EXTRACTION";
+            AppendLog("=========== LOCALIZATION READY FOR EXTRACTION ===========");
             return;
         }
 
@@ -1833,8 +1833,8 @@ public sealed class MainForm : Form
         // stage from the scanned GAME state itself rather than button.Enabled.
         if (_game?.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified)
         {
-            _statusText.Text = "GAME READY FOR BUILD";
-            AppendLog("=========== GAME READY FOR BUILD ===========");
+            _statusText.Text = "LOCALIZATION READY FOR BUILD";
+            AppendLog("=========== LOCALIZATION READY FOR BUILD ===========");
         }
     }
 
@@ -1906,8 +1906,8 @@ public sealed class MainForm : Form
 
         if (IsGameWorkspace && _gameScanSuccessful)
         {
-            _statusText.Text = "GAME READY FOR EXTRACTION";
-            AppendLog("=========== GAME READY FOR EXTRACTION ===========");
+            _statusText.Text = "LOCALIZATION READY FOR EXTRACTION";
+            AppendLog("=========== LOCALIZATION READY FOR EXTRACTION ===========");
         }
         else
         {
