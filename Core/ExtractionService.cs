@@ -36,16 +36,53 @@ public sealed class ExtractionService
         IProgress<(int Current, int Total, string Message)>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var list = mods.Where(x => x.HasLocalization && x.NeedsExtraction).ToList();
-        ValidatePrerequisites(list);
+        var list = mods
+            .Where(mod =>
+                mod.HasLocalization
+                && (mod.NeedsExtraction
+                    || mod.UiStatus == ModUiStatus.MissingTranslation
+                    || CanRestoreEditableFromCache(mod)))
+            .ToList();
+
+        // Only a real source extraction needs retoc/UAssetGUI/repak.
+        // MissingTranslation is an Editable-recovery case and can be restored
+        // directly from the already-current Cached workspace.
+        ValidatePrerequisites(
+            list.Where(x => x.NeedsExtraction).ToList()
+        );
+
         Directory.CreateDirectory(_settings.CachedFolder);
+
         for (var index = 0; index < list.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var mod = list[index];
-            progress?.Report((index + 1, list.Count, mod.ModName));
+
+            if (!mod.NeedsExtraction
+                && (mod.UiStatus == ModUiStatus.MissingTranslation
+                    || CanRestoreEditableFromCache(mod)))
+            {
+                progress?.Report((
+                    index,
+                    list.Count,
+                    $"Restoring {mod.ModName}"
+                ));
+                _log?.Invoke(
+                    $"=== Restoring Editable files for {mod.ModName} ==="
+                );
+                RestoreMissingEditableWorkspace(mod);
+                progress?.Report((
+                    index + 1,
+                    list.Count,
+                    $"Restored {mod.ModName}"
+                ));
+                continue;
+            }
+
+            progress?.Report((index, list.Count, $"Extracting {mod.ModName}"));
             _log?.Invoke($"=== Extracting {mod.ModName} ===");
             await ExtractOneModAsync(mod, cancellationToken);
+            progress?.Report((index + 1, list.Count, $"Extracted {mod.ModName}"));
         }
     }
 
@@ -65,17 +102,26 @@ public sealed class ExtractionService
                 ModName = mod.ModName,
                 ExtractedAtUtc = DateTime.UtcNow,
                 SourceFingerprint = mod.SourceFingerprint,
+                SourceContainerLabels = mod.ContainerLabels
+                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
             };
 
             var isGame = string.Equals(mod.ModId, "Game", StringComparison.OrdinalIgnoreCase);
-            var relevantFiles = mod.Assets
-                .SelectMany(x => x.Aliases)
-                .Select(x => x.SourceUtoc)
-                .Concat(isGame ? mod.LocresAssets.Select(x => x.SourcePak) : Enumerable.Empty<string>())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var relevantFiles = mod.OriginalSourceFiles.Count > 0
+                ? mod.OriginalSourceFiles
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                : mod.Assets
+                    .SelectMany(x => x.Aliases)
+                    .Select(x => x.SourceUtoc)
+                    .Concat(isGame ? mod.LocresAssets.Select(x => x.SourcePak) : Enumerable.Empty<string>())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
+            var fingerprintTimer = Stopwatch.StartNew();
             foreach (var source in relevantFiles)
             {
                 manifest.SourceFiles.Add(new SourceFileFingerprint
@@ -86,6 +132,11 @@ public sealed class ExtractionService
                         : FileMetadataFingerprint(source),
                 });
             }
+            fingerprintTimer.Stop();
+            _log?.Invoke(
+                $"Source fingerprint metadata for {mod.ModName}: "
+                + $"{fingerprintTimer.Elapsed.TotalSeconds:N1}s"
+            );
 
             var languageDumps = BuildLanguageCatalog.All.ToDictionary(
                 language => language.Id,
@@ -110,24 +161,16 @@ public sealed class ExtractionService
                 Directory.Delete(finalRoot, recursive: true);
             Directory.Move(stagingRoot, finalRoot);
 
-            var editableRoot = Path.Combine(_settings.EditableFolder, mod.ModId);
-            if (!Directory.Exists(editableRoot))
+            try
             {
-                try
-                {
-                    SeedEditableWorkspace(finalRoot, mod.ModId);
-                }
-                catch
-                {
-                    // Do not leave a current manifest behind when the initial Editable
-                    // copy failed; the next scan must offer extraction again.
-                    TryDeleteDirectory(finalRoot);
-                    throw;
-                }
+                SeedEditableWorkspace(finalRoot, mod.ModId);
             }
-            else
+            catch
             {
-                _log?.Invoke($"Editable workspace already exists; refreshed cache only -> {finalRoot}");
+                // Do not leave a current manifest behind when the initial Editable
+                // copy failed; the next scan must offer extraction again.
+                TryDeleteDirectory(finalRoot);
+                throw;
             }
 
             _log?.Invoke(
@@ -141,6 +184,114 @@ public sealed class ExtractionService
             TryDeleteDirectory(stagingRoot);
             throw;
         }
+    }
+
+    private bool CanRestoreEditableFromCache(ModScanResult mod)
+    {
+        var cachedRoot = Path.Combine(
+            _settings.CachedFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(cachedRoot))
+            return false;
+
+        var cachedHasEditableJson = BuildLanguageCatalog.All.Any(language =>
+            File.Exists(
+                Path.Combine(
+                    cachedRoot,
+                    language.Key + ".json"
+                )
+            )
+        );
+        if (!cachedHasEditableJson)
+            return false;
+
+        var editableRoot = Path.Combine(
+            _settings.EditableFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(editableRoot))
+            return true;
+
+        var editableHasAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
+            File.Exists(
+                Path.Combine(
+                    editableRoot,
+                    language.Key + ".json"
+                )
+            )
+        );
+
+        return !editableHasAnyLanguageJson;
+    }
+
+    private void RestoreMissingEditableWorkspace(ModScanResult mod)
+    {
+        var cachedRoot = Path.Combine(
+            _settings.CachedFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(cachedRoot))
+        {
+            throw new DirectoryNotFoundException(
+                $"Cached extraction was not found for {mod.ModName}: {cachedRoot}"
+            );
+        }
+
+        var editableRoot = Path.Combine(
+            _settings.EditableFolder,
+            mod.ModId
+        );
+        Directory.CreateDirectory(editableRoot);
+
+        var restored = 0;
+
+        foreach (var directory in Directory.EnumerateDirectories(
+                     cachedRoot,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(
+                cachedRoot,
+                directory
+            );
+            Directory.CreateDirectory(
+                Path.Combine(editableRoot, relative)
+            );
+        }
+
+        foreach (var sourceFile in Directory.EnumerateFiles(
+                     cachedRoot,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            var relative = Path.GetRelativePath(
+                cachedRoot,
+                sourceFile
+            );
+            var destinationFile = Path.Combine(
+                editableRoot,
+                relative
+            );
+
+            if (File.Exists(destinationFile))
+                continue;
+
+            Directory.CreateDirectory(
+                Path.GetDirectoryName(destinationFile)!
+            );
+            File.Copy(
+                sourceFile,
+                destinationFile,
+                overwrite: false
+            );
+            restored++;
+        }
+
+        _log?.Invoke(
+            $"Restored {restored} missing Editable file(s) from Cached -> "
+            + editableRoot
+        );
     }
 
     private void SeedEditableWorkspace(string cachedRoot, string modId)
@@ -212,16 +363,54 @@ public sealed class ExtractionService
             foreach (var sourceUtoc in sourceUtocs)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var workRoot = Path.Combine(stagingRoot, ".work", "db_" + Guid.NewGuid().ToString("N"));
-                var input = Path.Combine(workRoot, "input");
+                var workRoot = Path.Combine(
+                    stagingRoot,
+                    ".work",
+                    "db_" + Guid.NewGuid().ToString("N")
+                );
+                var fallbackInput = Path.Combine(workRoot, "input");
+                var input = CreateRetocInputDirectory(
+                    mod,
+                    sourceUtoc,
+                    fallbackInput
+                );
                 var legacy = Path.Combine(workRoot, "legacy");
                 var json = Path.Combine(workRoot, "json");
-                Directory.CreateDirectory(input);
                 Directory.CreateDirectory(legacy);
                 Directory.CreateDirectory(json);
 
-                PrepareRetocInput(sourceUtoc, input);
-                await _retoc.ToLegacyAsync(input, legacy, AppConstants.LocalizationDatabaseNeedle, cancellationToken);
+                try
+                {
+                    var inputTimer = Stopwatch.StartNew();
+                    await PrepareRetocInputAsync(
+                        sourceUtoc,
+                        input,
+                        cancellationToken
+                    );
+                    inputTimer.Stop();
+                    _log?.Invoke(
+                        $"Prepared retoc input for {Path.GetFileName(sourceUtoc)} "
+                        + $"in {inputTimer.Elapsed.TotalSeconds:N1}s"
+                    );
+
+                    var retocTimer = Stopwatch.StartNew();
+                    await _retoc.ToLegacyAsync(
+                        input,
+                        legacy,
+                        AppConstants.LocalizationDatabaseNeedle,
+                        cancellationToken
+                    );
+                    retocTimer.Stop();
+                    _log?.Invoke(
+                        $"Converted localization assets from "
+                        + $"{Path.GetFileName(sourceUtoc)} in "
+                        + $"{retocTimer.Elapsed.TotalSeconds:N1}s"
+                    );
+                }
+                finally
+                {
+                    TryDeleteDirectory(input);
+                }
 
                 var scriptObjects = Path.Combine(legacy, "scriptobjects.bin");
                 RequireFile(scriptObjects, "retoc scriptobjects.bin");
@@ -252,22 +441,57 @@ public sealed class ExtractionService
 
                     var jsonName = $"{assetGroup.ZenChunkId}_{parsedAliases.Count:00}.json";
                     var assetJson = Path.Combine(extracted.JsonRoot, jsonName);
-                    await _uassetGui.ToJsonAsync(extractedUasset, assetJson, cancellationToken);
 
-                    var export = UAssetInspector.ReadLocalizationExport(assetJson, alias.VirtualPath);
-                    if (!export.ImportsLocalizationDatabaseClass)
-                        throw new InvalidDataException($"{alias.VirtualPath}: asset does not import ModLocalizationDatabaseDataAsset");
-
-                    var parsed = LocalizationDatabaseCodec.Parse(export.Payload, alias.VirtualPath);
-                    var roundTrip = LocalizationDatabaseCodec.Serialize(parsed);
-                    if (!roundTrip.AsSpan().SequenceEqual(export.Payload))
-                        throw new InvalidDataException($"{alias.VirtualPath}: untouched parser/serializer round-trip changed the payload");
-
-                    var internalPackagePath = UAssetInspector.DetectInternalPackagePath(
+                    var uassetTimer = Stopwatch.StartNew();
+                    await _uassetGui.ToJsonAsync(
+                        extractedUasset,
                         assetJson,
-                        alias.VirtualPath,
+                        cancellationToken
+                    );
+                    uassetTimer.Stop();
+                    _log?.Invoke(
+                        $"UAssetGUI tojson: {Path.GetFileName(extractedUasset)} "
+                        + $"in {uassetTimer.Elapsed.TotalSeconds:N1}s"
+                    );
+
+                    var inspectTimer = Stopwatch.StartNew();
+                    _log?.Invoke(
+                        $"Inspecting UAssetGUI JSON: "
+                        + $"{Path.GetFileName(assetJson)} "
+                        + $"({new FileInfo(assetJson).Length / (1024d * 1024d):N1} MiB)"
+                    );
+                    var export = UAssetInspector.ReadLocalizationExport(
+                        assetJson,
                         alias.VirtualPath
                     );
+                    inspectTimer.Stop();
+                    _log?.Invoke(
+                        $"UAssetGUI JSON inspected in "
+                        + $"{inspectTimer.Elapsed.TotalSeconds:N1}s; "
+                        + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB"
+                    );
+
+                    if (!export.ImportsLocalizationDatabaseClass)
+                    {
+                        throw new InvalidDataException(
+                            $"{alias.VirtualPath}: asset does not import "
+                            + "ModLocalizationDatabaseDataAsset"
+                        );
+                    }
+
+                    var parseTimer = Stopwatch.StartNew();
+                    var parsed = LocalizationDatabaseCodec.Parse(
+                        export.Payload,
+                        alias.VirtualPath
+                    );
+                    parseTimer.Stop();
+                    _log?.Invoke(
+                        $"Localization database parsed in "
+                        + $"{parseTimer.Elapsed.TotalSeconds:N1}s; "
+                        + $"records={parsed.Records.Count:N0}"
+                    );
+
+                    var internalPackagePath = export.InternalPackagePath;
 
                     parsedAliases.Add(new ParsedAliasAsset
                     {
@@ -568,24 +792,115 @@ public sealed class ExtractionService
         public string DirectoryAliasPackagePath { get; init; } = string.Empty;
     }
 
-    private void PrepareRetocInput(string sourceUtoc, string input)
+    private string CreateRetocInputDirectory(
+        ModScanResult mod,
+        string sourceUtoc,
+        string fallbackInput)
+    {
+        if (string.Equals(
+                mod.SourceKind,
+                "loose",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            var sourceDirectory = Path.GetDirectoryName(sourceUtoc);
+            if (!string.IsNullOrWhiteSpace(sourceDirectory))
+            {
+                var nearSource = Path.Combine(
+                    sourceDirectory,
+                    ".localization-workbench-input-"
+                    + Guid.NewGuid().ToString("N")
+                );
+
+                try
+                {
+                    Directory.CreateDirectory(nearSource);
+                    return nearSource;
+                }
+                catch (Exception ex)
+                {
+                    _log?.Invoke(
+                        $"Could not create retoc input beside loose source; "
+                        + $"using cache workspace instead: {ex.Message}"
+                    );
+                }
+            }
+        }
+
+        Directory.CreateDirectory(fallbackInput);
+        return fallbackInput;
+    }
+
+    private async Task PrepareRetocInputAsync(
+        string sourceUtoc,
+        string input,
+        CancellationToken cancellationToken)
     {
         var sourceUcas = Path.ChangeExtension(sourceUtoc, ".ucas");
         var sourcePak = Path.ChangeExtension(sourceUtoc, ".pak");
         RequireFile(sourceUtoc, "source .utoc");
         RequireFile(sourceUcas, "source .ucas");
 
-        FileLinker.LinkOrCopy(sourceUtoc, Path.Combine(input, Path.GetFileName(sourceUtoc)));
-        FileLinker.LinkOrCopy(sourceUcas, Path.Combine(input, Path.GetFileName(sourceUcas)));
-        if (File.Exists(sourcePak))
-            FileLinker.LinkOrCopy(sourcePak, Path.Combine(input, Path.GetFileName(sourcePak)));
+        await LinkRetocInputAsync(
+            sourceUtoc,
+            Path.Combine(input, Path.GetFileName(sourceUtoc)),
+            cancellationToken
+        );
+        await LinkRetocInputAsync(
+            sourceUcas,
+            Path.Combine(input, Path.GetFileName(sourceUcas)),
+            cancellationToken
+        );
 
-        var globalUtoc = Path.Combine(_settings.GamePaksFolder, "global.utoc");
-        var globalUcas = Path.Combine(_settings.GamePaksFolder, "global.ucas");
-        RequireFile(globalUtoc, "game global.utoc");
-        RequireFile(globalUcas, "game global.ucas");
-        FileLinker.LinkOrCopy(globalUtoc, Path.Combine(input, "global.utoc"));
-        FileLinker.LinkOrCopy(globalUcas, Path.Combine(input, "global.ucas"));
+        if (File.Exists(sourcePak))
+        {
+            await LinkRetocInputAsync(
+                sourcePak,
+                Path.Combine(input, Path.GetFileName(sourcePak)),
+                cancellationToken
+            );
+        }
+
+        RequireValidGamePaksFolder();
+        var globalUtoc = Path.Combine(
+            _settings.GamePaksFolder,
+            "global.utoc"
+        );
+        var globalUcas = Path.Combine(
+            _settings.GamePaksFolder,
+            "global.ucas"
+        );
+
+        await LinkRetocInputAsync(
+            globalUtoc,
+            Path.Combine(input, "global.utoc"),
+            cancellationToken
+        );
+        await LinkRetocInputAsync(
+            globalUcas,
+            Path.Combine(input, "global.ucas"),
+            cancellationToken
+        );
+    }
+
+    private async Task LinkRetocInputAsync(
+        string source,
+        string destination,
+        CancellationToken cancellationToken)
+    {
+        var linked = await FileLinker.LinkOrCopyAsync(
+            source,
+            destination,
+            cancellationToken
+        );
+
+        if (!linked)
+        {
+            var sizeMiB = new FileInfo(source).Length / (1024d * 1024d);
+            _log?.Invoke(
+                $"Copied retoc input because linking was unavailable: "
+                + $"{Path.GetFileName(source)} ({sizeMiB:N1} MiB)"
+            );
+        }
     }
 
     private static void MergeDumpValue(
@@ -610,13 +925,25 @@ public sealed class ExtractionService
             RequireFile(_settings.RetocPath, "retoc.exe");
             RequireFile(_settings.UAssetGuiPath, "UAssetGUI.exe");
             RequireFile(_settings.MappingsPath, "Mappings.usmap");
-            RequireFile(Path.Combine(_settings.GamePaksFolder, "global.utoc"), "game global.utoc");
-            RequireFile(Path.Combine(_settings.GamePaksFolder, "global.ucas"), "game global.ucas");
+            RequireValidGamePaksFolder();
         }
 
         if (mods.Any(x => string.Equals(x.ModId, "Game", StringComparison.OrdinalIgnoreCase)
                           && x.LocresAssets.Count > 0))
             RequireFile(_settings.RepakPath, "repak.exe");
+    }
+
+    private void RequireValidGamePaksFolder()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.GamePaksFolder)
+            || !Directory.Exists(_settings.GamePaksFolder)
+            || !File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc"))
+            || !File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas")))
+        {
+            throw new InvalidOperationException(
+                "Game Paks folder is not valid. Set the Game Paks folder in Settings."
+            );
+        }
     }
 
     private static void RequireFile(string path, string label)

@@ -140,11 +140,11 @@ try {
     Migrate-WorkspaceName "Extracted" "Cached"
     Migrate-WorkspaceName "Ready" "Editable"
 
+    Remove-Item (Join-Path $Out "settings.json") -Force -ErrorAction SilentlyContinue
+
     # Copy the complete SDK publish output. tools/ and locales/ are already present
     # because the csproj marks them as publish content.
     Copy-Item (Join-Path $Stage "*") $Out -Recurse -Force
-
-    Remove-Item (Join-Path $Out "settings.json") -Force -ErrorAction SilentlyContinue
 
     foreach ($Name in @("Mods", "Cached", "Editable", "Output")) {
         New-Item -ItemType Directory -Force (Join-Path $Out $Name) | Out-Null
@@ -160,8 +160,8 @@ try {
     Write-Host ""
     Write-Host "Runtime: $Out"
     Write-Host "No Git, Rust/cargo, dependency download, or retoc compilation was used."
-    Write-Host "Project tools\ is authoritative and was copied into the runtime."
-    Write-Host "Workspace data was preserved. No settings.json is used or preserved."
+    Write-Host "Project tools\win-x64\ is authoritative and was copied into runtime tools\."
+    Write-Host "Existing settings and workspace data were preserved."
 }
 finally {
     Restore-RuntimeData

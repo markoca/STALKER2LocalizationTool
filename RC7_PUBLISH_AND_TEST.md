@@ -1,42 +1,53 @@
-# RC7 publish model
+# RC7 publish and test
 
-The application is currently a Windows Forms application (`net8.0-windows`).
-There is one supported application target in RC7: **win-x64**.
+Localization Workbench has one supported application target: **Windows x64**.
 
-## Build Windows on Linux
+## Authoritative runtime tools
 
-Install the .NET 8 SDK on the Linux development machine, put the Windows helper tools in:
+Keep the complete prebuilt Windows tool bundle under:
 
-    tools/win-x64/
+```text
+tools/win-x64/
+  retoc.exe
+  repak.exe
+  UAssetGUI.exe
+  Mappings.usmap
+  S2HOCMM.exe
+```
 
-Required:
+There are no duplicate root-level tool binaries and no native Linux tool bundle in this project.
 
-    retoc.exe
-    repak.exe
-    UAssetGUI.exe
-    S2HOCMM.exe
-    Mappings.usmap
+## Publish from Linux
 
-Then run:
+```bash
+./scripts/publish-win-x64.sh
+```
 
-    ./scripts/publish-win-x64.sh
+The script cross-publishes the WinForms application as self-contained `win-x64`. It verifies that the Windows helper files exist but does not execute, download or compile them.
 
-The script cross-publishes `win-x64` as a self-contained single-file application.
-The Windows machine that runs the resulting package does **not** need .NET installed.
+## Publish from Windows
 
-The publish script does not execute the Windows helper tools on Linux. It only verifies that the
-required target files exist, then `dotnet publish` copies them into `publish/win-x64/tools/`.
+```powershell
+.\scripts\publish-win-x64.ps1
+```
 
-## Build Windows on Windows
+The PowerShell publisher validates the same `tools/win-x64` bundle and produces the same runtime layout.
 
-If a Windows development machine has the .NET 8 SDK, the equivalent command is:
+## Expected output
 
-    .\\scripts\\publish-win-x64.ps1
+```text
+publish/win-x64/
+  Localization Workbench.exe
+  tools/
+  locales/
+  Mods/
+  Cached/
+  Editable/
+  Output/
+```
 
-Both scripts target the same `win-x64` application and the same `tools/win-x64` bundle.
+Runtime settings and workspace data are preserved across republish. Legacy default workspaces `Extracted` and `Ready` are migrated conservatively to `Cached` and `Editable` when safe.
 
-## Linux target
+## Test
 
-RC7 does not provide a native Linux application build because the UI is Windows Forms. A native
-Linux release would require porting the UI to a cross-platform framework. The `tools/linux-x64/`
-directory is reserved for that future target.
+Run the complete regression list in `RC_CHECKLIST.md` before promoting the candidate.

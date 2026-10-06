@@ -1,37 +1,28 @@
-Localization Workbench - project-local runtime tools
-===========================================================
+Localization Workbench - Windows x64 runtime tools
+===================================================
 
-The source project tools\ directory is the authoritative deployment bundle.
-Put the complete PREBUILT Windows toolset here before publishing:
+This directory is the authoritative prebuilt helper-tool bundle for the current
+application target:
 
-    tools\retoc.exe
-    tools\repak.exe
-    tools\UAssetGUI.exe
-    tools\Mappings.usmap
-    tools\S2HOCMM.exe
+    tools/win-x64/retoc.exe
+    tools/win-x64/repak.exe
+    tools/win-x64/UAssetGUI.exe
+    tools/win-x64/Mappings.usmap
+    tools/win-x64/S2HOCMM.exe
 
-Publish copies these files into publish\win-x64\tools\. The end user does
-not need Git, Rust/cargo, Python, downloads, or any tool compilation.
+Publish copies these files to publish/win-x64/tools/. Nothing is downloaded or
+compiled during publishing.
 
 retoc.exe
 ---------
-RC6 deliberately uses normal STOCK retoc. No custom --source-package-map
-patch is required. Use the ordinary Windows x64 retoc CLI release:
-
-    https://github.com/trumank/retoc/releases
-
-The MODS pipeline still verifies the final canonical LocalizationDatabase path,
-the complete original 24-hex ExportBundleData chunk/FPackageId, and the exact
-patched RawExport after stock retoc repacks the overlay.
+Use a stock Windows x64 retoc CLI build. No custom --source-package-map patch is
+required.
 
 UAssetGUI.exe
 -------------
-Used to inspect extracted legacy .uasset metadata. The tested/pinned binary is
-UAssetGUI v1.1.0:
+The tested baseline is UAssetGUI v1.1.0.
 
-    https://github.com/atenfyr/UAssetGUI/releases/tag/v1.1.0
-
-Expected SHA-256 for the pinned binary:
+Pinned SHA-256:
     b7d75c0893f1a60e565853ae638bc21f2416cd12c2d9d854e297abb87ceb3263
 
 Mappings.usmap
@@ -40,13 +31,11 @@ Use mappings compatible with the target S.T.A.L.K.E.R. 2 game build.
 
 repak.exe
 ---------
-Used for GAME Game.locres packaging with the known-good V11/path-hash-seed
-settings.
+Used by the GAME Game.locres workflow for the verified final PAK.
 
 S2HOCMM.exe
 ------------
-Used for final GAME Game.locres serialization and verification. Keep it in
-tools\ so deployment is fully self-contained.
+Used by the GAME workflow for Game.locres serialization and verification.
 
-Game global.utoc/global.ucas are read from the user's own game installation;
-they are not bundled third-party tools.
+Game global.utoc/global.ucas are read from the user's game installation and are
+not part of this bundle.

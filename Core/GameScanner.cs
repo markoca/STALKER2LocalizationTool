@@ -76,7 +76,7 @@ public sealed class GameScanner
         foreach (var utoc in game.Containers)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report((++current, total, Path.GetFileName(utoc)));
+            progress?.Report((current, total, $"Scanning {Path.GetFileName(utoc)}"));
             try
             {
                 aliases.AddRange(await _retoc.ListLocalizationAssetsAsync(utoc, _gamePaksRoot, cancellationToken));
@@ -86,12 +86,17 @@ public sealed class GameScanner
                 errors.Add($"{Path.GetFileName(utoc)}: {ex.Message}");
                 _log?.Invoke($"Game IoStore scan failed for {utoc}: {ex.Message}");
             }
+            finally
+            {
+                current++;
+                progress?.Report((current, total, $"Scanned {Path.GetFileName(utoc)}"));
+            }
         }
 
         foreach (var pak in game.PakFiles)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            progress?.Report((++current, total, Path.GetFileName(pak)));
+            progress?.Report((current, total, $"Scanning {Path.GetFileName(pak)}"));
             try
             {
                 locres.AddRange(await _repak.ListLocresAsync(pak, _gamePaksRoot, cancellationToken));
@@ -100,6 +105,11 @@ public sealed class GameScanner
             {
                 errors.Add($"{Path.GetFileName(pak)}: {ex.Message}");
                 _log?.Invoke($"Game PAK scan failed for {pak}: {ex.Message}");
+            }
+            finally
+            {
+                current++;
+                progress?.Report((current, total, $"Scanned {Path.GetFileName(pak)}"));
             }
         }
 

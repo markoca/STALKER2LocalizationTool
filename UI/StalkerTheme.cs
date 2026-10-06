@@ -11,6 +11,9 @@ namespace LocalizationWorkbench.UI;
 internal static class StalkerTheme
 {
     public const string PrimaryButtonTag = "stalker-primary";
+    public const string SectionLabelTag = "stalker-section";
+    public const string MutedLabelTag = "stalker-muted";
+    public const string AccentValueTag = "stalker-accent-value";
 
     public static readonly Color WindowBackground = Color.FromArgb(0x10, 0x11, 0x0F);
     public static readonly Color TitleBar = Color.FromArgb(0x0B, 0x0C, 0x0B);
@@ -26,6 +29,9 @@ internal static class StalkerTheme
     public static readonly Color AccentDark = Color.FromArgb(0x80, 0x6B, 0x12);
     public static readonly Color Danger = Color.FromArgb(0xD7, 0x7A, 0x62);
 
+    private static readonly Lazy<bool> WineRuntime = new(DetectWineRuntime);
+    public static bool IsWine => WineRuntime.Value;
+
     public static void Apply(Form form)
     {
         form.SuspendLayout();
@@ -35,6 +41,7 @@ internal static class StalkerTheme
             form.ForeColor = Text;
             ThemeControlTree(form, form);
             TryEnableDarkTitleBar(form);
+            TryHideNativeTitleBarIcon(form);
         }
         finally
         {
@@ -53,10 +60,42 @@ internal static class StalkerTheme
     {
         switch (control)
         {
+            case StalkerTitleBar:
+                control.BackColor = TitleBar;
+                control.ForeColor = Text;
+                break;
+
+            case StalkerNavigationBar:
+            case StalkerFooterBar:
+                control.BackColor = TitleBar;
+                control.ForeColor = Text;
+                break;
+
+            case StalkerWindowButton:
+                control.BackColor = TitleBar;
+                control.ForeColor = MutedText;
+                break;
+
+            case StalkerUtilityButton:
+                control.ForeColor = Text;
+                break;
+
+            case StalkerCardPanel:
+                control.ForeColor = Text;
+                break;
+
+            case StalkerNavButton:
+                control.ForeColor = Text;
+                break;
+
             case StalkerProgressBar:
-            case StalkerCheckedListBox:
+                control.BackColor = TitleBar;
+                control.ForeColor = Accent;
+                break;
+
+            case StalkerLanguageSelector:
+            case StalkerLanguageCheckBox:
             case StalkerToggleCheckBox:
-            case StalkerTabControl:
                 control.BackColor = WindowBackground;
                 control.ForeColor = Text;
                 break;
@@ -107,9 +146,13 @@ internal static class StalkerTheme
                 break;
 
             case Label label:
-                if (label.ForeColor.ToArgb() == SystemColors.GrayText.ToArgb())
+                if (Equals(label.Tag, SectionLabelTag))
+                    label.ForeColor = Accent;
+                else if (Equals(label.Tag, MutedLabelTag)
+                         || label.ForeColor.ToArgb() == SystemColors.GrayText.ToArgb())
                     label.ForeColor = MutedText;
-                else if (label.Font.Size >= 15F && label.Font.Bold)
+                else if (Equals(label.Tag, AccentValueTag)
+                         || (label.Font.Size >= 15F && label.Font.Bold))
                     label.ForeColor = Accent;
                 else
                     label.ForeColor = Text;
@@ -125,18 +168,18 @@ internal static class StalkerTheme
                 }
                 else
                 {
-                    table.BackColor = WindowBackground;
+                    table.BackColor = table.Parent?.BackColor ?? WindowBackground;
                 }
                 table.ForeColor = Text;
                 break;
 
             case FlowLayoutPanel flow:
-                flow.BackColor = WindowBackground;
+                flow.BackColor = flow.Parent?.BackColor ?? WindowBackground;
                 flow.ForeColor = Text;
                 break;
 
             case Panel panel:
-                panel.BackColor = WindowBackground;
+                panel.BackColor = panel.Parent?.BackColor ?? WindowBackground;
                 panel.ForeColor = Text;
                 break;
 
@@ -151,61 +194,76 @@ internal static class StalkerTheme
                 control.ForeColor = Text;
                 break;
         }
+
+        TryApplyDarkNativeScrollbarTheme(control);
     }
 
     private static void ThemeButton(Button button, Form owner)
     {
-        var primary = Equals(button.Tag, PrimaryButtonTag) || ReferenceEquals(owner.AcceptButton, button);
-
         button.FlatStyle = FlatStyle.Flat;
         button.FlatAppearance.BorderSize = 1;
         button.UseVisualStyleBackColor = false;
         button.Cursor = Cursors.Hand;
 
-        void ApplyState()
+        button.EnabledChanged += (_, _) =>
+            RefreshButtonStyle(button, owner);
+
+        button.MouseEnter += (_, _) =>
         {
             if (!button.Enabled)
-            {
-                button.BackColor = primary ? AccentDark : Panel;
-                button.ForeColor = MutedText;
-                button.FlatAppearance.BorderColor = Border;
                 return;
-            }
 
-            button.BackColor = primary ? Accent : PanelAlt;
-            button.ForeColor = primary ? Color.Black : Text;
-            button.FlatAppearance.BorderColor = primary ? AccentHover : Border;
-        }
+            var primary = IsPrimaryButton(button, owner);
+            button.ForeColor = primary ? Color.Black : Accent;
+        };
 
-        if (primary)
+        button.MouseLeave += (_, _) =>
+            RefreshButtonStyle(button, owner);
+
+        RefreshButtonStyle(button, owner);
+    }
+
+    private static bool IsPrimaryButton(Button button, Form owner) =>
+        Equals(button.Tag, PrimaryButtonTag)
+        || ReferenceEquals(owner.AcceptButton, button);
+
+    internal static void SetButtonPrimary(
+        Button button,
+        Form owner,
+        bool primary)
+    {
+        button.Tag = primary ? PrimaryButtonTag : null;
+        RefreshButtonStyle(button, owner);
+    }
+
+    private static void RefreshButtonStyle(Button button, Form owner)
+    {
+        var primary = IsPrimaryButton(button, owner);
+
+        button.FlatAppearance.MouseOverBackColor = primary
+            ? AccentHover
+            : PanelHover;
+        button.FlatAppearance.MouseDownBackColor = primary
+            ? AccentDark
+            : PanelPressed;
+
+        if (!button.Enabled)
         {
-            button.FlatAppearance.MouseOverBackColor = AccentHover;
-            button.FlatAppearance.MouseDownBackColor = AccentDark;
-        }
-        else
-        {
-            button.FlatAppearance.MouseOverBackColor = PanelHover;
-            button.FlatAppearance.MouseDownBackColor = PanelPressed;
-            button.MouseEnter += (_, _) =>
-            {
-                if (button.Enabled)
-                    button.ForeColor = Accent;
-            };
-            button.MouseLeave += (_, _) =>
-            {
-                if (button.Enabled)
-                    button.ForeColor = Text;
-            };
+            button.BackColor = primary ? AccentDark : Panel;
+            button.ForeColor = MutedText;
+            button.FlatAppearance.BorderColor = Border;
+            return;
         }
 
-        button.EnabledChanged += (_, _) => ApplyState();
-        ApplyState();
+        button.BackColor = primary ? Accent : PanelAlt;
+        button.ForeColor = primary ? Color.Black : Text;
+        button.FlatAppearance.BorderColor = primary ? AccentHover : Border;
     }
 
     private static void ThemeGrid(DataGridView grid)
     {
         grid.EnableHeadersVisualStyles = false;
-        grid.BackgroundColor = WindowBackground;
+        grid.BackgroundColor = Panel;
         grid.BorderStyle = BorderStyle.FixedSingle;
         grid.GridColor = Border;
         grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
@@ -237,6 +295,214 @@ internal static class StalkerTheme
             Padding = new Padding(4, 2, 4, 2),
         };
         grid.RowTemplate.Height = Math.Max(grid.RowTemplate.Height, 28);
+    }
+
+    public static Icon? CreateWindowIcon()
+    {
+        if (!OperatingSystem.IsWindows())
+            return null;
+
+        try
+        {
+            using var bitmap = new Bitmap(32, 32);
+            using (var graphics = Graphics.FromImage(bitmap))
+            {
+                graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                graphics.Clear(Color.Transparent);
+                DrawRadiationMark(graphics, new Rectangle(1, 1, 30, 30));
+            }
+
+            var hIcon = bitmap.GetHicon();
+            try
+            {
+                using var temporary = Icon.FromHandle(hIcon);
+                return (Icon)temporary.Clone();
+            }
+            finally
+            {
+                _ = DestroyIcon(hIcon);
+            }
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    internal static void DrawRadiationMark(Graphics graphics, Rectangle bounds)
+    {
+        graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        var diameter = Math.Min(bounds.Width, bounds.Height);
+        if (diameter <= 0)
+            return;
+
+        var scale = diameter / 34F;
+        var offsetX = bounds.Left + (bounds.Width - diameter) / 2F;
+        var offsetY = bounds.Top + (bounds.Height - diameter) / 2F;
+
+        var state = graphics.Save();
+        try
+        {
+            graphics.TranslateTransform(offsetX, offsetY);
+            graphics.ScaleTransform(scale, scale);
+
+            using var accent = new SolidBrush(Accent);
+            using var blade = new GraphicsPath();
+
+            blade.AddLine(14.5F, 12.67F, 10F, 4.88F);
+            blade.AddBezier(10F, 4.88F, 14.2F, 2.3F, 19.8F, 2.3F, 24F, 4.88F);
+            blade.AddLine(24F, 4.88F, 19.5F, 12.67F);
+            blade.AddBezier(19.5F, 12.67F, 17.9F, 11.75F, 16.1F, 11.75F, 14.5F, 12.67F);
+            blade.CloseFigure();
+
+            for (var i = 0; i < 3; i++)
+            {
+                var bladeState = graphics.Save();
+                graphics.TranslateTransform(17F, 17F);
+                graphics.RotateTransform(i * 120F);
+                graphics.TranslateTransform(-17F, -17F);
+                graphics.FillPath(accent, blade);
+                graphics.Restore(bladeState);
+            }
+
+            graphics.FillEllipse(accent, 13.5F, 13.5F, 7F, 7F);
+        }
+        finally
+        {
+            graphics.Restore(state);
+        }
+    }
+
+    private static bool DetectWineRuntime()
+    {
+        if (!OperatingSystem.IsWindows())
+            return false;
+
+        try
+        {
+            return wine_get_version() != IntPtr.Zero;
+        }
+        catch (EntryPointNotFoundException)
+        {
+            return false;
+        }
+        catch (DllNotFoundException)
+        {
+            return false;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static void TryApplyDarkNativeScrollbarTheme(Control control)
+    {
+        var mayOwnNativeScrollbars =
+            control is TextBoxBase
+            || control is ListBox
+            || control is CheckedListBox
+            || control is DataGridView
+            || control is ScrollBar
+            || (control is Panel panel && panel.AutoScroll);
+
+        if (!mayOwnNativeScrollbars)
+            return;
+
+        void Apply()
+        {
+            if (!OperatingSystem.IsWindows() || IsWine)
+                return;
+
+            try
+            {
+                // "DarkMode_Explorer" asks Windows common controls to render their
+                // native chrome (including scrollbars) with dark-mode metrics/colors.
+                // Wine may emulate this; unsupported builds simply ignore the call.
+                _ = SetWindowTheme(control.Handle, "DarkMode_Explorer", null);
+                _ = SendMessage(control.Handle, WmThemeChanged, IntPtr.Zero, IntPtr.Zero);
+            }
+            catch
+            {
+                // Presentation enhancement only.
+            }
+        }
+
+        if (control.IsHandleCreated)
+            Apply();
+        else
+            control.HandleCreated += (_, _) => Apply();
+    }
+
+    private static void TryHideNativeTitleBarIcon(Form form)
+    {
+        void Apply()
+        {
+            if (!OperatingSystem.IsWindows())
+                return;
+
+            try
+            {
+                form.ShowIcon = false;
+
+                // Explicitly clear both caption icon slots. Native Windows honours
+                // ShowIcon, while Wine window managers may still paint the class icon
+                // unless WM_SETICON is also cleared.
+                _ = SendMessage(
+                    form.Handle,
+                    WmSetIcon,
+                    new IntPtr(IconSmall),
+                    IntPtr.Zero
+                );
+                _ = SendMessage(
+                    form.Handle,
+                    WmSetIcon,
+                    new IntPtr(IconBig),
+                    IntPtr.Zero
+                );
+
+                if (IsWine)
+                {
+                    var blank = CreateTransparentWindowIcon();
+                    if (blank is not null)
+                        form.Icon = blank;
+                }
+            }
+            catch
+            {
+                // Presentation-only. Never block startup over window chrome.
+            }
+        }
+
+        if (form.IsHandleCreated)
+            Apply();
+        else
+            form.HandleCreated += (_, _) => Apply();
+    }
+
+    private static Icon? CreateTransparentWindowIcon()
+    {
+        try
+        {
+            using var bitmap = new Bitmap(32, 32);
+            bitmap.MakeTransparent();
+
+            var hIcon = bitmap.GetHicon();
+            try
+            {
+                using var temporary = Icon.FromHandle(hIcon);
+                return (Icon)temporary.Clone();
+            }
+            finally
+            {
+                _ = DestroyIcon(hIcon);
+            }
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static void TryEnableDarkTitleBar(Form form)
@@ -282,9 +548,30 @@ internal static class StalkerTheme
             form.HandleCreated += (_, _) => ApplyDarkChrome();
     }
 
+    private const int WmThemeChanged = 0x031A;
+    private const int WmSetIcon = 0x0080;
+    private const int IconSmall = 0;
+    private const int IconBig = 1;
+
     private const int DwmwaUseImmersiveDarkMode = 20;
     private const int DwmwaBorderColor = 34;
     private const int DwmwaCaptionColor = 35;
+
+    [DllImport("ntdll.dll", EntryPoint = "wine_get_version", CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr wine_get_version();
+
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
+    private static extern int SetWindowTheme(
+        IntPtr hwnd,
+        string? pszSubAppName,
+        string? pszSubIdList);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SendMessage(
+        IntPtr hWnd,
+        int msg,
+        IntPtr wParam,
+        IntPtr lParam);
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(
@@ -292,6 +579,10 @@ internal static class StalkerTheme
         int dwAttribute,
         ref int pvAttribute,
         int cbAttribute);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 
     private sealed class StalkerToolStripColorTable : ProfessionalColorTable
     {
@@ -305,105 +596,19 @@ internal static class StalkerTheme
 }
 
 /// <summary>
-/// Owner-drawn GAME / MODS tab headers matching True Custom Difficulty:
-/// graphite surface, muted inactive labels, yellow active label and a 3px active indicator.
+/// Edge-to-edge title band inspired by the True Custom Difficulty shell.
 /// </summary>
-internal sealed class StalkerTabControl : TabControl
+internal sealed class StalkerTitleBar : Panel
 {
-    private int _hotIndex = -1;
-
-    public StalkerTabControl()
+    public StalkerTitleBar()
     {
-        DrawMode = TabDrawMode.OwnerDrawFixed;
-        SizeMode = TabSizeMode.Fixed;
-        ItemSize = new Size(150, 36);
-        Padding = new Point(15, 6);
-        SetStyle(ControlStyles.OptimizedDoubleBuffer, true);
-    }
-
-    protected override void OnHandleCreated(EventArgs e)
-    {
-        base.OnHandleCreated(e);
-        try { _ = SetWindowTheme(Handle, string.Empty, string.Empty); } catch { }
-    }
-
-    protected override void OnMouseMove(MouseEventArgs e)
-    {
-        var hotIndex = -1;
-        for (var i = 0; i < TabCount; i++)
-        {
-            if (GetTabRect(i).Contains(e.Location))
-            {
-                hotIndex = i;
-                break;
-            }
-        }
-
-        if (_hotIndex != hotIndex)
-        {
-            _hotIndex = hotIndex;
-            Invalidate();
-        }
-
-        base.OnMouseMove(e);
-    }
-
-    protected override void OnMouseLeave(EventArgs e)
-    {
-        _hotIndex = -1;
-        Invalidate();
-        base.OnMouseLeave(e);
-    }
-
-    protected override void OnDrawItem(DrawItemEventArgs e)
-    {
-        var page = TabPages[e.Index];
-        var selected = e.Index == SelectedIndex;
-        var hovered = e.Index == _hotIndex;
-        var bounds = GetTabRect(e.Index);
-
-        using var background = new SolidBrush(
-            selected ? StalkerTheme.Panel :
-            hovered ? StalkerTheme.PanelHover :
-            StalkerTheme.TitleBar);
-        e.Graphics.FillRectangle(background, bounds);
-
-        var foreground = selected
-            ? StalkerTheme.Accent
-            : hovered
-                ? StalkerTheme.Text
-                : StalkerTheme.MutedText;
-
-        TextRenderer.DrawText(
-            e.Graphics,
-            page.Text,
-            Font,
-            bounds,
-            foreground,
-            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-        if (selected)
-        {
-            using var accent = new SolidBrush(StalkerTheme.Accent);
-            e.Graphics.FillRectangle(accent, bounds.Left, bounds.Bottom - 3, bounds.Width, 3);
-        }
-    }
-
-    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)]
-    private static extern int SetWindowTheme(IntPtr hWnd, string pszSubAppName, string pszSubIdList);
-}
-
-/// <summary>
-/// Yellow owner-drawn progress bar so progress never falls back to the native Windows/Wine theme.
-/// </summary>
-internal sealed class StalkerProgressBar : ProgressBar
-{
-    public StalkerProgressBar()
-    {
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Text;
         SetStyle(
             ControlStyles.UserPaint
             | ControlStyles.AllPaintingInWmPaint
-            | ControlStyles.OptimizedDoubleBuffer,
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
             true);
     }
 
@@ -413,79 +618,911 @@ internal sealed class StalkerProgressBar : ProgressBar
         if (rect.Width <= 0 || rect.Height <= 0)
             return;
 
-        e.Graphics.Clear(StalkerTheme.PanelAlt);
-        using (var border = new Pen(StalkerTheme.Border))
-            e.Graphics.DrawRectangle(border, 0, 0, rect.Width - 1, rect.Height - 1);
+        e.Graphics.Clear(StalkerTheme.TitleBar);
+    }
+}
 
-        var range = Maximum - Minimum;
-        var ratio = range <= 0 ? 0d : Math.Clamp((Value - Minimum) / (double)range, 0d, 1d);
-        var width = (int)Math.Round((rect.Width - 2) * ratio);
+/// <summary>
+/// Flat global navigation strip. Selected tabs carry the yellow TCD underline.
+/// </summary>
+internal sealed class StalkerNavigationBar : Panel
+{
+    public StalkerNavigationBar()
+    {
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Text;
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
 
-        if (width > 0)
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.Clear(StalkerTheme.TitleBar);
+        using var border = new Pen(StalkerTheme.Border);
+        e.Graphics.DrawLine(border, 0, Height - 1, Width, Height - 1);
+    }
+}
+
+/// <summary>
+/// Full-width bottom command/status band matching the TCD window shell.
+/// </summary>
+internal sealed class StalkerFooterBar : Panel
+{
+    public StalkerFooterBar()
+    {
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Text;
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.Clear(StalkerTheme.TitleBar);
+        using var border = new Pen(StalkerTheme.Border);
+        e.Graphics.DrawLine(border, 0, 0, Width, 0);
+    }
+}
+
+/// <summary>
+/// Minimal native-window replacement button used in the borderless TCD-style title bar.
+/// </summary>
+internal sealed class StalkerWindowButton : Button
+{
+    private bool _hovered;
+    private bool _pressed;
+
+    public bool IsCloseButton { get; set; }
+
+    public StalkerWindowButton()
+    {
+        Width = 42;
+        Height = 30;
+        Margin = new Padding(0);
+        FlatStyle = FlatStyle.Flat;
+        FlatAppearance.BorderSize = 0;
+        UseVisualStyleBackColor = false;
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.MutedText;
+        Font = new Font("Segoe UI Symbol", 13F, FontStyle.Regular);
+        Cursor = Cursors.Hand;
+        TabStop = false;
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hovered = false;
+        _pressed = false;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs mevent)
+    {
+        _pressed = true;
+        Invalidate();
+        base.OnMouseDown(mevent);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs mevent)
+    {
+        _pressed = false;
+        Invalidate();
+        base.OnMouseUp(mevent);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var background = _pressed
+            ? StalkerTheme.PanelPressed
+            : _hovered
+                ? (IsCloseButton
+                    ? StalkerTheme.Danger
+                    : StalkerTheme.PanelHover)
+                : StalkerTheme.TitleBar;
+
+        e.Graphics.Clear(background);
+        TextRenderer.DrawText(
+            e.Graphics,
+            Text,
+            Font,
+            ClientRectangle,
+            IsCloseButton && _hovered
+                ? Color.White
+                : _hovered
+                    ? StalkerTheme.Accent
+                    : StalkerTheme.MutedText,
+            TextFormatFlags.HorizontalCenter
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.NoPrefix
+        );
+    }
+}
+
+/// <summary>
+/// Flat utility command used inside top/bottom chrome bands.
+/// </summary>
+internal sealed class StalkerUtilityButton : Button
+{
+    private bool _hovered;
+    private bool _pressed;
+
+    public StalkerUtilityButton()
+    {
+        FlatStyle = FlatStyle.Flat;
+        FlatAppearance.BorderSize = 0;
+        UseVisualStyleBackColor = false;
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Text;
+        Cursor = Cursors.Hand;
+        TabStop = false;
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hovered = false;
+        _pressed = false;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs mevent)
+    {
+        _pressed = true;
+        Invalidate();
+        base.OnMouseDown(mevent);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs mevent)
+    {
+        _pressed = false;
+        Invalidate();
+        base.OnMouseUp(mevent);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var background = _pressed
+            ? StalkerTheme.PanelPressed
+            : _hovered
+                ? StalkerTheme.PanelHover
+                : StalkerTheme.TitleBar;
+
+        e.Graphics.Clear(background);
+
+        using var border = new Pen(_hovered ? StalkerTheme.AccentDark : StalkerTheme.Border);
+        e.Graphics.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
+
+        TextRenderer.DrawText(
+            e.Graphics,
+            Text,
+            Font,
+            ClientRectangle,
+            _hovered ? StalkerTheme.Accent : StalkerTheme.Text,
+            TextFormatFlags.HorizontalCenter
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis
+            | TextFormatFlags.NoPrefix
+        );
+    }
+}
+
+/// <summary>
+/// Compact radiation / Zone mark used by the workbench header.
+/// </summary>
+internal sealed class StalkerBrandMark : Control
+{
+    private readonly System.Threading.Timer _spinTimer;
+    private float _rotation;
+    private bool _spinning;
+    private int _paintPending;
+
+    public bool Spinning
+    {
+        get => _spinning;
+        set
         {
-            using var fill = new SolidBrush(StalkerTheme.Accent);
-            e.Graphics.FillRectangle(fill, 1, 1, width, Math.Max(0, rect.Height - 2));
+            if (_spinning == value)
+                return;
+
+            _spinning = value;
+            if (_spinning)
+            {
+                _spinTimer.Change(0, 33);
+            }
+            else
+            {
+                _spinTimer.Change(
+                    Timeout.Infinite,
+                    Timeout.Infinite
+                );
+                _rotation = 0F;
+                Invalidate();
+            }
+        }
+    }
+
+    public StalkerBrandMark()
+    {
+        Width = 44;
+        Height = 44;
+        Margin = new Padding(0, 0, 12, 0);
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.SupportsTransparentBackColor,
+            true);
+        BackColor = Color.Transparent;
+
+        _spinTimer = new System.Threading.Timer(
+            _ => QueueSpinFrame(),
+            null,
+            Timeout.Infinite,
+            Timeout.Infinite
+        );
+    }
+
+    private void QueueSpinFrame()
+    {
+        if (IsDisposed || Disposing || !IsHandleCreated)
+            return;
+
+        if (Interlocked.Exchange(ref _paintPending, 1) != 0)
+            return;
+
+        try
+        {
+            BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    if (_spinning)
+                    {
+                        _rotation = (_rotation + 10F) % 360F;
+                        Invalidate();
+                    }
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref _paintPending, 0);
+                }
+            }));
+        }
+        catch
+        {
+            Interlocked.Exchange(ref _paintPending, 0);
+        }
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        var size = Math.Min(
+            30,
+            Math.Min(ClientSize.Width, ClientSize.Height)
+        );
+        if (size <= 0)
+            return;
+
+        var bounds = new Rectangle(
+            (ClientSize.Width - size) / 2,
+            (ClientSize.Height - size) / 2,
+            size,
+            size);
+
+        var state = e.Graphics.Save();
+        try
+        {
+            var centerX = bounds.Left + bounds.Width / 2F;
+            var centerY = bounds.Top + bounds.Height / 2F;
+            e.Graphics.TranslateTransform(centerX, centerY);
+            e.Graphics.RotateTransform(_rotation);
+            e.Graphics.TranslateTransform(-centerX, -centerY);
+            StalkerTheme.DrawRadiationMark(e.Graphics, bounds);
+        }
+        finally
+        {
+            e.Graphics.Restore(state);
+        }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            _spinTimer.Dispose();
+
+        base.Dispose(disposing);
+    }
+}
+
+/// <summary>
+/// Bordered graphite surface used to group related controls into TCD-style cards.
+/// </summary>
+internal sealed class StalkerCardPanel : Panel
+{
+    public bool AccentEdge { get; set; }
+
+    public StalkerCardPanel()
+    {
+        BackColor = StalkerTheme.Panel;
+        ForeColor = StalkerTheme.Text;
+        Padding = new Padding(14);
+        Margin = new Padding(0);
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+
+        var rect = ClientRectangle;
+        if (rect.Width <= 0 || rect.Height <= 0)
+            return;
+
+        using var border = new Pen(StalkerTheme.Border);
+        e.Graphics.DrawRectangle(border, 0, 0, rect.Width - 1, rect.Height - 1);
+
+        if (AccentEdge)
+        {
+            using var accent = new SolidBrush(StalkerTheme.Accent);
+            e.Graphics.FillRectangle(accent, 0, 0, 3, rect.Height);
         }
     }
 }
 
 /// <summary>
-/// Dark multi-column build-language selector with custom yellow checks.
+/// Native-chrome-free navigation button used for the GAME / MODS workspace switcher.
 /// </summary>
-internal sealed class StalkerCheckedListBox : CheckedListBox
+internal sealed class StalkerNavButton : Button
 {
-    public StalkerCheckedListBox()
+    private bool _selected;
+    private bool _hovered;
+    private bool _pressed;
+
+    public bool Selected
     {
-        DrawMode = DrawMode.OwnerDrawFixed;
-        ItemHeight = 24;
-        BackColor = StalkerTheme.PanelAlt;
-        ForeColor = StalkerTheme.Text;
-        BorderStyle = BorderStyle.FixedSingle;
+        get => _selected;
+        set
+        {
+            if (_selected == value) return;
+            _selected = value;
+            Invalidate();
+        }
     }
 
-    protected override void OnDrawItem(DrawItemEventArgs e)
+    public StalkerNavButton()
     {
-        if (e.Index < 0 || e.Index >= Items.Count)
+        FlatStyle = FlatStyle.Flat;
+        FlatAppearance.BorderSize = 0;
+        UseVisualStyleBackColor = false;
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.MutedText;
+        Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
+        Height = 44;
+        MinimumSize = new Size(0, 44);
+        MaximumSize = new Size(0, 44);
+        Width = 150;
+        Margin = new Padding(0);
+        Cursor = Cursors.Hand;
+        TabStop = false;
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hovered = false;
+        _pressed = false;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs mevent)
+    {
+        _pressed = true;
+        Invalidate();
+        base.OnMouseDown(mevent);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs mevent)
+    {
+        _pressed = false;
+        Invalidate();
+        base.OnMouseUp(mevent);
+    }
+
+    protected override void OnPaint(PaintEventArgs pevent)
+    {
+        var background = _pressed
+            ? StalkerTheme.PanelPressed
+            : _hovered
+                ? StalkerTheme.PanelHover
+                : StalkerTheme.TitleBar;
+
+        pevent.Graphics.Clear(background);
+
+        var foreground = _selected
+            ? StalkerTheme.Accent
+            : _hovered
+                ? StalkerTheme.Text
+                : StalkerTheme.MutedText;
+
+        TextRenderer.DrawText(
+            pevent.Graphics,
+            Text,
+            Font,
+            ClientRectangle,
+            foreground,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+        if (_selected)
         {
-            base.OnDrawItem(e);
+            using var accent = new SolidBrush(StalkerTheme.Accent);
+            pevent.Graphics.FillRectangle(accent, 12, Height - 3, Math.Max(1, Width - 24), 3);
+        }
+    }
+}
+
+/// <summary>
+/// Yellow owner-drawn progress bar so progress never falls back to the native Windows/Wine theme.
+/// </summary>
+internal sealed class StalkerProgressBar : Control
+{
+    private int _minimum;
+    private int _maximum = 100;
+    private int _value;
+
+    public int Minimum
+    {
+        get => _minimum;
+        set
+        {
+            _minimum = value;
+            if (_maximum < _minimum)
+                _maximum = _minimum;
+            Value = _value;
+            Invalidate();
+        }
+    }
+
+    public int Maximum
+    {
+        get => _maximum;
+        set
+        {
+            _maximum = Math.Max(value, _minimum);
+            Value = _value;
+            Invalidate();
+        }
+    }
+
+    public int Value
+    {
+        get => _value;
+        set
+        {
+            var next = Math.Clamp(value, _minimum, _maximum);
+            if (_value == next)
+                return;
+
+            _value = next;
+            Invalidate();
+            Update();
+        }
+    }
+
+    public StalkerProgressBar()
+    {
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
+
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.Accent;
+        MinimumSize = new Size(40, 8);
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        e.Graphics.Clear(BackColor);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+
+        var rect = ClientRectangle;
+        if (rect.Width <= 0 || rect.Height <= 0)
             return;
+
+        e.Graphics.SmoothingMode = SmoothingMode.None;
+
+        const int railHeight = 6;
+        var actualRailHeight = Math.Min(railHeight, rect.Height);
+        var rail = new Rectangle(
+            0,
+            Math.Max(0, (rect.Height - actualRailHeight) / 2),
+            rect.Width,
+            actualRailHeight
+        );
+
+        using (var track = new SolidBrush(BackColor))
+            e.Graphics.FillRectangle(track, rail);
+
+        using (var border = new Pen(StalkerTheme.Border))
+        {
+            e.Graphics.DrawRectangle(
+                border,
+                rail.Left,
+                rail.Top,
+                Math.Max(0, rail.Width - 1),
+                Math.Max(0, rail.Height - 1)
+            );
         }
 
-        var selected = (e.State & DrawItemState.Selected) != 0;
-        using var back = new SolidBrush(selected ? StalkerTheme.PanelHover : StalkerTheme.PanelAlt);
-        e.Graphics.FillRectangle(back, e.Bounds);
+        var range = _maximum - _minimum;
+        var ratio = range <= 0
+            ? 0d
+            : Math.Clamp((_value - _minimum) / (double)range, 0d, 1d);
+
+        var innerWidth = Math.Max(0, rail.Width - 2);
+        var fillWidth = (int)Math.Round(innerWidth * ratio);
+        if (fillWidth <= 0)
+            return;
+
+        var fillRect = new Rectangle(
+            rail.Left + 1,
+            rail.Top + 1,
+            fillWidth,
+            Math.Max(1, rail.Height - 2)
+        );
+
+        using (var fill = new LinearGradientBrush(
+                   fillRect,
+                   StalkerTheme.AccentHover,
+                   StalkerTheme.Accent,
+                   LinearGradientMode.Horizontal))
+        {
+            e.Graphics.FillRectangle(fill, fillRect);
+        }
+
+        using (var highlight = new Pen(Color.FromArgb(150, Color.White)))
+        {
+            e.Graphics.DrawLine(
+                highlight,
+                fillRect.Left,
+                fillRect.Top,
+                fillRect.Right - 1,
+                fillRect.Top
+            );
+        }
+
+        if (fillRect.Width >= 2)
+        {
+            using var edge = new Pen(StalkerTheme.AccentHover);
+            e.Graphics.DrawLine(
+                edge,
+                fillRect.Right - 1,
+                fillRect.Top,
+                fillRect.Right - 1,
+                fillRect.Bottom - 1
+            );
+        }
+    }
+}
+
+/// <summary>
+/// Fully custom language selector. It intentionally avoids CheckedListBox because native / Wine
+/// multi-column painting can leave unthemed black gaps between cells.
+/// </summary>
+internal sealed class StalkerLanguageSelector : Panel
+{
+    private readonly List<StalkerLanguageCheckBox> _items = new();
+    private bool _loading;
+
+    public event EventHandler? SelectionChanged;
+
+    public StalkerLanguageSelector()
+    {
+        BackColor = StalkerTheme.PanelAlt;
+        ForeColor = StalkerTheme.Text;
+        Padding = new Padding(6, 4, 6, 4);
+        Margin = new Padding(0);
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
+    }
+
+    public IReadOnlyCollection<int> CheckedIds =>
+        _items.Where(item => item.Checked).Select(item => item.LanguageId).ToArray();
+
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        const int preferredColumnWidth = 220;
+        const int preferredRowHeight = 27;
+
+        var availableWidth = proposedSize.Width > 0
+            ? Math.Max(1, proposedSize.Width - Padding.Horizontal)
+            : Math.Max(1, Width - Padding.Horizontal);
+        var columns = PreferredColumnCount(availableWidth);
+        var count = Math.Max(1, _items.Count);
+        var rows = Math.Max(1, (int)Math.Ceiling(count / (double)columns));
+
+        var preferredWidth = Padding.Horizontal + columns * preferredColumnWidth;
+        var preferredHeight = Padding.Vertical + rows * preferredRowHeight;
+
+        if (proposedSize.Width > 0)
+            preferredWidth = Math.Min(preferredWidth, proposedSize.Width);
+
+        return new Size(preferredWidth, preferredHeight);
+    }
+
+    private static int PreferredColumnCount(int availableWidth)
+    {
+        if (availableWidth < 520)
+            return 2;
+        if (availableWidth < 800)
+            return 3;
+        return 5;
+    }
+
+    public void SetLanguages(IEnumerable<(int Id, string Name, bool Checked)> languages)
+    {
+        var values = languages.ToList();
+
+        _loading = true;
+        SuspendLayout();
+        try
+        {
+            foreach (var item in _items)
+                item.Dispose();
+
+            _items.Clear();
+            Controls.Clear();
+
+            foreach (var option in values)
+            {
+                var check = new StalkerLanguageCheckBox
+                {
+                    LanguageId = option.Id,
+                    Text = option.Name,
+                    Checked = option.Checked,
+                };
+
+                check.CheckedChanged += (_, _) =>
+                {
+                    if (!_loading)
+                        SelectionChanged?.Invoke(this, EventArgs.Empty);
+                };
+
+                _items.Add(check);
+                Controls.Add(check);
+            }
+
+            LayoutItems();
+        }
+        finally
+        {
+            ResumeLayout(true);
+            _loading = false;
+
+            var preferred = GetPreferredSize(
+                new Size(Parent?.ClientSize.Width ?? Width, 0)
+            );
+            Height = preferred.Height;
+            Parent?.PerformLayout();
+        }
+    }
+
+    protected override void OnResize(EventArgs eventargs)
+    {
+        base.OnResize(eventargs);
+
+        var preferred = GetPreferredSize(
+            new Size(Parent?.ClientSize.Width ?? Width, 0)
+        );
+        if (Height != preferred.Height)
+            Height = preferred.Height;
+
+        LayoutItems();
+        Invalidate();
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        e.Graphics.Clear(StalkerTheme.PanelAlt);
+    }
+
+    private void LayoutItems()
+    {
+        if (_items.Count == 0 || ClientSize.Width <= 0 || ClientSize.Height <= 0)
+            return;
+
+        const int preferredColumnWidth = 220;
+        const int preferredRowHeight = 27;
+
+        var contentLeft = Padding.Left;
+        var contentTop = Padding.Top;
+        var availableWidth = Math.Max(1, ClientSize.Width - Padding.Horizontal);
+        var availableHeight = Math.Max(1, ClientSize.Height - Padding.Vertical);
+        var columns = PreferredColumnCount(availableWidth);
+        var rows = Math.Max(1, (int)Math.Ceiling(_items.Count / (double)columns));
+
+        var columnWidth = Math.Min(
+            preferredColumnWidth,
+            Math.Max(1, availableWidth / columns)
+        );
+        var contentWidth = Math.Min(availableWidth, columnWidth * columns);
+
+        var rowHeight = Math.Min(
+            preferredRowHeight,
+            Math.Max(1, availableHeight / rows)
+        );
+
+        for (var index = 0; index < _items.Count; index++)
+        {
+            var column = index / rows;
+            var row = index % rows;
+
+            var left = contentLeft + column * columnWidth;
+            var top = contentTop + row * rowHeight;
+
+            _items[index].Bounds = new Rectangle(
+                left,
+                top,
+                Math.Max(1, columnWidth),
+                Math.Max(1, rowHeight)
+            );
+        }
+    }
+}
+
+/// <summary>
+/// Owner-drawn square language checkbox with a consistent graphite background and yellow check.
+/// </summary>
+internal sealed class StalkerLanguageCheckBox : CheckBox
+{
+    private bool _hovered;
+
+    public int LanguageId { get; set; }
+
+    public StalkerLanguageCheckBox()
+    {
+        AutoSize = false;
+        Height = 24;
+        BackColor = StalkerTheme.PanelAlt;
+        ForeColor = StalkerTheme.Text;
+        Cursor = Cursors.Hand;
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer,
+            true);
+    }
+
+    protected override void OnMouseEnter(EventArgs eventargs)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(eventargs);
+    }
+
+    protected override void OnMouseLeave(EventArgs eventargs)
+    {
+        _hovered = false;
+        Invalidate();
+        base.OnMouseLeave(eventargs);
+    }
+
+    protected override void OnCheckedChanged(EventArgs e)
+    {
+        Invalidate();
+        base.OnCheckedChanged(e);
+    }
+
+    protected override void OnEnabledChanged(EventArgs e)
+    {
+        Invalidate();
+        base.OnEnabledChanged(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs pevent)
+    {
+        pevent.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.PanelAlt);
 
         var box = new Rectangle(
-            e.Bounds.Left + 7,
-            e.Bounds.Top + (e.Bounds.Height - 14) / 2,
+            6,
+            Math.Max(0, (Height - 14) / 2),
             14,
             14);
 
-        using (var border = new Pen(GetItemChecked(e.Index) ? StalkerTheme.Accent : StalkerTheme.Border))
-            e.Graphics.DrawRectangle(border, box);
+        var borderColor = Checked || _hovered
+            ? StalkerTheme.Accent
+            : StalkerTheme.Border;
 
-        if (GetItemChecked(e.Index))
+        using (var border = new Pen(borderColor))
+            pevent.Graphics.DrawRectangle(border, box);
+
+        if (Checked)
         {
             using var fill = new SolidBrush(StalkerTheme.Accent);
-            var inner = Rectangle.Inflate(box, -3, -3);
-            e.Graphics.FillRectangle(fill, inner);
+            pevent.Graphics.FillRectangle(fill, Rectangle.Inflate(box, -3, -3));
         }
 
-        var textBounds = new Rectangle(
+        var textRect = new Rectangle(
             box.Right + 8,
-            e.Bounds.Top,
-            Math.Max(0, e.Bounds.Width - box.Right - 12),
-            e.Bounds.Height);
+            0,
+            Math.Max(0, Width - box.Right - 12),
+            Height);
 
         TextRenderer.DrawText(
-            e.Graphics,
-            GetItemText(Items[e.Index]),
+            pevent.Graphics,
+            Text,
             Font,
-            textBounds,
-            selected ? StalkerTheme.Accent : StalkerTheme.Text,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-
-        e.DrawFocusRectangle();
+            textRect,
+            Enabled
+                ? (_hovered ? StalkerTheme.Accent : StalkerTheme.Text)
+                : StalkerTheme.MutedText,
+            TextFormatFlags.Left
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis
+            | TextFormatFlags.NoPrefix);
     }
 }
 

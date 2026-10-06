@@ -69,26 +69,53 @@ public static class LocalizationDatabaseCodec
     public static byte[] Serialize(LocalizationPayload parsed)
     {
         using var stream = new MemoryStream();
+        WritePayload(stream, parsed);
+        return stream.ToArray();
+    }
+
+    public static bool RoundTripMatches(
+        LocalizationPayload parsed,
+        byte[] originalPayload)
+    {
+        using var stream = new ComparingWriteStream(originalPayload);
+        WritePayload(stream, parsed);
+        return stream.IsExactMatch;
+    }
+
+    private static void WritePayload(
+        Stream stream,
+        LocalizationPayload parsed)
+    {
         stream.Write(parsed.RootHeader);
         WriteInt32(stream, parsed.Records.Count);
 
         foreach (var record in parsed.Records)
         {
-            stream.Write(UnrealStringCodec.WriteFString(record.Sid, record.SidEncoding));
+            UnrealStringCodec.WriteFString(
+                stream,
+                record.Sid,
+                record.SidEncoding
+            );
             stream.Write(record.NestedHeader);
             WriteInt32(stream, record.Translations.Count);
 
             foreach (var translation in record.Translations)
             {
                 Span<byte> idBytes = stackalloc byte[8];
-                BinaryPrimitives.WriteInt64LittleEndian(idBytes, translation.LanguageId);
+                BinaryPrimitives.WriteInt64LittleEndian(
+                    idBytes,
+                    translation.LanguageId
+                );
                 stream.Write(idBytes);
-                stream.Write(UnrealStringCodec.WriteFString(translation.Value, translation.Encoding));
+                UnrealStringCodec.WriteFString(
+                    stream,
+                    translation.Value,
+                    translation.Encoding
+                );
             }
         }
 
         stream.Write(parsed.Trailer);
-        return stream.ToArray();
     }
 
     public static PatchResult Patch(
@@ -97,46 +124,247 @@ public static class LocalizationDatabaseCodec
         int targetLanguageId,
         string sourceLabel)
     {
-        var parsed = Parse(originalPayload, sourceLabel);
-        var result = new PatchResult { RecordCount = parsed.Records.Count };
-
-        foreach (var record in parsed.Records)
+        if (originalPayload.Length < 10)
         {
-            if (!translations.TryGetValue(record.Sid, out var replacement) || string.IsNullOrEmpty(replacement))
-                continue;
-
-            result.MatchedSids.Add(record.Sid);
-            var target = record.Translations.FirstOrDefault(x => x.LanguageId == targetLanguageId);
-
-            if (target is null)
-            {
-                record.Translations.Add(new LocalizationTranslation
-                {
-                    LanguageId = targetLanguageId,
-                    Value = replacement,
-                    Encoding = FStringEncoding.Wide,
-                });
-                result.ChangedSids.Add(record.Sid);
-                result.ExpectedValues[record.Sid] = replacement;
-                continue;
-            }
-
-            if (string.Equals(target.Value, replacement, StringComparison.Ordinal))
-            {
-                result.AlreadyCorrectSids.Add(record.Sid);
-                continue;
-            }
-
-            target.Value = replacement;
-            target.Encoding = FStringEncoding.Wide;
-            result.ChangedSids.Add(record.Sid);
-            result.ExpectedValues[record.Sid] = replacement;
+            throw new InvalidDataException(
+                $"{sourceLabel}: localization payload is too small"
+            );
         }
 
-        result.Payload = Serialize(parsed);
+        var offset = 6;
+        var recordCount = ReadInt32(
+            originalPayload,
+            ref offset,
+            sourceLabel + ": record count"
+        );
+        if (recordCount < 0 || recordCount > 100000)
+        {
+            throw new InvalidDataException(
+                $"{sourceLabel}: unreasonable localization record count "
+                + $"{recordCount}"
+            );
+        }
 
-        if (result.ChangedSids.Count == 0 && !result.Payload.AsSpan().SequenceEqual(originalPayload))
-            throw new InvalidDataException($"{sourceLabel}: parser changed an untouched localization payload");
+        var result = new PatchResult
+        {
+            RecordCount = recordCount,
+        };
+
+        MemoryStream? output = null;
+
+        void EnsureOutput(int unchangedPrefixLength)
+        {
+            if (output is not null)
+                return;
+
+            output = new MemoryStream(originalPayload.Length);
+            output.Write(
+                originalPayload.AsSpan(0, unchangedPrefixLength)
+            );
+        }
+
+        for (var recordIndex = 0;
+             recordIndex < recordCount;
+             recordIndex++)
+        {
+            var recordStart = offset;
+
+            var sidResult = UnrealStringCodec.ReadFString(
+                originalPayload,
+                offset
+            );
+            offset = sidResult.Offset;
+            if (string.IsNullOrEmpty(sidResult.Value))
+            {
+                throw new InvalidDataException(
+                    $"{sourceLabel}: empty SID at record {recordIndex}"
+                );
+            }
+
+            Ensure(
+                originalPayload,
+                offset,
+                10,
+                $"{sourceLabel}: truncated record {recordIndex} "
+                + $"({sidResult.Value})"
+            );
+
+            offset += 6; // nested header
+            var translationCountOffset = offset;
+            var translationCount = ReadInt32(
+                originalPayload,
+                ref offset,
+                sourceLabel + ": translation count"
+            );
+            if (translationCount < 0 || translationCount > 256)
+            {
+                throw new InvalidDataException(
+                    $"{sourceLabel}: unreasonable translation count "
+                    + $"{translationCount} for {sidResult.Value}"
+                );
+            }
+
+            var translationsStart = offset;
+            var hasReplacement = translations.TryGetValue(
+                sidResult.Value,
+                out var replacement
+            ) && !string.IsNullOrEmpty(replacement);
+
+            var targetFound = false;
+            string? targetValue = null;
+            var targetValueStart = -1;
+            var targetValueEnd = -1;
+
+            for (var i = 0; i < translationCount; i++)
+            {
+                Ensure(
+                    originalPayload,
+                    offset,
+                    8,
+                    $"{sourceLabel}: truncated language id for "
+                    + sidResult.Value
+                );
+
+                var languageId = BinaryPrimitives.ReadInt64LittleEndian(
+                    originalPayload.AsSpan(offset, 8)
+                );
+                offset += 8;
+
+                var valueStart = offset;
+
+                if (hasReplacement
+                    && !targetFound
+                    && languageId == targetLanguageId)
+                {
+                    var valueResult = UnrealStringCodec.ReadFString(
+                        originalPayload,
+                        offset
+                    );
+                    offset = valueResult.Offset;
+
+                    targetFound = true;
+                    targetValue = valueResult.Value;
+                    targetValueStart = valueStart;
+                    targetValueEnd = offset;
+                }
+                else
+                {
+                    offset = UnrealStringCodec.SkipFString(
+                        originalPayload,
+                        offset
+                    );
+                }
+            }
+
+            var recordEnd = offset;
+
+            if (!hasReplacement)
+            {
+                if (output is not null)
+                {
+                    output.Write(
+                        originalPayload.AsSpan(
+                            recordStart,
+                            recordEnd - recordStart
+                        )
+                    );
+                }
+                continue;
+            }
+
+            result.MatchedSids.Add(sidResult.Value);
+
+            if (targetFound
+                && string.Equals(
+                    targetValue,
+                    replacement,
+                    StringComparison.Ordinal))
+            {
+                result.AlreadyCorrectSids.Add(sidResult.Value);
+
+                if (output is not null)
+                {
+                    output.Write(
+                        originalPayload.AsSpan(
+                            recordStart,
+                            recordEnd - recordStart
+                        )
+                    );
+                }
+                continue;
+            }
+
+            result.ChangedSids.Add(sidResult.Value);
+            result.ExpectedValues[sidResult.Value] = replacement!;
+
+            EnsureOutput(recordStart);
+
+            if (targetFound)
+            {
+                output!.Write(
+                    originalPayload.AsSpan(
+                        recordStart,
+                        targetValueStart - recordStart
+                    )
+                );
+                UnrealStringCodec.WriteFString(
+                    output,
+                    replacement,
+                    FStringEncoding.Wide
+                );
+                output.Write(
+                    originalPayload.AsSpan(
+                        targetValueEnd,
+                        recordEnd - targetValueEnd
+                    )
+                );
+            }
+            else
+            {
+                output!.Write(
+                    originalPayload.AsSpan(
+                        recordStart,
+                        translationCountOffset - recordStart
+                    )
+                );
+                WriteInt32(output, checked(translationCount + 1));
+                output.Write(
+                    originalPayload.AsSpan(
+                        translationsStart,
+                        recordEnd - translationsStart
+                    )
+                );
+
+                Span<byte> languageBytes = stackalloc byte[8];
+                BinaryPrimitives.WriteInt64LittleEndian(
+                    languageBytes,
+                    targetLanguageId
+                );
+                output.Write(languageBytes);
+                UnrealStringCodec.WriteFString(
+                    output,
+                    replacement,
+                    FStringEncoding.Wide
+                );
+            }
+        }
+
+        if (output is null)
+        {
+            // No changed value means no rewrite at all: preserve the original
+            // payload object byte-for-byte without a second serialization pass.
+            result.Payload = originalPayload;
+            return result;
+        }
+
+        output.Write(
+            originalPayload.AsSpan(
+                offset,
+                originalPayload.Length - offset
+            )
+        );
+        result.Payload = output.ToArray();
+        output.Dispose();
 
         return result;
     }
@@ -161,6 +389,77 @@ public static class LocalizationDatabaseCodec
 
         if (failures.Count > 0)
             throw new InvalidDataException(label + ": patched localization verification failed\r\n" + string.Join("\r\n", failures));
+    }
+
+    private sealed class ComparingWriteStream : Stream
+    {
+        private readonly byte[] _expected;
+        private int _offset;
+        private bool _matches = true;
+
+        public ComparingWriteStream(byte[] expected)
+        {
+            _expected = expected;
+        }
+
+        public bool IsExactMatch =>
+            _matches && _offset == _expected.Length;
+
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => _offset;
+
+        public override long Position
+        {
+            get => _offset;
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override void Write(
+            byte[] buffer,
+            int offset,
+            int count)
+        {
+            Write(buffer.AsSpan(offset, count));
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            if (_offset > _expected.Length - buffer.Length)
+            {
+                _matches = false;
+                _offset += buffer.Length;
+                return;
+            }
+
+            if (_matches
+                && !buffer.SequenceEqual(
+                    _expected.AsSpan(_offset, buffer.Length)))
+            {
+                _matches = false;
+            }
+
+            _offset += buffer.Length;
+        }
+
+        public override int Read(
+            byte[] buffer,
+            int offset,
+            int count) =>
+            throw new NotSupportedException();
+
+        public override long Seek(
+            long offset,
+            SeekOrigin origin) =>
+            throw new NotSupportedException();
+
+        public override void SetLength(long value) =>
+            throw new NotSupportedException();
     }
 
     private static int ReadInt32(byte[] data, ref int offset, string label)

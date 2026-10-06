@@ -12,8 +12,8 @@ internal static class AppConstants
     public const string UAssetGuiMappingsAlias = "LocalizationWorkbench";
     public const string LocalizationDatabaseNeedle = "LocalizationDatabase.uasset";
     public const string BaseGamePakChunkPrefix = "pakchunk0";
-    public const int ManifestSchemaVersion = 13;
-    public const string OverlayPrefix = "zzzzzzz_ISL";
+    public const int ManifestSchemaVersion = 14;
+    public const string OverlayPrefix = "zzzzzzz";
     public const string BaseGameLocresPakPrefix = "zzzzzz";
     public const string PakMountPoint = "../../../";
     public const string PakVersion = "V11";

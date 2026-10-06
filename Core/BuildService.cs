@@ -35,7 +35,9 @@ public sealed class BuildService
         CancellationToken cancellationToken = default)
     {
         var available = mods
-            .Where(x => x.UiStatus == ModUiStatus.Available && !string.IsNullOrWhiteSpace(x.EditableTranslationFile))
+            .Where(x =>
+                (x.UiStatus is ModUiStatus.Available or ModUiStatus.Extracted)
+                && !string.IsNullOrWhiteSpace(x.EditableTranslationFile))
             .ToList();
         ValidatePrerequisites(available, mode);
 
@@ -47,9 +49,10 @@ public sealed class BuildService
         {
             cancellationToken.ThrowIfCancellationRequested();
             var mod = available[i];
-            progress?.Report((i + 1, available.Count, mod.ModName));
+            progress?.Report((i, available.Count, $"Building {mod.ModName}"));
             _log?.Invoke($"=== Building {mod.ModName} ===");
             results.Add(await BuildOneAsync(mod, targetLanguageId, cancellationToken));
+            progress?.Report((i + 1, available.Count, $"Built {mod.ModName}"));
         }
         return results;
     }
@@ -157,16 +160,18 @@ public sealed class BuildService
         Directory.CreateDirectory(legacyRoot);
 
         var results = new List<ModBuildResult>();
+        var progressTotal = Math.Max(1, available.Count + 2);
         var expectedPackages = new Dictionary<string, ExpectedDatabasePackage>(StringComparer.OrdinalIgnoreCase);
         var pathOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var chunkOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var sourceContainerLabels = new List<string>();
         var scriptObjectsCopied = false;
 
         for (var i = 0; i < available.Count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var mod = available[i];
-            progress?.Report((i + 1, available.Count, mod.ModName));
+            progress?.Report((i, progressTotal, $"Adding {mod.ModName}"));
             _log?.Invoke($"=== Adding {mod.ModName} to All-in-One ===");
 
             var result = new ModBuildResult { ModId = mod.ModId, ModName = mod.ModName };
@@ -174,6 +179,7 @@ public sealed class BuildService
 
             var cachedRoot = Path.Combine(_settings.CachedFolder, mod.ModId);
             var manifest = LoadAndValidateManifest(mod, cachedRoot);
+            sourceContainerLabels.AddRange(manifest.SourceContainerLabels);
             var translations = LoadTranslations(mod);
 
             foreach (var asset in manifest.Assets)
@@ -191,8 +197,41 @@ public sealed class BuildService
                 RequireFile(sourceJson, "UAssetGUI JSON");
                 RequireFile(scriptObjects, "scriptobjects.bin");
 
-                var export = UAssetInspector.ReadLocalizationExport(sourceJson, asset.VirtualPath);
-                var patch = LocalizationDatabaseCodec.Patch(export.Payload, translations, language.Id, asset.VirtualPath);
+                var assetTimer = Stopwatch.StartNew();
+                _log?.Invoke(
+                    $"{mod.ModName} / {asset.DatabaseName}: "
+                    + "reading cached LocalizationDatabase for All-in-One..."
+                );
+
+                var export = UAssetInspector.ReadLocalizationExport(
+                    sourceJson,
+                    asset.VirtualPath
+                );
+
+                _log?.Invoke(
+                    $"{mod.ModName} / {asset.DatabaseName}: "
+                    + $"cached database loaded in "
+                    + $"{assetTimer.Elapsed.TotalSeconds:N1}s; "
+                    + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB"
+                );
+
+                var patchTimer = Stopwatch.StartNew();
+                var patch = LocalizationDatabaseCodec.Patch(
+                    export.Payload,
+                    translations,
+                    language.Id,
+                    asset.VirtualPath
+                );
+                patchTimer.Stop();
+
+                _log?.Invoke(
+                    $"{mod.ModName} / {asset.DatabaseName}: "
+                    + $"localization patch prepared in "
+                    + $"{patchTimer.Elapsed.TotalSeconds:N1}s; "
+                    + $"matched={patch.MatchedSids.Count}, "
+                    + $"changed={patch.ChangedSids.Count}"
+                );
+
                 result.MatchedSids += patch.MatchedSids.Count;
                 result.ChangedSids += patch.ChangedSids.Count;
 
@@ -222,6 +261,7 @@ public sealed class BuildService
                 chunkOwners[asset.ZenChunkId] = mod.ModName;
 
                 var outputUasset = Path.Combine(legacyRoot, asset.LegacyRelativePath);
+                var packageTimer = Stopwatch.StartNew();
                 var patchInfo = PackagePatcher.PatchLegacyPackage(
                     sourceUasset,
                     sourceUexp,
@@ -229,6 +269,12 @@ public sealed class BuildService
                     patch.Payload,
                     outputUasset,
                     asset.VirtualPath
+                );
+                packageTimer.Stop();
+                _log?.Invoke(
+                    $"{mod.ModName} / {asset.DatabaseName}: "
+                    + $"legacy package patched in "
+                    + $"{packageTimer.Elapsed.TotalSeconds:N1}s"
                 );
 
                 _log?.Invoke(
@@ -254,6 +300,8 @@ public sealed class BuildService
                 expectedPackages[identityPath] = ExpectedDatabasePackage.From(asset, patch.Payload, mod.ModName);
                 result.AssetsPatched++;
             }
+
+            progress?.Report((i + 1, progressTotal, $"Added {mod.ModName}"));
         }
 
         if (expectedPackages.Count == 0)
@@ -267,19 +315,27 @@ public sealed class BuildService
             return results;
         }
 
-        var outputUtoc = Path.Combine(outputRoot, $"{AppConstants.OverlayPrefix}_All_In_One_P.utoc");
+        var allInOnePatchSuffix = PathUtil.GetOverlayPatchSuffix(sourceContainerLabels);
+        var outputUtoc = Path.Combine(
+            outputRoot,
+            $"{AppConstants.OverlayPrefix}_All_In_One{allInOnePatchSuffix}.utoc"
+        );
+        _log?.Invoke($"All-in-One overlay patch suffix: {allInOnePatchSuffix}");
+        progress?.Report((available.Count, progressTotal, "Packaging All-in-One"));
         await _retoc.ToZenAsync(legacyRoot, outputUtoc, cancellationToken);
 
         RequireFile(outputUtoc, "built All-in-One database .utoc");
         RequireFile(Path.ChangeExtension(outputUtoc, ".ucas"), "built All-in-One database .ucas");
         RequireFile(Path.ChangeExtension(outputUtoc, ".pak"), "built All-in-One database .pak");
 
+        progress?.Report((available.Count + 1, progressTotal, "Verifying All-in-One"));
         await VerifyFinishedPackagesAsync(
             outputUtoc,
             expectedPackages,
             Path.Combine(workRoot, "database"),
             cancellationToken
         );
+        progress?.Report((progressTotal, progressTotal, "All-in-One verified"));
 
         var sharedFiles = new[]
         {
@@ -343,8 +399,42 @@ public sealed class BuildService
             RequireFile(sourceJson, "UAssetGUI JSON");
             RequireFile(scriptObjects, "scriptobjects.bin");
 
-            var export = UAssetInspector.ReadLocalizationExport(sourceJson, asset.VirtualPath);
-            var patch = LocalizationDatabaseCodec.Patch(export.Payload, translations, language.Id, asset.VirtualPath);
+            var assetTimer = Stopwatch.StartNew();
+            _log?.Invoke(
+                $"{manifest.ModName} / {asset.DatabaseName}: "
+                + "reading cached LocalizationDatabase..."
+            );
+
+            var export = UAssetInspector.ReadLocalizationExport(
+                sourceJson,
+                asset.VirtualPath
+            );
+
+            var inspectElapsed = assetTimer.Elapsed;
+            _log?.Invoke(
+                $"{manifest.ModName} / {asset.DatabaseName}: "
+                + $"cached database loaded in "
+                + $"{inspectElapsed.TotalSeconds:N1}s; "
+                + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB"
+            );
+
+            var patchTimer = Stopwatch.StartNew();
+            var patch = LocalizationDatabaseCodec.Patch(
+                export.Payload,
+                translations,
+                language.Id,
+                asset.VirtualPath
+            );
+            patchTimer.Stop();
+
+            _log?.Invoke(
+                $"{manifest.ModName} / {asset.DatabaseName}: "
+                + $"localization patch prepared in "
+                + $"{patchTimer.Elapsed.TotalSeconds:N1}s; "
+                + $"matched={patch.MatchedSids.Count}, "
+                + $"changed={patch.ChangedSids.Count}"
+            );
+
             matchedTotal += patch.MatchedSids.Count;
             changedTotal += patch.ChangedSids.Count;
 
@@ -355,6 +445,7 @@ public sealed class BuildService
 
             assetsPatched++;
             var outputUasset = Path.Combine(legacyRoot, asset.LegacyRelativePath);
+            var packageTimer = Stopwatch.StartNew();
             var patchInfo = PackagePatcher.PatchLegacyPackage(
                 sourceUasset,
                 sourceUexp,
@@ -362,6 +453,12 @@ public sealed class BuildService
                 patch.Payload,
                 outputUasset,
                 asset.VirtualPath
+            );
+            packageTimer.Stop();
+            _log?.Invoke(
+                $"{manifest.ModName} / {asset.DatabaseName}: "
+                + $"legacy package patched in "
+                + $"{packageTimer.Elapsed.TotalSeconds:N1}s"
             );
 
             _log?.Invoke(
@@ -402,7 +499,12 @@ public sealed class BuildService
         }
 
         var safe = Regex.Replace(PathUtil.MakeSafeName(manifest.ModName), @"[^A-Za-z0-9._-]+", "_");
-        var outputUtoc = Path.Combine(outputModRoot, $"{AppConstants.OverlayPrefix}_{safe}_P.utoc");
+        var patchSuffix = PathUtil.GetOverlayPatchSuffix(manifest.SourceContainerLabels);
+        var outputUtoc = Path.Combine(
+            outputModRoot,
+            $"{AppConstants.OverlayPrefix}_{safe}{patchSuffix}.utoc"
+        );
+        _log?.Invoke($"{manifest.ModName}: overlay patch suffix {patchSuffix}");
         await _retoc.ToZenAsync(legacyRoot, outputUtoc, cancellationToken);
 
         RequireFile(outputUtoc, "built database .utoc");
@@ -764,8 +866,7 @@ public sealed class BuildService
             RequireFile(_settings.RetocPath, "retoc.exe");
             RequireFile(_settings.UAssetGuiPath, "UAssetGUI.exe");
             RequireFile(_settings.MappingsPath, "Mappings.usmap");
-            RequireFile(Path.Combine(_settings.GamePaksFolder, "global.utoc"), "game global.utoc");
-            RequireFile(Path.Combine(_settings.GamePaksFolder, "global.ucas"), "game global.ucas");
+            RequireValidGamePaksFolder();
         }
 
         if (mode == BuildMode.Modular
@@ -774,6 +875,19 @@ public sealed class BuildService
         {
             RequireFile(_settings.RepakPath, "repak.exe");
             RequireFile(_settings.S2HocmmPath, "S2HOCMM.exe");
+        }
+    }
+
+    private void RequireValidGamePaksFolder()
+    {
+        if (string.IsNullOrWhiteSpace(_settings.GamePaksFolder)
+            || !Directory.Exists(_settings.GamePaksFolder)
+            || !File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc"))
+            || !File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas")))
+        {
+            throw new InvalidOperationException(
+                "Game Paks folder is not valid. Set the Game Paks folder in Settings."
+            );
         }
     }
 

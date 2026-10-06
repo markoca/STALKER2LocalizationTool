@@ -20,72 +20,134 @@ public sealed class RetocService
         string modsRoot,
         CancellationToken cancellationToken = default)
     {
-        var result = await ProcessRunner.RunAsync(
-            _retocPath,
-            new[] { "list", "--path", utocPath },
-            null,
-            cancellationToken
-        );
-
         var assets = new List<LocalizationAlias>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Exception? parseError = null;
+        var gate = new object();
 
-        foreach (var rawLine in result.StandardOutput.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
+        void ConsumeLine(string rawLine)
         {
-            var line = rawLine.Replace('\\', '/');
-            if (!line.Contains(AppConstants.LocalizationDatabaseNeedle, StringComparison.OrdinalIgnoreCase))
-                continue;
+            if (parseError is not null)
+                return;
 
-            var chunkMatch = ChunkRegex.Match(line);
-            if (!chunkMatch.Success)
-                throw new InvalidDataException($"Could not read IoStore chunk ID from: {line}");
-
-            var parts = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-            string? virtualPath = null;
-
-            var pathMatch = Regex.Match(
-                line,
-                @"(?<path>(?:\.\./){3}.*LocalizationDatabase\.uasset)\s*$",
-                RegexOptions.IgnoreCase
-            );
-            if (pathMatch.Success)
-                virtualPath = pathMatch.Groups["path"].Value;
-            else if (parts.Length > 0 && parts[^1].EndsWith("LocalizationDatabase.uasset", StringComparison.OrdinalIgnoreCase))
-                virtualPath = parts[^1];
-
-            if (string.IsNullOrWhiteSpace(virtualPath))
-                continue;
-
-            var alias = new LocalizationAlias
+            try
             {
-                ZenChunkId = chunkMatch.Value.ToLowerInvariant(),
-                VirtualPath = virtualPath,
-                SourceUtoc = utocPath,
-                SourceUtocRelative = Path.GetRelativePath(modsRoot, utocPath),
-            };
+                var line = rawLine.Replace('\\', '/');
+                if (!line.Contains(
+                        AppConstants.LocalizationDatabaseNeedle,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
 
-            var key = alias.ZenChunkId + "|" + alias.VirtualPath;
-            if (seen.Add(key))
-                assets.Add(alias);
+                var chunkMatch = ChunkRegex.Match(line);
+                if (!chunkMatch.Success)
+                {
+                    throw new InvalidDataException(
+                        $"Could not read IoStore chunk ID from: {line}"
+                    );
+                }
+
+                var parts = line.Split(
+                    (char[]?)null,
+                    StringSplitOptions.RemoveEmptyEntries
+                );
+                string? virtualPath = null;
+
+                var pathMatch = Regex.Match(
+                    line,
+                    @"(?<path>(?:\.\./){3}.*LocalizationDatabase\.uasset)\s*$",
+                    RegexOptions.IgnoreCase
+                );
+                if (pathMatch.Success)
+                    virtualPath = pathMatch.Groups["path"].Value;
+                else if (parts.Length > 0
+                         && parts[^1].EndsWith(
+                             "LocalizationDatabase.uasset",
+                             StringComparison.OrdinalIgnoreCase))
+                    virtualPath = parts[^1];
+
+                if (string.IsNullOrWhiteSpace(virtualPath))
+                    return;
+
+                var alias = new LocalizationAlias
+                {
+                    ZenChunkId = chunkMatch.Value.ToLowerInvariant(),
+                    VirtualPath = virtualPath,
+                    SourceUtoc = utocPath,
+                    SourceUtocRelative = Path.GetRelativePath(
+                        modsRoot,
+                        utocPath
+                    ),
+                };
+
+                var key = alias.ZenChunkId + "|" + alias.VirtualPath;
+
+                lock (gate)
+                {
+                    if (seen.Add(key))
+                        assets.Add(alias);
+                }
+            }
+            catch (Exception ex)
+            {
+                parseError = ex;
+            }
         }
 
-        return assets
-            .OrderBy(x => x.VirtualPath, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.ZenChunkId, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        await ProcessRunner.RunAsync(
+            _retocPath,
+            new[] { "list", "--path", utocPath },
+            log: null,
+            cancellationToken: cancellationToken,
+            outputLine: ConsumeLine,
+            captureStandardOutput: false
+        );
+
+        if (parseError is not null)
+            throw parseError;
+
+        lock (gate)
+        {
+            return assets
+                .OrderBy(x => x.VirtualPath, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.ZenChunkId, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
     }
 
-    public Task ToLegacyAsync(
+    public async Task ToLegacyAsync(
         string inputDirectory,
         string outputDirectory,
         string filter,
         CancellationToken cancellationToken = default)
     {
-        return ProcessRunner.RunAsync(
+        var stopwatch = Stopwatch.StartNew();
+        _log?.Invoke(
+            $"retoc to-legacy: extracting localization assets only "
+            + $"(--no-shaders, filter={filter})"
+        );
+
+        await ProcessRunner.RunAsync(
             _retocPath,
-            new[] { "to-legacy", inputDirectory, outputDirectory, "--filter", filter },
-            _log,
-            cancellationToken
+            new[]
+            {
+                "to-legacy",
+                inputDirectory,
+                outputDirectory,
+                "--filter",
+                filter,
+                "--no-shaders",
+            },
+            log: null,
+            cancellationToken: cancellationToken,
+            captureStandardOutput: false,
+            priorityClass: ProcessPriorityClass.BelowNormal
+        );
+
+        stopwatch.Stop();
+        _log?.Invoke(
+            $"retoc to-legacy completed in {stopwatch.Elapsed.TotalSeconds:N1}s"
         );
     }
 

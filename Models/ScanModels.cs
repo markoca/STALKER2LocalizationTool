@@ -8,6 +8,7 @@ public enum ModUiStatus
     MissingTranslation,
     NoLanguageSelected,
     Available,
+    Extracted,
     BuiltVerified,
     Error,
 }
@@ -35,12 +36,28 @@ public sealed class LocresSource
     public string CultureCode { get; set; } = string.Empty;
 }
 
+public sealed class ModScanSnapshot
+{
+    public int Version { get; set; } = 1;
+    public string ModsFolder { get; set; } = string.Empty;
+    public DateTime SavedAtUtc { get; set; }
+    public List<ModScanResult> Mods { get; set; } = new();
+}
+
 public sealed class ModScanResult
 {
     public string ModId { get; set; } = string.Empty;
     public string ModName { get; set; } = string.Empty;
     public string ModSourceRoot { get; set; } = string.Empty;
+    public string SourceKind { get; set; } = "loose";
+    public string SourceLabel { get; set; } = string.Empty;
     public List<string> Containers { get; set; } = new();
+    public List<string> ContainerLabels { get; set; } = new();
+    public List<string> OriginalSourceFiles { get; set; } = new();
+
+    [JsonIgnore]
+    public Dictionary<string, string> ContainerLabelsByPath { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
     public List<string> PakFiles { get; set; } = new();
     public List<LocalizationAssetGroup> Assets { get; set; } = new();
     public List<LocresSource> LocresAssets { get; set; } = new();

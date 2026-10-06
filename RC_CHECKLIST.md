@@ -1,13 +1,37 @@
-# RC6 checklist
+# Release candidate checklist
 
-- [ ] `tools\` contains prebuilt `retoc.exe`, `repak.exe`, `UAssetGUI.exe`, `Mappings.usmap`, and `S2HOCMM.exe`.
-- [ ] Publish performs no Git clone, download, Rust/cargo build, Python patch step, or retoc compilation.
-- [ ] Stock `retoc.exe to-zen --help` runs successfully; `--source-package-map` is not required.
-- [ ] MODS scans NewContent/OverrideContent aliases together and groups only by the complete 24-hex Zen chunk ID.
-- [ ] A complete OverrideContent alias is preferred when available; incompatible/incomplete alias SID sets fail safely.
-- [ ] Modular build verifies canonical output path, original complete chunk/FPackageId, and exact patched RawExport.
-- [ ] All-in-One performs the same stock-retoc path/chunk/payload verification.
-- [ ] Already-correct target-language database values do not create redundant physical overlays.
-- [ ] GAME scans only pakchunk0 localization, builds from Editable JSON, verifies S2HOCMM round-trip, and uses repak V11 + path hash seed 1244705156.
-- [ ] Publish output contains the application plus the complete project-local `tools\` bundle.
-- [ ] Windows EXE starts without the RC4 custom app.manifest Side-by-Side failure.
+## Publish
+
+- [ ] `tools/win-x64/` contains `retoc.exe`, `repak.exe`, `UAssetGUI.exe`, `Mappings.usmap`, and `S2HOCMM.exe`.
+- [ ] Linux `publish-win-x64.sh` succeeds without executing Windows helper binaries.
+- [ ] Windows `publish-win-x64.ps1` succeeds with the same target bundle.
+- [ ] Published runtime contains only the expected `tools/` bundle and no duplicate `tools/win-x64/` nesting.
+- [ ] `Localization Workbench.exe` starts on Windows and under the development Wine prefix.
+
+## GAME
+
+- [ ] SCAN GAME reaches **READY FOR EXTRACTION** for a new/changed source.
+- [ ] EXTRACT creates `Cached/Game` and `Editable/Game`.
+- [ ] A valid existing extraction reaches **READY TO BUILD** without rescanning after extraction.
+- [ ] Deleting `Editable/Game` while keeping valid `Cached/Game` makes EXTRACT available again and reports **READY FOR EXTRACTION**.
+- [ ] Cached -> Editable recovery does not require a new source extraction.
+- [ ] BUILD verifies S2HOCMM output and the final repak package.
+
+## MODS
+
+- [ ] SCAN MODS discovers loose and ZIP/7z/RAR sources.
+- [ ] NewContent containers are ignored and OverrideContent is used.
+- [ ] Nexus download IDs are not shown in mod display names and detected versions are normalized.
+- [ ] New/changed mods show **Needs extraction**.
+- [ ] Successful extraction changes the status to **Extracted** without an automatic second scan.
+- [ ] Removing Editable translation files while keeping valid Cached data enables EXTRACT recovery.
+- [ ] Recovery copies only missing Editable files and never overwrites existing edits.
+- [ ] Modular and All-in-One builds complete and round-trip verification passes.
+- [ ] Already-correct target-language values do not emit redundant physical overlays.
+
+## Workspace and UI
+
+- [ ] DELETE CACHE removes Cached state and forces MODS to be scanned again.
+- [ ] Legacy `Extracted` / `Ready` defaults migrate safely when encountered.
+- [ ] GAME / MODS workflow buttons remain step-aware.
+- [ ] Custom title bar, window controls and spinning radiation mark render correctly.

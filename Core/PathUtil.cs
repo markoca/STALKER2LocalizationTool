@@ -18,6 +18,133 @@ public static class PathUtil
         return MakeSafeName(name);
     }
 
+    public static string ArchiveModDisplayName(string archiveNameOrPath)
+    {
+        var archiveName = Path.GetFileName(
+            archiveNameOrPath
+        ).Trim();
+
+        // This method is sometimes called with the real archive filename and
+        // sometimes with an already extensionless display name. Never call
+        // GetFileNameWithoutExtension blindly here because a dotted version
+        // such as "0.4" would be mistaken for a file extension on the second
+        // pass. Strip only actual supported archive extensions.
+        var archiveExtension = Path.GetExtension(archiveName);
+        if (archiveExtension.Equals(".zip", StringComparison.OrdinalIgnoreCase)
+            || archiveExtension.Equals(".7z", StringComparison.OrdinalIgnoreCase)
+            || archiveExtension.Equals(".rar", StringComparison.OrdinalIgnoreCase))
+        {
+            archiveName = archiveName[..^archiveExtension.Length];
+        }
+
+        // Nexus-style names commonly look like:
+        //   <title> <3-4 digit Nexus ID> <version> <timestamp> <hash>
+        // The Nexus ID is metadata and is never part of the displayed mod name.
+        //
+        // Version rule:
+        //   1. Prefer the first explicit x.x / x.x.x version in the title.
+        //   2. Otherwise use the version token immediately after the Nexus ID.
+        //   3. A plain integer fallback is normalized to x.0.
+        //
+        // Examples:
+        //   ZoneMedicine V0.4 2803 0.4 ... -> ZoneMedicine v0.4
+        //   TrueGunNames 2932 1 ...         -> TrueGunNames v1.0
+
+        string baseName;
+        string metadataVersion;
+
+        var fullNexus = Regex.Match(
+            archiveName,
+            @"^(?<base>.+?)\s+(?<id>\d{3,4})\s+(?<version>\S+)\s+"
+            + @"(?<date>\d{4}-\d{2}-\d{2}T\d{2}-\d{2}Z)\s+"
+            + @"(?<hash>\S+)$",
+            RegexOptions.CultureInvariant
+        );
+
+        if (fullNexus.Success)
+        {
+            baseName = fullNexus.Groups["base"].Value.Trim();
+            metadataVersion = fullNexus.Groups["version"].Value.Trim();
+        }
+        else
+        {
+            // Loose/extracted folders may retain only:
+            //   <title> <3-4 digit Nexus ID> <version>
+            var shortNexus = Regex.Match(
+                archiveName,
+                @"^(?<base>.+?)\s+(?<id>\d{3,4})\s+(?<version>\S+)$",
+                RegexOptions.CultureInvariant
+            );
+
+            if (!shortNexus.Success)
+                return MakeSafeName(archiveName);
+
+            baseName = shortNexus.Groups["base"].Value.Trim();
+            metadataVersion = shortNexus.Groups["version"].Value.Trim();
+        }
+
+        var dottedVersion = Regex.Match(
+            baseName,
+            @"(?<!\d)[vV]?(?<version>\d+\.\d+(?:\.\d+)?)(?![\d.])",
+            RegexOptions.CultureInvariant
+        );
+
+        string version;
+        if (dottedVersion.Success)
+        {
+            version = dottedVersion.Groups["version"].Value;
+
+            // The explicit version itself is not part of the base title.
+            baseName = baseName[..dottedVersion.Index]
+                .TrimEnd(' ', '-', '_');
+        }
+        else
+        {
+            var normalizedMetadataVersion = metadataVersion
+                .Trim()
+                .TrimStart('v', 'V');
+
+            var metadataDotted = Regex.Match(
+                normalizedMetadataVersion,
+                @"^(?<version>\d+\.\d+(?:\.\d+)?)$",
+                RegexOptions.CultureInvariant
+            );
+
+            if (metadataDotted.Success)
+            {
+                version = metadataDotted.Groups["version"].Value;
+            }
+            else if (Regex.IsMatch(
+                         normalizedMetadataVersion,
+                         @"^\d+$",
+                         RegexOptions.CultureInvariant))
+            {
+                version = normalizedMetadataVersion + ".0";
+            }
+            else
+            {
+                version = normalizedMetadataVersion;
+            }
+
+            // Remove a duplicate trailing version from the human title.
+            var duplicateVersion = Regex.Match(
+                baseName,
+                @"^(?<name>.+?)(?:[\s_-]+[vV]?"
+                + Regex.Escape(normalizedMetadataVersion)
+                + @")$",
+                RegexOptions.CultureInvariant
+            );
+            if (duplicateVersion.Success
+                && !string.IsNullOrWhiteSpace(
+                    duplicateVersion.Groups["name"].Value))
+            {
+                baseName = duplicateVersion.Groups["name"].Value.Trim();
+            }
+        }
+
+        return MakeSafeName($"{baseName} v{version}");
+    }
+
     public static string NormalizeVirtualPath(string virtualPath)
     {
         var value = NormalizeVirtualPathForComparison(virtualPath);
@@ -50,14 +177,23 @@ public static class PathUtil
         if (parts.Length > 1)
             return parts[0];
 
+        return InferContainerFamilyName(sourcePath);
+    }
+
+    public static string InferContainerFamilyName(string sourcePath)
+    {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
+
+        // Order matters: numbered Unreal patch suffixes are removed first so a
+        // name such as ...OverrideContent_30_P can then collapse to the same
+        // family as its NewContent partner.
         var patterns = new[]
         {
-            // ZoneKit / common paired localization container conventions.
+            @"(?i)_\d+_P$",
             @"(?i)Stalker2-Windows-(NewContent|OverrideContent)$",
             @"(?i)-Windows-(NewContent|OverrideContent)$",
             @"(?i)[_-](NewContent|OverrideContent)$",
-            @"(?i)_OC_50$",
+            @"(?i)_OC_\d+$",
             @"(?i)_OC$",
             @"(?i)_NC$",
             @"(?i)-OverrideContent$",
@@ -65,11 +201,41 @@ public static class PathUtil
             @"(?i)_O$",
             @"(?i)_N$",
             @"(?i)[AB]_P$",
+            @"(?i)_P$",
         };
+
         foreach (var pattern in patterns)
             stem = Regex.Replace(stem, pattern, string.Empty);
+
         stem = stem.TrimEnd('_', '-', ' ');
-        return string.IsNullOrWhiteSpace(stem) ? Path.GetFileNameWithoutExtension(sourcePath) : stem;
+        return string.IsNullOrWhiteSpace(stem)
+            ? Path.GetFileNameWithoutExtension(sourcePath)
+            : stem;
+    }
+
+    public static string GetOverlayPatchSuffix(IEnumerable<string> sourceContainerLabels)
+    {
+        var priorities = new List<int>();
+
+        foreach (var rawLabel in sourceContainerLabels)
+        {
+            if (string.IsNullOrWhiteSpace(rawLabel))
+                continue;
+
+            var label = rawLabel;
+            var separator = label.LastIndexOf("::", StringComparison.Ordinal);
+            if (separator >= 0)
+                label = label[(separator + 2)..].Trim();
+
+            var stem = Path.GetFileNameWithoutExtension(label.Replace('/', Path.DirectorySeparatorChar));
+            var match = Regex.Match(stem, @"_(\d+)_P$", RegexOptions.IgnoreCase);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var priority))
+                priorities.Add(priority);
+        }
+
+        return priorities.Count == 0
+            ? "_P"
+            : $"_{priorities.Max() + 1}_P";
     }
 
     public static bool IsSupportedModLocalizationContainer(string sourcePath)
@@ -91,10 +257,11 @@ public static class PathUtil
     public static bool IsOverrideModLocalizationContainer(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
-        return stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase)
+        return Regex.IsMatch(
+                   stem,
+                   @"(?i)(?:OverrideContent|_OC)(?:_\d+_P)?$"
+               )
+               || stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)
                || stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)
                || stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase);
     }
@@ -102,6 +269,7 @@ public static class PathUtil
     public static int GetModLocalizationContainerPriority(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
+        if (Regex.IsMatch(stem, @"(?i)(?:OverrideContent|_OC)_\d+_P$")) return 0;
         if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)) return 0;
         if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)) return 1;
         if (stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase)) return 1;
@@ -119,6 +287,7 @@ public static class PathUtil
     public static string GetModLocalizationContainerKind(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
+        if (Regex.IsMatch(stem, @"(?i)(?:OverrideContent|_OC)_\d+_P$")) return "OverrideContent (numbered patch)";
         if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)) return "OverrideContent (_OC_50)";
         if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)
             || stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase))
@@ -174,7 +343,8 @@ public static class PathUtil
     public static bool IsPluginContentAlias(string virtualPath)
     {
         var p = NormalizeVirtualPathForComparison(virtualPath);
-        return p.StartsWith("Stalker2/Mods/", StringComparison.OrdinalIgnoreCase);
+        return p.StartsWith("Stalker2/Mods/", StringComparison.OrdinalIgnoreCase)
+               || p.StartsWith("Stalker2/Plugins/", StringComparison.OrdinalIgnoreCase);
     }
 
     public static string DirectoryAliasPackagePathFromVirtualPath(string virtualPath)
@@ -192,22 +362,31 @@ public static class PathUtil
             return "/Game/" + tail;
         }
 
-        const string modsPrefix = "Stalker2/Mods/";
-        if (value.StartsWith(modsPrefix, StringComparison.OrdinalIgnoreCase))
+        foreach (var prefix in new[] { "Stalker2/Mods/", "Stalker2/Plugins/" })
         {
-            var rest = value[modsPrefix.Length..];
+            if (!value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var rest = value[prefix.Length..];
             const string marker = "/Content/";
             var markerIndex = rest.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
             if (markerIndex <= 0)
                 throw new InvalidOperationException($"Invalid mod/plugin virtual package path: {virtualPath}");
 
-            var plugin = rest[..markerIndex];
+            var pluginLocation = rest[..markerIndex].TrimEnd('/');
+            var plugin = pluginLocation
+                .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .LastOrDefault();
             var tail = rest[(markerIndex + marker.Length)..];
+
             if (string.IsNullOrWhiteSpace(plugin) || string.IsNullOrWhiteSpace(tail))
                 throw new InvalidOperationException($"Invalid mod/plugin virtual package path: {virtualPath}");
+
             return $"/{plugin}/{tail}";
         }
 
-        throw new InvalidOperationException($"Cannot derive Unreal package path from LocalizationDatabase path: {virtualPath}");
+        throw new InvalidOperationException(
+            $"Cannot derive Unreal package path from LocalizationDatabase path: {virtualPath}"
+        );
     }
 }

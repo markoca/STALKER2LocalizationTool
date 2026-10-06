@@ -11,58 +11,50 @@ public sealed class MainForm : Form
     private readonly Localizer _l;
     private readonly ToolTip _toolTip = new();
 
-    private readonly Label _title = new();
+    private readonly Label _titleAccent = new();
+    private readonly Label _titleRest = new();
+    private readonly StalkerBrandMark _brandMark = new();
+    private readonly StalkerWindowButton _minimizeButton = new();
+    private readonly StalkerWindowButton _maximizeButton = new();
+    private readonly StalkerWindowButton _closeButton = new() { IsCloseButton = true };
     private readonly Label _buildLanguageLabel = new();
-    private readonly StalkerCheckedListBox _buildLanguages = new();
-    private readonly Button _settingsButton = new();
-    private readonly Button _refreshButton = new();
+    private readonly StalkerLanguageSelector _buildLanguages = new();
+    private readonly Button _settingsButton = new StalkerUtilityButton();
+    private readonly Button _scanModsButton = new();
     private readonly Button _extractButton = new();
     private readonly Button _buildModularButton = new();
     private readonly Button _buildAllInOneButton = new();
-    private readonly StalkerTabControl _tabs = new();
-    private readonly TabPage _gameTab = new();
-    private readonly TabPage _modsTab = new();
-    private readonly Label _gameIntro = new();
-    private readonly Label _gameStatusLabel = new();
-    private readonly Label _gameLocalizationLabel = new();
-    private readonly Label _gameDetailsLabel = new();
-    private readonly Label _gameAvailabilityTitleLabel = new();
-    private readonly Label _gameAvailabilityLabel = new();
+    private readonly Panel _workspaceHost = new();
+    private readonly Panel _gameTab = new();
+    private readonly Panel _modsTab = new();
+    private readonly StalkerNavButton _gameTabButton = new();
+    private readonly StalkerNavButton _modsTabButton = new();
+    private Panel? _activeWorkspaceTab;
+    private bool IsGameWorkspace => ReferenceEquals(_activeWorkspaceTab, _gameTab);
     private readonly Button _scanGameButton = new();
     private readonly Button _extractGameButton = new();
     private readonly Button _buildGameButton = new();
-    private readonly Button _openJsons = new();
-    private readonly Button _openOutput = new();
-    private readonly Label _modsHeader = new();
-    private readonly Label _editableHeader = new();
-    private readonly Label _modsFound = new();
-    private readonly Label _localizationFound = new();
-    private readonly Label _changedFound = new();
-    private readonly Label _availableFound = new();
-    private readonly Label _missingFound = new();
-    private readonly Label _editableHint = new();
+    private readonly Button _openJsons = new StalkerUtilityButton();
+    private readonly Button _openOutput = new StalkerUtilityButton();
     private readonly DataGridView _grid = new();
     private readonly TextBox _logBox = new();
     private readonly Label _logLabel = new();
     private readonly StalkerProgressBar _progress = new();
-    private readonly ToolStripStatusLabel _statusText = new();
-    private readonly StatusStrip _statusStrip = new();
+    private readonly Label _statusText = new();
 
-    private Button? _helpBuildLanguage;
-    private Button? _helpMods;
-    private Button? _helpExtract;
-    private Button? _helpEditable;
-    private Button? _helpBuildModular;
-    private Button? _helpBuildAllInOne;
-    private Button? _helpGame;
 
     private List<ModScanResult> _mods = new();
     private ModScanResult? _game;
     private readonly HashSet<string> _builtVerifiedThisSession = new(StringComparer.OrdinalIgnoreCase);
     private CancellationTokenSource? _operationCts;
     private bool _busy;
+    private bool _progressCompleted;
+    private bool _gameScanSuccessful;
+    private bool _modsScanSuccessful;
     private bool _shownOnce;
     private bool _loadingLanguageChecks;
+    private bool _suspendWatcherScan;
+    private bool _lastSettingsDeletedCache;
 
     private FileSystemWatcher? _modsWatcher;
     private FileSystemWatcher? _editableWatcher;
@@ -79,6 +71,11 @@ public sealed class MainForm : Form
         MinimumSize = new Size(1180, 720);
         Size = new Size(1360, 820);
         Font = new Font("Segoe UI", 9F);
+        FormBorderStyle = FormBorderStyle.None;
+        ShowIcon = false;
+        Padding = new Padding(1);
+        BackColor = StalkerTheme.Border;
+        DoubleBuffered = true;
 
         BuildUi();
         ApplyLocalization();
@@ -91,7 +88,7 @@ public sealed class MainForm : Form
             _watchDebounce.Stop();
             if (_settings.AutoScan && !_busy)
             {
-                if (_tabs.SelectedTab == _gameTab && _game is not null)
+                if (IsGameWorkspace && _game is not null)
                     RefreshGameEditableTranslation();
                 else
                     await ScanModsAsync();
@@ -105,7 +102,7 @@ public sealed class MainForm : Form
 
             if (NeedsInitialSetup())
             {
-                MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
                 if (ShowSettings() != DialogResult.OK)
                 {
                     UpdateButtons();
@@ -113,7 +110,8 @@ public sealed class MainForm : Form
                 }
             }
 
-            await ScanModsAsync();
+            if (!TryLoadModsSnapshot())
+                await ScanModsAsync();
         };
     }
 
@@ -122,204 +120,352 @@ public sealed class MainForm : Form
         var root = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(16, 12, 16, 8),
+            Padding = new Padding(0),
             ColumnCount = 1,
             RowCount = 5,
+            Margin = new Padding(0),
+            BackColor = StalkerTheme.WindowBackground,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 105));
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54)); // title chrome
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));  // navigation
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Languages + workspace
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152)); // log
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // footer
         Controls.Add(root);
 
-        var header = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3 };
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        _title.AutoSize = true;
-        _title.Font = new Font("Segoe UI", 17F, FontStyle.Bold);
-        _title.Margin = new Padding(0, 2, 0, 10);
-        _refreshButton.AutoSize = true;
-        _settingsButton.AutoSize = true;
-        _refreshButton.Click += async (_, _) => await ScanActiveAsync();
+        // Match the True Custom Difficulty title bar geometry exactly:
+        // 54 px high, title-bar graphite, 12 px left inset, 30 px radiation mark,
+        // compact title typography and 42x30 caption buttons.
+        var titleBar = new StalkerTitleBar
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Height = 54,
+            Margin = new Padding(0),
+            Padding = new Padding(12, 0, 0, 0),
+        };
+
+        var titleLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+        titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        titleLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+
+        var identity = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+
+        _brandMark.Width = 38;
+        _brandMark.Height = 38;
+        _brandMark.Margin = new Padding(0, 8, 9, 0);
+
+        var titleWords = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0, 14, 0, 0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+
+        _titleAccent.AutoSize = true;
+        _titleAccent.Font = new Font("Segoe UI", 19F, FontStyle.Bold);
+        _titleAccent.Tag = StalkerTheme.SectionLabelTag;
+        _titleAccent.Margin = new Padding(0);
+
+        _titleRest.AutoSize = true;
+        _titleRest.Font = new Font("Segoe UI Semibold", 18F, FontStyle.Regular);
+        _titleRest.Margin = new Padding(0);
+
+        titleWords.Controls.Add(_titleAccent);
+        titleWords.Controls.Add(_titleRest);
+        identity.Controls.Add(_brandMark);
+        identity.Controls.Add(titleWords);
+
+        var captionButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            Margin = new Padding(0, 12, 0, 0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+
+        _minimizeButton.Text = "—";
+        _maximizeButton.Text = "□";
+        _closeButton.Text = "×";
+        _minimizeButton.Click += (_, _) => WindowState = FormWindowState.Minimized;
+        _maximizeButton.Click += (_, _) => ToggleMaximize();
+        _closeButton.Click += (_, _) => Close();
+        captionButtons.Controls.Add(_minimizeButton);
+        captionButtons.Controls.Add(_maximizeButton);
+        captionButtons.Controls.Add(_closeButton);
+
+        titleLayout.Controls.Add(identity, 0, 0);
+        titleLayout.Controls.Add(captionButtons, 1, 0);
+        titleBar.Controls.Add(titleLayout);
+        root.Controls.Add(titleBar, 0, 0);
+
+        Resize += (_, _) => UpdateMaximizeButtonGlyph();
+
+        // Navigation is a separate chrome band, like TCD's tab strip.
+        var navBar = new StalkerNavigationBar
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Height = 44,
+            Margin = new Padding(0),
+            Padding = new Padding(14, 0, 14, 0),
+        };
+
+        var tabStrip = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Left,
+            AutoSize = false,
+            Width = 300,
+            Height = 44,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+
+        _gameTabButton.Width = 150;
+        _modsTabButton.Width = 150;
+        _gameTabButton.Click += (_, _) => SetWorkspace(_gameTab);
+        _modsTabButton.Click += (_, _) => SetWorkspace(_modsTab);
+        tabStrip.Controls.Add(_gameTabButton);
+        tabStrip.Controls.Add(_modsTabButton);
+
+        ConfigureNavButton(_settingsButton, 102);
+        _settingsButton.Margin = new Padding(0);
+        _settingsButton.Dock = DockStyle.Right;
         _settingsButton.Click += async (_, _) =>
         {
-            if (ShowSettings() == DialogResult.OK)
-                await ScanActiveAsync();
-        };
-        header.Controls.Add(_title, 0, 0);
-        header.Controls.Add(_refreshButton, 1, 0);
-        header.Controls.Add(_settingsButton, 2, 0);
-        root.Controls.Add(header, 0, 0);
+            if (ShowSettings() != DialogResult.OK)
+                return;
 
-        var languages = new TableLayoutPanel
+            if (_lastSettingsDeletedCache)
+                return;
+
+            await ScanActiveAsync();
+        };
+
+        // Keep the navigation geometry deterministic: tabs are physically docked
+        // to the left edge and Settings directly to the right edge of navBar.
+        // No intermediate TableLayoutPanel can reserve extra width around Settings.
+        navBar.Controls.Add(_settingsButton);
+        navBar.Controls.Add(tabStrip);
+        root.Controls.Add(navBar, 0, 1);
+
+        // Main work area follows the True Custom Difficulty composition:
+        // Languages on the left, active GAME/MODS workspace on the right.
+        var mainContent = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
-            ColumnCount = 3,
+            ColumnCount = 2,
             RowCount = 1,
-            Margin = new Padding(0, 0, 0, 10),
+            Margin = new Padding(0),
+            Padding = new Padding(14, 8, 14, 10),
+            BackColor = StalkerTheme.WindowBackground,
         };
-        languages.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        languages.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        languages.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        _buildLanguageLabel.AutoSize = true;
-        _buildLanguageLabel.Margin = new Padding(0, 7, 6, 0);
-        _buildLanguages.Dock = DockStyle.Fill;
-        _buildLanguages.Height = 96;
-        _buildLanguages.CheckOnClick = true;
-        _buildLanguages.MultiColumn = true;
-        _buildLanguages.ColumnWidth = 225;
-        _buildLanguages.HorizontalScrollbar = false;
-        _buildLanguages.IntegralHeight = false;
-        _buildLanguages.ItemCheck += BuildLanguagesItemCheck;
+        mainContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 31F));
+        mainContent.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 69F));
+        mainContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        root.Controls.Add(mainContent, 0, 2);
 
-        _helpBuildLanguage = MakeHelpButton("help.build_language");
-
-        languages.Controls.Add(_buildLanguageLabel, 0, 0);
-        languages.Controls.Add(_buildLanguages, 1, 0);
-        languages.Controls.Add(_helpBuildLanguage, 2, 0);
-        root.Controls.Add(languages, 0, 1);
-
-        _tabs.Dock = DockStyle.Fill;
-        _tabs.Controls.Add(_gameTab);
-        _tabs.Controls.Add(_modsTab);
-        _tabs.SelectedIndexChanged += async (_, _) =>
+        // Languages remains a normal content card, not part of the window chrome.
+        var languagesCard = new StalkerCardPanel
         {
-            if (_shownOnce && !_busy)
-                await ScanActiveAsync();
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            BackColor = StalkerTheme.Panel,
+            Padding = new Padding(12, 10, 12, 10),
+            Margin = new Padding(0, 0, 6, 0),
+            AccentEdge = false,
         };
-        root.Controls.Add(_tabs, 0, 2);
+        var languagesLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        languagesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        languagesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var languagesHeader = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            RowCount = 1,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+        };
+        languagesHeader.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        languagesHeader.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        _buildLanguageLabel.AutoSize = true;
+        _buildLanguageLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _buildLanguageLabel.Tag = StalkerTheme.SectionLabelTag;
+        _buildLanguageLabel.Margin = new Padding(0, 0, 0, 6);
+        languagesHeader.Controls.Add(_buildLanguageLabel, 0, 0);
+
+        _buildLanguages.Dock = DockStyle.Top;
+        _buildLanguages.AutoSize = false;
+        _buildLanguages.Margin = new Padding(0);
+        _buildLanguages.SelectionChanged += BuildLanguagesSelectionChanged;
+
+        languagesLayout.Controls.Add(languagesHeader, 0, 0);
+        languagesLayout.Controls.Add(_buildLanguages, 0, 1);
+        languagesCard.Controls.Add(languagesLayout);
+        mainContent.Controls.Add(languagesCard, 0, 0);
+
+        // Workspace body: tabs now live in the global nav band above.
+        var workspaceCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            BackColor = StalkerTheme.Panel,
+            Padding = new Padding(12, 10, 12, 10),
+            Margin = new Padding(6, 0, 0, 0),
+            AccentEdge = false,
+        };
+
+        _workspaceHost.Dock = DockStyle.Fill;
+        _workspaceHost.Margin = new Padding(0);
+        _workspaceHost.Padding = new Padding(0);
+        _workspaceHost.BackColor = StalkerTheme.Panel;
+        _workspaceHost.BorderStyle = BorderStyle.None;
+
+        _gameTab.Dock = DockStyle.Fill;
+        _gameTab.Margin = new Padding(0);
+        _gameTab.Padding = new Padding(0);
+        _gameTab.BackColor = StalkerTheme.Panel;
+        _modsTab.Dock = DockStyle.Fill;
+        _modsTab.Margin = new Padding(0);
+        _modsTab.Padding = new Padding(0);
+        _modsTab.BackColor = StalkerTheme.Panel;
 
         BuildGameTab();
+        BuildModsTab();
 
-        var modsLayout = new TableLayoutPanel
+        _workspaceHost.Controls.Add(_modsTab);
+        _workspaceHost.Controls.Add(_gameTab);
+        workspaceCard.Controls.Add(_workspaceHost);
+        mainContent.Controls.Add(workspaceCard, 1, 0);
+        SetWorkspace(_gameTab);
+
+        // LOG is still content, therefore it keeps the same bordered graphite card language.
+        var logCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(4),
-            ColumnCount = 1,
-            RowCount = 3,
+            BackColor = StalkerTheme.Panel,
+            Padding = new Padding(10, 8, 10, 10),
+            Margin = new Padding(14, 0, 14, 10),
         };
-        modsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        modsLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        modsLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        _modsTab.Controls.Add(modsLayout);
-
-        var topActions = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 3 };
-        topActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        topActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        topActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-        var modsSummary = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true };
-        _modsHeader.AutoSize = true;
-        _modsHeader.Font = new Font(Font, FontStyle.Bold);
-        _modsHeader.Margin = new Padding(0, 7, 6, 0);
-        _helpMods = MakeHelpButton("help.mods");
-        _modsFound.AutoSize = true;
-        _modsFound.Margin = new Padding(16, 7, 8, 0);
-        _localizationFound.AutoSize = true;
-        _localizationFound.Margin = new Padding(8, 7, 8, 0);
-        _changedFound.AutoSize = true;
-        _changedFound.Margin = new Padding(8, 7, 8, 0);
-        modsSummary.Controls.Add(_modsHeader);
-        modsSummary.Controls.Add(_helpMods);
-        modsSummary.Controls.Add(_modsFound);
-        modsSummary.Controls.Add(_localizationFound);
-        modsSummary.Controls.Add(_changedFound);
-
-        _extractButton.AutoSize = true;
-        _extractButton.Padding = new Padding(14, 7, 14, 7);
-        _extractButton.Font = new Font(Font, FontStyle.Bold);
-        _extractButton.Click += async (_, _) => await ExtractAsync();
-        _helpExtract = MakeHelpButton("help.extract");
-        _helpExtract.Margin = new Padding(6, 7, 0, 0);
-
-        topActions.Controls.Add(modsSummary, 0, 0);
-        topActions.Controls.Add(_extractButton, 1, 0);
-        topActions.Controls.Add(_helpExtract, 2, 0);
-        modsLayout.Controls.Add(topActions, 0, 0);
-
-        ConfigureGrid();
-        modsLayout.Controls.Add(_grid, 0, 1);
-
-        var editableActions = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 5, Margin = new Padding(0, 10, 0, 8) };
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        editableActions.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-        var editableSummary = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight, WrapContents = true };
-        _editableHeader.AutoSize = true;
-        _editableHeader.Font = new Font(Font, FontStyle.Bold);
-        _editableHeader.Margin = new Padding(0, 7, 6, 0);
-        _helpEditable = MakeHelpButton("help.editable");
-        _availableFound.AutoSize = true;
-        _availableFound.Margin = new Padding(16, 7, 8, 0);
-        _missingFound.AutoSize = true;
-        _missingFound.Margin = new Padding(8, 7, 8, 0);
-        _editableHint.AutoSize = true;
-        _editableHint.Margin = new Padding(16, 7, 8, 0);
-        _editableHint.ForeColor = SystemColors.GrayText;
-        _toolTip.SetToolTip(_editableHint, _l.T("help.editable_hint"));
-        editableSummary.Controls.Add(_editableHeader);
-        editableSummary.Controls.Add(_helpEditable);
-        editableSummary.Controls.Add(_availableFound);
-        editableSummary.Controls.Add(_missingFound);
-        editableSummary.Controls.Add(_editableHint);
-
-        _buildModularButton.AutoSize = true;
-        _buildModularButton.Padding = new Padding(14, 7, 14, 7);
-        _buildModularButton.Font = new Font(Font, FontStyle.Bold);
-        _buildModularButton.Tag = StalkerTheme.PrimaryButtonTag;
-        _buildModularButton.Click += async (_, _) => await BuildAsync(BuildMode.Modular);
-        _helpBuildModular = MakeHelpButton("help.build_modular");
-        _helpBuildModular.Margin = new Padding(6, 7, 10, 0);
-
-        _buildAllInOneButton.AutoSize = true;
-        _buildAllInOneButton.Padding = new Padding(14, 7, 14, 7);
-        _buildAllInOneButton.Font = new Font(Font, FontStyle.Bold);
-        _buildAllInOneButton.Tag = StalkerTheme.PrimaryButtonTag;
-        _buildAllInOneButton.Click += async (_, _) => await BuildAsync(BuildMode.AllInOne);
-        _helpBuildAllInOne = MakeHelpButton("help.build_all_in_one");
-        _helpBuildAllInOne.Margin = new Padding(6, 7, 0, 0);
-
-        editableActions.Controls.Add(editableSummary, 0, 0);
-        editableActions.Controls.Add(_buildModularButton, 1, 0);
-        editableActions.Controls.Add(_helpBuildModular, 2, 0);
-        editableActions.Controls.Add(_buildAllInOneButton, 3, 0);
-        editableActions.Controls.Add(_helpBuildAllInOne, 4, 0);
-        modsLayout.Controls.Add(editableActions, 0, 2);
-
-        var logPanel = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2 };
-        logPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        logPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var logLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        logLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 24));
+        logLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         _logLabel.AutoSize = true;
-        _logLabel.Font = new Font(Font, FontStyle.Bold);
+        _logLabel.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _logLabel.Tag = StalkerTheme.SectionLabelTag;
+        _logLabel.Margin = new Padding(0, 2, 0, 0);
         _logBox.Dock = DockStyle.Fill;
         _logBox.Multiline = true;
         _logBox.ReadOnly = true;
-        _logBox.ScrollBars = ScrollBars.Vertical;
+        _logBox.ScrollBars = StalkerTheme.IsWine
+            ? ScrollBars.None
+            : ScrollBars.Vertical;
         _logBox.Font = new Font("Consolas", 8.5F);
-        _logBox.BackColor = SystemColors.Window;
-        logPanel.Controls.Add(_logLabel, 0, 0);
-        logPanel.Controls.Add(_logBox, 0, 1);
-        root.Controls.Add(logPanel, 0, 3);
+        _logBox.Margin = new Padding(0);
+        logLayout.Controls.Add(_logLabel, 0, 0);
+        logLayout.Controls.Add(_logBox, 0, 1);
+        logCard.Controls.Add(logLayout);
+        root.Controls.Add(logCard, 0, 3);
 
-        var footer = new TableLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, ColumnCount = 2 };
+        // TCD-style bottom chrome: one edge-to-edge footer band, not a card + StatusStrip.
+        var footerBar = new StalkerFooterBar
+        {
+            Dock = DockStyle.Bottom,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            MinimumSize = new Size(0, 48),
+            Margin = new Padding(0),
+            Padding = new Padding(14, 7, 10, 7),
+        };
+
+        var footer = new TableLayoutPanel
+        {
+            Dock = DockStyle.Bottom,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+        footer.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 250));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        _statusText.Dock = DockStyle.Fill;
+        _statusText.AutoEllipsis = true;
+        _statusText.TextAlign = ContentAlignment.MiddleLeft;
+        _statusText.Font = new Font("Segoe UI", 8.5F);
+        _statusText.Tag = StalkerTheme.MutedLabelTag;
+        _statusText.Margin = new Padding(0, 0, 12, 0);
+
         _progress.Dock = DockStyle.Fill;
         _progress.Minimum = 0;
         _progress.Maximum = 100;
-        _progress.Height = 18;
+        _progress.Visible = false;
+        _progress.Margin = new Padding(0, 8, 12, 8);
 
-        var openButtons = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.LeftToRight };
-        _openJsons.AutoSize = true;
-        _openOutput.AutoSize = true;
+        var openButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.TitleBar,
+        };
+
+        ConfigureChromeButton(_openJsons, 132);
+        ConfigureChromeButton(_openOutput, 132);
         _openJsons.Click += (_, _) => OpenFolder(
-            _tabs.SelectedTab == _gameTab
+            IsGameWorkspace
                 ? Path.Combine(_settings.EditableFolder, "Game")
                 : _settings.EditableFolder
         );
@@ -327,13 +473,13 @@ public sealed class MainForm : Form
         openButtons.Controls.Add(_openJsons);
         openButtons.Controls.Add(_openOutput);
 
-        footer.Controls.Add(_progress, 0, 0);
-        footer.Controls.Add(openButtons, 1, 0);
-        root.Controls.Add(footer, 0, 4);
+        footer.Controls.Add(_statusText, 0, 0);
+        footer.Controls.Add(_progress, 1, 0);
+        footer.Controls.Add(openButtons, 2, 0);
+        footerBar.Controls.Add(footer);
+        root.Controls.Add(footerBar, 0, 4);
 
-        _statusStrip.Items.Add(_statusText);
-        Controls.Add(_statusStrip);
-        _statusStrip.BringToFront();
+        UpdateMaximizeButtonGlyph();
     }
 
     private void BuildGameTab()
@@ -341,80 +487,200 @@ public sealed class MainForm : Form
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(18),
+            Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 3,
+            Margin = new Padding(0),
+            BackColor = StalkerTheme.Panel,
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _gameTab.Controls.Add(layout);
 
-        _gameIntro.AutoSize = true;
-        _gameIntro.MaximumSize = new Size(1000, 0);
-        _gameIntro.Margin = new Padding(0, 0, 0, 18);
-        layout.Controls.Add(_gameIntro, 0, 0);
-
-        var statusCard = new TableLayoutPanel
+        var workflowCard = new StalkerCardPanel
         {
-            Dock = DockStyle.Top,
+            Dock = DockStyle.Fill,
             AutoSize = true,
-            BackColor = SystemColors.ControlLight,
-            Padding = new Padding(16),
-            ColumnCount = 2,
-            RowCount = 3,
-            Margin = new Padding(0, 0, 0, 18),
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(14, 10, 14, 11),
+            Margin = new Padding(0, 0, 0, 12),
+            AccentEdge = false,
         };
-        statusCard.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150));
-        statusCard.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        _gameStatusLabel.AutoSize = true;
-        _gameStatusLabel.Font = new Font(Font, FontStyle.Bold);
-        _gameLocalizationLabel.AutoSize = true;
-        _gameDetailsLabel.AutoSize = true;
-        statusCard.Controls.Add(_gameStatusLabel, 0, 0);
-        statusCard.Controls.Add(_gameLocalizationLabel, 1, 0);
-        statusCard.Controls.Add(new Label { Text = _l.T("ui.localization_types"), AutoSize = true, Font = new Font(Font, FontStyle.Bold) }, 0, 1);
-        statusCard.Controls.Add(_gameDetailsLabel, 1, 1);
-        _gameAvailabilityTitleLabel.AutoSize = true;
-        _gameAvailabilityTitleLabel.Font = new Font(Font, FontStyle.Bold);
-        statusCard.Controls.Add(_gameAvailabilityTitleLabel, 0, 2);
-        statusCard.Controls.Add(_gameAvailabilityLabel, 1, 2);
-        layout.Controls.Add(statusCard, 0, 1);
-
+        var workflow = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        var workflowTitle = new Label
+        {
+            Text = "WORKFLOW",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+            Tag = StalkerTheme.SectionLabelTag,
+            Margin = new Padding(0, 0, 0, 5),
+        };
         var explanation = new Label
         {
             AutoSize = true,
-            MaximumSize = new Size(1000, 0),
-            Text = "1. Scan the base game.  2. Extract all language JSON files.  3. Edit them directly in Editable\\Game.  4. Build the selected languages.",
-            ForeColor = SystemColors.GrayText,
+            MaximumSize = new Size(1120, 0),
+            Text = "1  Scan the base game     2  Extract all language JSON files     3  Edit in /Editable/Game     4  Build the selected languages",
+            Font = new Font("Segoe UI", 8.5F),
+            Tag = StalkerTheme.MutedLabelTag,
+            Margin = new Padding(0),
         };
-        layout.Controls.Add(explanation, 0, 2);
+        workflow.Controls.Add(workflowTitle, 0, 0);
+        workflow.Controls.Add(explanation, 0, 1);
+        workflowCard.Controls.Add(workflow);
+        layout.Controls.Add(workflowCard, 0, 0);
 
+        var actionsCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(10),
+            Margin = new Padding(0),
+        };
         var actions = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
+            Margin = new Padding(0),
         };
-        foreach (var button in new[] { _scanGameButton, _extractGameButton, _buildGameButton })
-        {
-            button.AutoSize = true;
-            button.Padding = new Padding(14, 7, 14, 7);
-            button.Font = new Font(Font, FontStyle.Bold);
-        }
-        _buildGameButton.Tag = StalkerTheme.PrimaryButtonTag;
+        ConfigureActionButton(_scanGameButton, 145);
+        ConfigureActionButton(_extractGameButton, 205);
+        ConfigureActionButton(_buildGameButton, 190);
         _scanGameButton.Click += async (_, _) => await ScanGameAsync();
         _extractGameButton.Click += async (_, _) => await ExtractGameAsync();
         _buildGameButton.Click += async (_, _) => await BuildGameAsync();
-        _helpGame = MakeHelpButton("help.game_workflow");
-        _helpGame.Margin = new Padding(6, 7, 0, 0);
         actions.Controls.Add(_scanGameButton);
         actions.Controls.Add(_extractGameButton);
         actions.Controls.Add(_buildGameButton);
-        actions.Controls.Add(_helpGame);
-        layout.Controls.Add(actions, 0, 3);
+        actionsCard.Controls.Add(actions);
+        layout.Controls.Add(actionsCard, 0, 2);
+    }
+
+    private void BuildModsTab()
+    {
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            Padding = new Padding(0),
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        _modsTab.Controls.Add(layout);
+
+        ConfigureGrid();
+        _grid.Margin = new Padding(0, 0, 0, 10);
+        layout.Controls.Add(_grid, 0, 0);
+
+        var actionCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(10),
+            Margin = new Padding(0),
+        };
+        var actionLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            Margin = new Padding(0),
+        };
+        actionLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        actionLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var actionButtons = new FlowLayoutPanel
+        {
+            AutoSize = true,
+            FlowDirection = FlowDirection.LeftToRight,
+            WrapContents = false,
+            Margin = new Padding(0),
+        };
+        ConfigureActionButton(_scanModsButton, 132);
+        ConfigureActionButton(_extractButton, 128);
+        ConfigureActionButton(_buildModularButton, 164);
+        ConfigureActionButton(_buildAllInOneButton, 176);
+        _scanModsButton.Click += async (_, _) => await ScanModsAsync();
+        _extractButton.Click += async (_, _) => await ExtractAsync();
+        _buildModularButton.Click += async (_, _) => await BuildAsync(BuildMode.Modular);
+        _buildAllInOneButton.Click += async (_, _) => await BuildAsync(BuildMode.AllInOne);
+
+
+        actionButtons.Controls.Add(_scanModsButton);
+        actionButtons.Controls.Add(_extractButton);
+        actionButtons.Controls.Add(_buildModularButton);
+        actionButtons.Controls.Add(_buildAllInOneButton);
+
+        actionLayout.Controls.Add(actionButtons, 1, 0);
+        actionCard.Controls.Add(actionLayout);
+        layout.Controls.Add(actionCard, 0, 1);
+    }
+
+    private static void ConfigureActionButton(Button button, int width)
+    {
+        button.AutoSize = false;
+        button.Width = width;
+        button.Height = 36;
+        button.Padding = new Padding(10, 5, 10, 5);
+        button.Margin = new Padding(0, 0, 6, 0);
+        button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+    }
+
+    private static void ConfigureNavButton(Button button, int width)
+    {
+        button.AutoSize = false;
+        button.Width = width;
+        button.Height = 44;
+        button.Margin = new Padding(0, 0, 6, 0);
+        button.Padding = new Padding(10, 5, 10, 5);
+        button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+    }
+
+    private static void ConfigureChromeButton(Button button, int width)
+    {
+        button.AutoSize = false;
+        button.Width = width;
+        button.Height = 34;
+        button.Margin = new Padding(0, 0, 6, 0);
+        button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+    }
+
+    private void ToggleMaximize()
+    {
+        WindowState = WindowState == FormWindowState.Maximized
+            ? FormWindowState.Normal
+            : FormWindowState.Maximized;
+        UpdateMaximizeButtonGlyph();
+    }
+
+    private void UpdateMaximizeButtonGlyph()
+    {
+        _maximizeButton.Text = WindowState == FormWindowState.Maximized
+            ? "❐"
+            : "□";
+    }
+
+    private void SetWorkspace(Panel tab)
+    {
+        _activeWorkspaceTab = tab;
+        _gameTab.Visible = ReferenceEquals(tab, _gameTab);
+        _modsTab.Visible = ReferenceEquals(tab, _modsTab);
+        _gameTabButton.Selected = ReferenceEquals(tab, _gameTab);
+        _modsTabButton.Selected = ReferenceEquals(tab, _modsTab);
+        tab.BringToFront();
     }
 
     private void ConfigureGrid()
@@ -429,8 +695,10 @@ public sealed class MainForm : Form
         _grid.MultiSelect = false;
         _grid.AutoGenerateColumns = false;
         _grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
-        _grid.BackgroundColor = SystemColors.Window;
-        _grid.BorderStyle = BorderStyle.Fixed3D;
+        _grid.BackgroundColor = StalkerTheme.Panel;
+        _grid.BorderStyle = BorderStyle.FixedSingle;
+        _grid.ColumnHeadersHeight = 34;
+        _grid.RowTemplate.Height = 30;
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Mod", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 52 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Localization", Width = 155 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", Width = 180 });
@@ -441,8 +709,10 @@ public sealed class MainForm : Form
             var mod = _mods[e.RowIndex];
             if (e.ColumnIndex == _grid.Columns["Status"].Index)
                 e.ToolTipText = StatusHelp(mod.UiStatus);
-            else if (e.ColumnIndex == _grid.Columns["Details"].Index && !string.IsNullOrWhiteSpace(mod.ScanError))
-                e.ToolTipText = mod.ScanError;
+            else if (e.ColumnIndex == _grid.Columns["Details"].Index)
+                e.ToolTipText = !string.IsNullOrWhiteSpace(mod.ScanError)
+                    ? mod.ScanError
+                    : BuildModDetailsTooltip(mod);
         };
         _grid.CellDoubleClick += (_, e) =>
         {
@@ -453,40 +723,31 @@ public sealed class MainForm : Form
         };
     }
 
-    private Button MakeHelpButton(string helpKey)
+    private void ApplyWindowTitle()
     {
-        var button = new Button
-        {
-            Text = "?",
-            Width = 26,
-            Height = 26,
-            FlatStyle = FlatStyle.System,
-            Margin = new Padding(2, 2, 2, 2),
-            TabStop = false,
-            Tag = helpKey,
-        };
-        button.Click += (_, _) => MessageBox.Show(this, _l.T(helpKey), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-        _toolTip.SetToolTip(button, _l.T(helpKey));
-        return button;
+        var title = _l.T("app.title").Trim();
+        var split = title.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
+
+        _titleAccent.Text = split.Length > 0
+            ? split[0].ToUpperInvariant()
+            : "LOCALIZATION";
+        _titleRest.Text = split.Length > 1
+            ? " " + split[1].ToUpperInvariant()
+            : " WORKBENCH";
     }
 
     private void ApplyLocalization()
     {
         Text = AppConstants.AppName;
-        _title.Text = _l.T("app.title");
-        _gameTab.Text = _l.T("ui.tab_game");
-        _modsTab.Text = _l.T("ui.tab_mods");
-        _gameIntro.Text = _l.T("ui.game_intro");
-        _gameStatusLabel.Text = _l.T("ui.status");
-        _gameAvailabilityTitleLabel.Text = _l.T("ui.available");
+        ApplyWindowTitle();
+        _gameTabButton.Text = _l.T("ui.tab_game");
+        _modsTabButton.Text = _l.T("ui.tab_mods");
         _scanGameButton.Text = _l.T("ui.scan_game");
         _extractGameButton.Text = _l.T("ui.extract_game");
         _buildGameButton.Text = _l.T("ui.build_game");
         _buildLanguageLabel.Text = _l.T("ui.build_language");
         _settingsButton.Text = _l.T("ui.settings");
-        _refreshButton.Text = _l.T("ui.refresh");
-        _modsHeader.Text = _l.T("ui.mods");
-        _editableHeader.Text = _l.T("ui.editable_translations");
+        _scanModsButton.Text = _l.T("ui.scan_mods");
         _extractButton.Text = _l.T("ui.extract");
         _buildModularButton.Text = _l.T("ui.build_modular");
         _buildAllInOneButton.Text = _l.T("ui.build_all_in_one");
@@ -494,38 +755,29 @@ public sealed class MainForm : Form
         _openJsons.Text = _l.T("ui.open_jsons_folder");
         _openOutput.Text = _l.T("ui.open_output");
         _logLabel.Text = _l.T("ui.log");
-        _editableHint.Text = _l.T("ui.editable_hint");
-        _toolTip.SetToolTip(_editableHint, _l.T("help.editable_hint"));
 
         _grid.Columns["Mod"].HeaderText = _l.T("ui.mod");
         _grid.Columns["Localization"].HeaderText = _l.T("ui.localization_types");
         _grid.Columns["Status"].HeaderText = _l.T("ui.status");
         _grid.Columns["Details"].HeaderText = _l.T("ui.details");
 
-        foreach (var button in new[] { _helpBuildLanguage, _helpMods, _helpExtract, _helpEditable, _helpBuildModular, _helpBuildAllInOne, _helpGame })
-        {
-            if (button?.Tag is string key)
-                _toolTip.SetToolTip(button, _l.T(key));
-        }
-
         _loadingLanguageChecks = true;
-        _buildLanguages.BeginUpdate();
-        _buildLanguages.Items.Clear();
-        foreach (var language in BuildLanguageCatalog.All)
-            _buildLanguages.Items.Add(
-                new BuildLanguageItem(language, _l.LanguageName(language)),
+        _buildLanguages.SetLanguages(
+            BuildLanguageCatalog.All.Select(language => (
+                language.Id,
+                _l.LanguageName(language),
                 _settings.BuildLanguageIds.Contains(language.Id)
-            );
-        _buildLanguages.EndUpdate();
+            ))
+        );
         _loadingLanguageChecks = false;
 
-        UpdateSummary();
-        RefreshGameStatus();
+        UpdateButtons();
+        UpdateButtons();
         RefreshGrid();
         if (!_busy) _statusText.Text = _l.T("ui.idle");
     }
 
-    private Task ScanActiveAsync() => _tabs.SelectedTab == _gameTab ? ScanGameAsync() : ScanModsAsync();
+    private Task ScanActiveAsync() => IsGameWorkspace ? ScanGameAsync() : ScanModsAsync();
 
     private async Task ScanModsAsync()
     {
@@ -536,12 +788,13 @@ public sealed class MainForm : Form
             return;
         }
 
+        _modsScanSuccessful = false;
         SetBusy(true, _l.T("ui.scanning"));
         _operationCts = new CancellationTokenSource();
 
         try
         {
-            AppendLog($"--- {_l.T("ui.scanning")} ---");
+            AppendLog("========== SCANNING MODS ==========");
             var retoc = new RetocService(_settings.RetocPath, AppendLog);
             var scanner = new ModScanner(
                 retoc,
@@ -551,20 +804,23 @@ public sealed class MainForm : Form
                 _settings.BuildLanguageIds,
                 AppendLog
             );
-            var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
+            var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             _mods = await scanner.ScanAsync(progress, _operationCts.Token);
+            _modsScanSuccessful = true;
 
             foreach (var mod in _mods)
             {
                 if (_settings.BuildLanguageIds.Count > 0
                     && _settings.BuildLanguageIds.All(id => _builtVerifiedThisSession.Contains(BuildSessionKey(mod.ModId, id)))
-                    && mod.UiStatus == ModUiStatus.Available)
+                    && mod.UiStatus == ModUiStatus.Extracted)
                     mod.UiStatus = ModUiStatus.BuiltVerified;
             }
 
             RefreshGrid();
-            UpdateSummary();
-            _statusText.Text = _l.T("ui.done");
+            UpdateButtons();
+            SaveModsSnapshot();
+            CompleteProgress(_l.T("ui.done"));
+            LogModsWorkflowReady();
         }
         catch (OperationCanceledException)
         {
@@ -586,44 +842,23 @@ public sealed class MainForm : Form
     private async Task ScanGameAsync()
     {
         if (_busy) return;
-
-        var missingGameRequirements = new List<string>();
-        if (!Directory.Exists(_settings.GamePaksFolder))
-            missingGameRequirements.Add($"Game Paks folder: {_settings.GamePaksFolder}");
-        if (!File.Exists(_settings.RetocPath))
-            missingGameRequirements.Add($"retoc.exe: {_settings.RetocPath}");
-        if (!File.Exists(_settings.RepakPath))
-            missingGameRequirements.Add($"repak.exe: {_settings.RepakPath}");
-
-        if (missingGameRequirements.Count > 0)
+        if (!File.Exists(_settings.RetocPath) || !File.Exists(_settings.RepakPath) || !Directory.Exists(_settings.GamePaksFolder))
         {
             _game = null;
-            RefreshGameStatus();
             UpdateButtons();
-
-            AppendLog("GAME scan prerequisites missing:");
-            foreach (var item in missingGameRequirements)
-                AppendLog("  " + item);
-
-            MessageBox.Show(
-                this,
-                _l.T("ui.game_paths_missing") + Environment.NewLine + Environment.NewLine
-                + string.Join(Environment.NewLine, missingGameRequirements),
-                AppConstants.AppName,
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information
-            );
-
+            UpdateButtons();
+            MessageBox.Show(this, _l.T("ui.game_paths_missing"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             if (ShowSettings() == DialogResult.OK)
                 await ScanGameAsync();
             return;
         }
 
+        _gameScanSuccessful = false;
         SetBusy(true, _l.T("ui.scanning_game"));
         _operationCts = new CancellationTokenSource();
         try
         {
-            AppendLog($"--- {_l.T("ui.scanning_game")} ---");
+            AppendLog("========== SCANNING GAME ==========");
             var scanner = new GameScanner(
                 new RetocService(_settings.RetocPath, AppendLog),
                 new RepakService(_settings.RepakPath, AppendLog),
@@ -633,14 +868,16 @@ public sealed class MainForm : Form
                 _settings.BuildLanguageIds,
                 AppendLog
             );
-            var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
+            var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             _game = await scanner.ScanAsync(progress, _operationCts.Token);
+            _gameScanSuccessful = true;
             if (_settings.BuildLanguageIds.Count > 0
                 && _settings.BuildLanguageIds.All(id => _builtVerifiedThisSession.Contains(BuildSessionKey(_game.ModId, id)))
                 && _game.UiStatus == ModUiStatus.Available)
                 _game.UiStatus = ModUiStatus.BuiltVerified;
-            RefreshGameStatus();
-            _statusText.Text = _l.T("ui.done");
+            UpdateButtons();
+            CompleteProgress(_l.T("ui.done"));
+            LogGameWorkflowReady();
         }
         catch (OperationCanceledException)
         {
@@ -661,12 +898,21 @@ public sealed class MainForm : Form
 
     private async Task ExtractGameAsync()
     {
-        if (_game?.UiStatus != ModUiStatus.NeedsExtraction)
+        var canRestoreEditable = _game is not null
+            && CanRestoreEditableFromCache(_game);
+
+        if (_game is null
+            || (_game.UiStatus != ModUiStatus.NeedsExtraction
+                && _game.UiStatus != ModUiStatus.MissingTranslation
+                && !canRestoreEditable))
         {
             MessageBox.Show(this, _l.T("ui.no_extract"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
-        if (!ValidateGamePaths(requireExtractionTools: true)) return;
+
+        // A Cached -> Editable restore does not need retoc/UAssetGUI/repak.
+        if (!ValidateGamePaths(requireExtractionTools: _game.NeedsExtraction))
+            return;
 
         SetBusy(true, _l.T("ui.extracting_game"));
         _operationCts = new CancellationTokenSource();
@@ -684,8 +930,20 @@ public sealed class MainForm : Form
                 _settings.GamePaksFolder,
                 hashSourceFiles: false
             );
-            var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
-            await service.ExtractAsync(new[] { _game! }, progress, _operationCts.Token);
+            var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
+            var extractionToken = _operationCts.Token;
+            await Task.Run(
+                () => service.ExtractAsync(
+                    new[] { _game! },
+                    progress,
+                    extractionToken
+                ),
+                extractionToken
+            );
+            _game!.NeedsExtraction = false;
+            RefreshGameEditableTranslation();
+            CompleteProgress(_l.T("ui.done"));
+            LogGameWorkflowReady();
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -703,7 +961,6 @@ public sealed class MainForm : Form
             _operationCts = null;
             SetBusy(false, _l.T("ui.idle"));
         }
-        await ScanGameAsync();
     }
 
     private async Task BuildGameAsync()
@@ -747,14 +1004,28 @@ public sealed class MainForm : Form
 
                 _game.EditableTranslationFile = editableFile;
                 _game.UiStatus = ModUiStatus.Available;
-                var languageProgress = new Progress<(int Current, int Total, string Message)>(_ =>
-                    UpdateProgress(builtLanguages + 1, languages.Count, language.EnglishName));
-                var results = await builder.BuildAllEditableAsync(
-                    new[] { _game! },
-                    language.Id,
-                    BuildMode.Modular,
-                    languageProgress,
-                    _operationCts.Token
+                var languageProgress = CreateUiProgress(p =>
+                {
+                    var inner = p.Total <= 0
+                        ? 0d
+                        : Math.Clamp(p.Current / (double)p.Total, 0d, 1d);
+                    var overall = (builtLanguages + inner) / languages.Count;
+                    UpdateProgressFraction(
+                        overall,
+                        $"{language.EnglishName}: {p.Message}"
+                    );
+                });
+                var buildToken = _operationCts.Token;
+                AppendLog($"GAME / {language.EnglishName}: build pipeline started.");
+                var results = await Task.Run(
+                    () => builder.BuildAllEditableAsync(
+                        new[] { _game! },
+                        language.Id,
+                        BuildMode.Modular,
+                        languageProgress,
+                        buildToken
+                    ),
+                    buildToken
                 );
                 if (results.All(result => result.Verified))
                 {
@@ -780,6 +1051,7 @@ public sealed class MainForm : Form
                 summary.AppendLine($"  {name}: {_l.T("status.built_verified")}");
             summary.AppendLine();
             summary.AppendLine(string.Format(_l.T("ui.build_summary_output"), _settings.OutputFolder));
+            CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, summary.ToString().TrimEnd(), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -802,7 +1074,12 @@ public sealed class MainForm : Form
 
     private async Task ExtractAsync()
     {
-        var targets = _mods.Where(x => x.UiStatus == ModUiStatus.NeedsExtraction).ToList();
+        var targets = _mods
+            .Where(mod =>
+                mod.UiStatus is ModUiStatus.NeedsExtraction
+                    or ModUiStatus.MissingTranslation
+                || CanRestoreEditableFromCache(mod))
+            .ToList();
         if (targets.Count == 0)
         {
             MessageBox.Show(this, _l.T("ui.no_extract"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -819,9 +1096,32 @@ public sealed class MainForm : Form
             var retoc = new RetocService(_settings.RetocPath, AppendLog);
             var repak = new RepakService(_settings.RepakPath, AppendLog);
             var uasset = new UAssetGuiService(_settings.UAssetGuiPath, _settings.MappingsPath, AppendLog);
-            var service = new ExtractionService(_settings, retoc, repak, uasset, AppendLog);
-            var progress = new Progress<(int Current, int Total, string Message)>(p => UpdateProgress(p.Current, p.Total, p.Message));
-            await service.ExtractAsync(targets, progress, _operationCts.Token);
+            var service = new ExtractionService(
+                _settings,
+                retoc,
+                repak,
+                uasset,
+                AppendLog,
+                _settings.ModsFolder,
+                hashSourceFiles: false
+            );
+            var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
+            var extractionToken = _operationCts.Token;
+            await Task.Run(
+                () => service.ExtractAsync(
+                    targets,
+                    progress,
+                    extractionToken
+                ),
+                extractionToken
+            );
+            foreach (var mod in targets)
+                mod.NeedsExtraction = false;
+
+            RefreshModEditableStatuses();
+            SaveModsSnapshot();
+            CompleteProgress(_l.T("ui.done"));
+            LogModsWorkflowReady();
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -840,7 +1140,6 @@ public sealed class MainForm : Form
             SetBusy(false, _l.T("ui.idle"));
         }
 
-        await ScanModsAsync();
     }
 
     private async Task BuildAsync(BuildMode mode)
@@ -889,7 +1188,7 @@ public sealed class MainForm : Form
                     .Select(item =>
                     {
                         item.Mod.EditableTranslationFile = item.File;
-                        item.Mod.UiStatus = ModUiStatus.Available;
+                        item.Mod.UiStatus = ModUiStatus.Extracted;
                         return item.Mod;
                     })
                     .ToList();
@@ -899,14 +1198,32 @@ public sealed class MainForm : Form
                     continue;
                 }
 
-                var progress = new Progress<(int Current, int Total, string Message)>(p =>
-                    UpdateProgress(languageIndex * availableMods.Count + p.Current, languages.Count * availableMods.Count, $"{language.EnglishName}: {p.Message}"));
-                var results = await builder.BuildAllEditableAsync(
-                    availableMods,
-                    language.Id,
-                    mode,
-                    progress,
-                    _operationCts.Token
+                var progress = CreateUiProgress(p =>
+                {
+                    var inner = p.Total <= 0
+                        ? 0d
+                        : Math.Clamp(p.Current / (double)p.Total, 0d, 1d);
+                    var overall = (languageIndex + inner) / languages.Count;
+                    UpdateProgressFraction(
+                        overall,
+                        $"{language.EnglishName}: {p.Message}"
+                    );
+                });
+                var buildToken = _operationCts.Token;
+                AppendLog(
+                    $"MODS / {language.EnglishName} / "
+                    + $"{(mode == BuildMode.AllInOne ? "All-in-One" : "Modular")}: "
+                    + "build pipeline started."
+                );
+                var results = await Task.Run(
+                    () => builder.BuildAllEditableAsync(
+                        availableMods,
+                        language.Id,
+                        mode,
+                        progress,
+                        buildToken
+                    ),
+                    buildToken
                 );
                 allResults.AddRange(results);
                 languageSummaries.Add((
@@ -937,6 +1254,7 @@ public sealed class MainForm : Form
                 summary.AppendLine($"  {item.Language}: {item.Built} built, {item.Skipped} skipped");
             summary.AppendLine();
             summary.AppendLine(string.Format(_l.T("ui.build_summary_output"), _settings.OutputFolder));
+            CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, summary.ToString().TrimEnd(), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
@@ -963,65 +1281,182 @@ public sealed class MainForm : Form
         _grid.Rows.Clear();
         foreach (var mod in _mods)
         {
-            var details = mod.ScanError;
-            if (string.IsNullOrWhiteSpace(details) && mod.Assets.Count > 0)
-                details = string.Format(_l.T("details.database"), mod.Assets.Count);
+            var details = !string.IsNullOrWhiteSpace(mod.ScanError)
+                ? mod.ScanError
+                : BuildModDetails(mod);
 
             _grid.Rows.Add(
                 mod.ModName,
                 LocalizationKindText(mod),
                 StatusText(mod.UiStatus),
-                details ?? string.Empty
+                details
             );
         }
     }
 
 
     private string LocalizationKindText(ModScanResult mod) =>
-        mod.Assets.Count > 0 ? $"{_l.T("type.database")} {mod.Assets.Count}" : "—";
+        mod.Assets.Count > 0 ? _l.T("ui.available") : "—";
 
-    private void UpdateSummary()
+    private static string BuildModDetails(ModScanResult mod)
     {
-        _modsFound.Text = string.Format(_l.T("ui.mods_found"), _mods.Count);
-        _localizationFound.Text = string.Format(_l.T("ui.localization_found"), _mods.Count(x => x.Assets.Count > 0));
-        _changedFound.Text = string.Format(_l.T("ui.changed_found"), _mods.Count(x => x.UiStatus == ModUiStatus.NeedsExtraction));
-        _availableFound.Text = string.Format(_l.T("ui.available_found"), _mods.Count(x => x.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified));
-        _missingFound.Text = string.Format(_l.T("ui.missing_found"), _mods.Count(x => x.UiStatus == ModUiStatus.MissingTranslation));
-        UpdateButtons();
+        if (mod.Assets.Count == 0)
+            return string.Empty;
+
+        var parts = new List<string>
+        {
+            string.Equals(mod.SourceKind, "archive", StringComparison.OrdinalIgnoreCase)
+                ? "Archive"
+                : "Loose",
+            $"{mod.Containers.Count} container{(mod.Containers.Count == 1 ? string.Empty : "s")}",
+        };
+
+        var hasNew = mod.ContainerLabels.Any(PathUtil.IsNewContentContainer);
+        var hasOverride = mod.ContainerLabels.Any(PathUtil.IsOverrideContentContainer);
+
+        if (hasNew && hasOverride)
+            parts.Add("New + Override");
+        else if (hasOverride)
+            parts.Add("Override");
+        else if (hasNew)
+            parts.Add("New");
+
+        var numberedPatch = mod.ContainerLabels
+            .Select(label => Regex.Match(
+                Path.GetFileNameWithoutExtension(label),
+                @"_(\d+)_P$",
+                RegexOptions.IgnoreCase))
+            .Where(match => match.Success)
+            .Select(match => int.Parse(match.Groups[1].Value))
+            .DefaultIfEmpty(-1)
+            .Max();
+
+        if (numberedPatch >= 0)
+            parts.Add($"Patch {numberedPatch}");
+
+        return string.Join(" • ", parts);
     }
 
-    private void RefreshGameStatus()
+    private static string BuildModDetailsTooltip(ModScanResult mod)
     {
-        var gameJsonRoot = Path.Combine(_settings.EditableFolder, "Game");
-        var availableJsonCount = CountGameJsonFiles(gameJsonRoot);
-        var allJsonsAvailable = availableJsonCount == BuildLanguageCatalog.All.Count;
-        var availabilityText = allJsonsAvailable
-            ? _l.T("ui.all_jsons")
-            : availableJsonCount > 0
-                ? string.Format(_l.T("ui.json_count"), availableJsonCount, BuildLanguageCatalog.All.Count)
-                : "—";
+        var lines = new List<string>();
 
-        if (_game is null)
+        if (!string.IsNullOrWhiteSpace(mod.SourceLabel))
+            lines.Add($"Source: {mod.SourceLabel}");
+
+        if (mod.ContainerLabels.Count > 0)
         {
-            _gameLocalizationLabel.Text = _l.T("ui.not_scanned");
-            _gameDetailsLabel.Text = "—";
-            _gameAvailabilityLabel.Text = availabilityText;
-            _toolTip.SetToolTip(_gameAvailabilityLabel, availableJsonCount > 0 ? gameJsonRoot : string.Empty);
-            UpdateButtons();
-            return;
+            lines.Add("Containers:");
+            lines.AddRange(
+                mod.ContainerLabels
+                    .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                    .Select(value => "  " + value)
+            );
         }
 
-        _gameLocalizationLabel.Text = StatusText(_game.UiStatus);
-        var parts = new List<string>();
-        if (_game.Assets.Count > 0)
-            parts.Add(string.Format(_l.T("details.database"), _game.Assets.Count));
-        if (_game.LocresAssets.Count > 0)
-            parts.Add(string.Format(_l.T("details.locres"), _game.LocresAssets.Count));
-        _gameDetailsLabel.Text = parts.Count > 0 ? string.Join("; ", parts) : "—";
-        _gameAvailabilityLabel.Text = availabilityText;
-        _toolTip.SetToolTip(_gameAvailabilityLabel, availableJsonCount > 0 ? gameJsonRoot : string.Empty);
-        _toolTip.SetToolTip(_gameLocalizationLabel, StatusHelp(_game.UiStatus));
-        UpdateButtons();
+        return string.Join(Environment.NewLine, lines);
+    }
+
+    private string ModsSnapshotPath() =>
+        Path.Combine(_settings.CachedFolder, ".workbench", "mods-scan.json");
+
+    private void SaveModsSnapshot()
+    {
+        if (_mods.Count == 0)
+            return;
+
+        try
+        {
+            JsonUtil.Save(
+                ModsSnapshotPath(),
+                new ModScanSnapshot
+                {
+                    Version = 2,
+                    ModsFolder = Path.GetFullPath(_settings.ModsFolder),
+                    SavedAtUtc = DateTime.UtcNow,
+                    Mods = _mods,
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Could not save MODS scan snapshot: {ex.Message}");
+        }
+    }
+
+    private bool TryLoadModsSnapshot()
+    {
+        var path = ModsSnapshotPath();
+        if (!File.Exists(path))
+            return false;
+
+        try
+        {
+            var snapshot = JsonUtil.Load<ModScanSnapshot>(path);
+            if (snapshot.Version != 2
+                || !string.Equals(
+                    Path.GetFullPath(snapshot.ModsFolder),
+                    Path.GetFullPath(_settings.ModsFolder),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            _mods = snapshot.Mods ?? new List<ModScanResult>();
+
+            foreach (var mod in _mods)
+            {
+                var manifestPath = Path.Combine(
+                    _settings.CachedFolder,
+                    mod.ModId,
+                    "manifest.json"
+                );
+
+                mod.NeedsExtraction = mod.HasLocalization
+                                      && !SnapshotManifestMatches(
+                                          manifestPath,
+                                          mod.SourceFingerprint
+                                      );
+            }
+
+            RefreshModEditableStatuses();
+            AppendLog(
+                $"Loaded {_mods.Count} MODS result(s) from previous scan " +
+                $"({snapshot.SavedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss})."
+            );
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppendLog($"Could not load MODS scan snapshot: {ex.Message}");
+            return false;
+        }
+    }
+
+    private static bool SnapshotManifestMatches(
+        string manifestPath,
+        string fingerprint)
+    {
+        if (!File.Exists(manifestPath)
+            || string.IsNullOrWhiteSpace(fingerprint))
+        {
+            return false;
+        }
+
+        try
+        {
+            var manifest = JsonUtil.Load<ExtractedManifest>(manifestPath);
+            return manifest.SchemaVersion == AppConstants.ManifestSchemaVersion
+                   && string.Equals(
+                       manifest.SourceFingerprint,
+                       fingerprint,
+                       StringComparison.OrdinalIgnoreCase
+                   );
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void RefreshGameEditableTranslation()
@@ -1048,23 +1483,7 @@ public sealed class MainForm : Form
                         ? ModUiStatus.BuiltVerified
                         : ModUiStatus.Available;
         }
-        RefreshGameStatus();
-    }
-
-    private static int CountGameJsonFiles(string directory)
-    {
-        try
-        {
-            if (!Directory.Exists(directory))
-                return 0;
-
-            return BuildLanguageCatalog.All.Count(language =>
-                File.Exists(Path.Combine(directory, language.Key + ".json")));
-        }
-        catch
-        {
-            return 0;
-        }
+        UpdateButtons();
     }
 
     private void RefreshModEditableStatuses()
@@ -1092,48 +1511,261 @@ public sealed class MainForm : Form
                 : editableFiles.Count == languages.Count
                   && languages.All(language => _builtVerifiedThisSession.Contains(BuildSessionKey(mod.ModId, language.Id)))
                     ? ModUiStatus.BuiltVerified
-                    : ModUiStatus.Available;
+                    : ModUiStatus.Extracted;
         }
         RefreshGrid();
-        UpdateSummary();
+        UpdateButtons();
+    }
+
+    private bool CanRestoreEditableFromCache(ModScanResult mod)
+    {
+        if (mod.NeedsExtraction || !mod.HasLocalization)
+            return false;
+
+        var cachedRoot = Path.Combine(
+            _settings.CachedFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(cachedRoot))
+            return false;
+
+        var cachedHasEditableJson = BuildLanguageCatalog.All.Any(language =>
+            File.Exists(
+                Path.Combine(
+                    cachedRoot,
+                    language.Key + ".json"
+                )
+            )
+        );
+        if (!cachedHasEditableJson)
+            return false;
+
+        var editableRoot = Path.Combine(
+            _settings.EditableFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(editableRoot))
+            return true;
+
+        var editableHasAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
+            File.Exists(
+                Path.Combine(
+                    editableRoot,
+                    language.Key + ".json"
+                )
+            )
+        );
+
+        return !editableHasAnyLanguageJson;
     }
 
     private void UpdateButtons()
     {
-        _refreshButton.Enabled = !_busy;
         _settingsButton.Enabled = !_busy;
         _buildLanguages.Enabled = !_busy;
+
         var hasLanguages = _settings.BuildLanguageIds.Count > 0;
-        _extractButton.Enabled = !_busy && _mods.Any(x => x.UiStatus == ModUiStatus.NeedsExtraction);
-        var canBuild = !_busy && hasLanguages && _mods.Any(x => x.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified);
-        _buildModularButton.Enabled = canBuild;
-        _buildAllInOneButton.Enabled = !_busy && _mods.Any(mod =>
-            (mod.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified)
-            && mod.Assets.Count > 0);
+
+        var modsNeedExtraction = _mods.Any(
+            mod => mod.UiStatus == ModUiStatus.NeedsExtraction
+        );
+        var modsCanExtract = _mods.Any(
+            mod =>
+                mod.UiStatus is ModUiStatus.NeedsExtraction
+                    or ModUiStatus.MissingTranslation
+                || CanRestoreEditableFromCache(mod)
+        );
+        var modsCanBuild = !_busy
+            && hasLanguages
+            && _mods.Any(mod =>
+                mod.UiStatus is ModUiStatus.Extracted
+                    or ModUiStatus.BuiltVerified
+            );
+        var modsCanBuildAllInOne = !_busy
+            && _mods.Any(mod =>
+                (mod.UiStatus is ModUiStatus.Extracted
+                    or ModUiStatus.BuiltVerified)
+                && mod.Assets.Count > 0
+            );
+
+        _scanModsButton.Enabled = !_busy;
+        _extractButton.Enabled = !_busy && modsCanExtract;
+        _buildModularButton.Enabled = modsCanBuild;
+        _buildAllInOneButton.Enabled = modsCanBuildAllInOne;
+
         _scanGameButton.Enabled = !_busy;
-        _extractGameButton.Enabled = !_busy && _game?.UiStatus == ModUiStatus.NeedsExtraction;
-        _buildGameButton.Enabled = !_busy && hasLanguages
-            && _game?.UiStatus is (ModUiStatus.Available or ModUiStatus.BuiltVerified);
+        _extractGameButton.Enabled = !_busy
+            && _game is not null
+            && (
+                _game.UiStatus is ModUiStatus.NeedsExtraction
+                    or ModUiStatus.MissingTranslation
+                || CanRestoreEditableFromCache(_game)
+            );
+        _buildGameButton.Enabled = !_busy
+            && hasLanguages
+            && _game?.UiStatus is (
+                ModUiStatus.Available
+                or ModUiStatus.BuiltVerified
+            );
+
+        // GAME workflow: SCAN -> EXTRACT -> BUILD.
+        var gameScanPrimary = !_gameScanSuccessful;
+        var gameExtractPrimary = _gameScanSuccessful
+            && _extractGameButton.Enabled;
+        var gameBuildPrimary = _gameScanSuccessful
+            && !gameExtractPrimary
+            && _buildGameButton.Enabled;
+
+        StalkerTheme.SetButtonPrimary(
+            _scanGameButton,
+            this,
+            gameScanPrimary
+        );
+        StalkerTheme.SetButtonPrimary(
+            _extractGameButton,
+            this,
+            gameExtractPrimary
+        );
+        StalkerTheme.SetButtonPrimary(
+            _buildGameButton,
+            this,
+            gameBuildPrimary
+        );
+
+        // MODS workflow: SCAN MODS -> EXTRACT -> choose a build mode.
+        var modsScanPrimary = !_modsScanSuccessful;
+        var modsExtractPrimary = _modsScanSuccessful
+            && _extractButton.Enabled;
+        var modsBuildStage = _modsScanSuccessful
+            && !modsNeedExtraction;
+
+        StalkerTheme.SetButtonPrimary(
+            _scanModsButton,
+            this,
+            modsScanPrimary
+        );
+        StalkerTheme.SetButtonPrimary(
+            _extractButton,
+            this,
+            modsExtractPrimary
+        );
+        StalkerTheme.SetButtonPrimary(
+            _buildModularButton,
+            this,
+            modsBuildStage && _buildModularButton.Enabled
+        );
+        StalkerTheme.SetButtonPrimary(
+            _buildAllInOneButton,
+            this,
+            modsBuildStage && _buildAllInOneButton.Enabled
+        );
+    }
+
+    private IProgress<(int Current, int Total, string Message)> CreateUiProgress(
+        Action<(int Current, int Total, string Message)> handler)
+    {
+        return new SynchronousUiProgress(this, handler);
+    }
+
+    private sealed class SynchronousUiProgress :
+        IProgress<(int Current, int Total, string Message)>
+    {
+        private readonly Control _owner;
+        private readonly Action<(int Current, int Total, string Message)> _handler;
+
+        public SynchronousUiProgress(
+            Control owner,
+            Action<(int Current, int Total, string Message)> handler)
+        {
+            _owner = owner;
+            _handler = handler;
+        }
+
+        public void Report((int Current, int Total, string Message) value)
+        {
+            if (_owner.IsDisposed || _owner.Disposing)
+                return;
+
+            if (_owner.InvokeRequired)
+            {
+                try
+                {
+                    _owner.Invoke(new Action(() => _handler(value)));
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                return;
+            }
+
+            _handler(value);
+        }
     }
 
     private void SetBusy(bool busy, string message)
     {
         _busy = busy;
+        _brandMark.Spinning = busy;
         _statusText.Text = message;
-        _progress.Value = 0;
-        _progress.Style = busy ? ProgressBarStyle.Continuous : ProgressBarStyle.Continuous;
+
+        if (busy)
+        {
+            _progressCompleted = false;
+            _progress.Value = 0;
+            _progress.Visible = true;
+        }
+        else
+        {
+            _progress.Visible = false;
+            _progress.Value = 0;
+        }
+
         UpdateButtons();
     }
 
     private void UpdateProgress(int current, int total, string message)
     {
+        if (_progressCompleted)
+            return;
+
         _statusText.Text = message;
         if (total <= 0)
         {
             _progress.Value = 0;
             return;
         }
-        _progress.Value = Math.Clamp((int)Math.Round(current * 100.0 / total), 0, 100);
+
+        var ratio = Math.Clamp(current / (double)total, 0d, 1d);
+        _progress.Value = Math.Clamp(
+            (int)Math.Round(ratio * 95d),
+            0,
+            95
+        );
+    }
+
+    private void UpdateProgressFraction(double fraction, string message)
+    {
+        if (_progressCompleted)
+            return;
+
+        _statusText.Text = message;
+        _progress.Value = Math.Clamp(
+            (int)Math.Round(Math.Clamp(fraction, 0d, 1d) * 95d),
+            0,
+            95
+        );
+    }
+
+    private void CompleteProgress(string message)
+    {
+        _progressCompleted = true;
+        _statusText.Text = message;
+        _progress.Value = 100;
+        _progress.Invalidate();
+        _progress.Update();
     }
 
     private void AppendLog(string message)
@@ -1146,28 +1778,173 @@ public sealed class MainForm : Form
         _logBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
     }
 
-    private DialogResult ShowSettings()
+    private void LogGameWorkflowReady()
     {
-        using var dialog = new SettingsForm(_settings, _l);
-        var result = dialog.ShowDialog(this);
-        if (result == DialogResult.OK)
-            ConfigureWatchers();
-        return result;
+        if (_game is not null
+            && (
+                _game.UiStatus is ModUiStatus.NeedsExtraction
+                    or ModUiStatus.MissingTranslation
+                || CanRestoreEditableFromCache(_game)
+            ))
+        {
+            _statusText.Text = "READY FOR EXTRACTION";
+            AppendLog("=========== READY FOR EXTRACTION ===========");
+            return;
+        }
+
+        // Scan completion happens while the form is still busy, so the BUILD
+        // button is temporarily disabled at this point. Derive the workflow
+        // stage from the scanned GAME state itself rather than button.Enabled.
+        if (_game?.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified)
+        {
+            _statusText.Text = "READY TO BUILD";
+            AppendLog("=========== READY TO BUILD ===========");
+        }
     }
 
-    private bool NeedsInitialSetup()
+    private void LogModsWorkflowReady()
     {
-        // MODS scanning itself needs only retoc. Database-specific tools and GAME
-        // repak/S2HOCMM/global prerequisites are checked on demand.
-        return !File.Exists(_settings.RetocPath)
-               || string.IsNullOrWhiteSpace(_settings.ModsFolder);
+        if (_mods.Any(mod => mod.UiStatus == ModUiStatus.NeedsExtraction))
+        {
+            _statusText.Text = "READY FOR EXTRACTION";
+            AppendLog("=========== READY FOR EXTRACTION ===========");
+            return;
+        }
+
+        if (_mods.Any(mod =>
+                mod.UiStatus is ModUiStatus.Extracted or ModUiStatus.BuiltVerified))
+        {
+            _statusText.Text = "READY TO BUILD";
+            AppendLog("=========== READY TO BUILD ===========");
+        }
+    }
+
+    private DialogResult ShowSettings()
+    {
+        _lastSettingsDeletedCache = false;
+        _watchDebounce.Stop();
+        _suspendWatcherScan = true;
+
+        try
+        {
+            using var dialog = new SettingsForm(_settings, _l);
+            var result = dialog.ShowDialog(this);
+            _lastSettingsDeletedCache = dialog.CacheDeleted;
+
+            if (dialog.CacheDeleted)
+                MarkCacheDeleted();
+
+            if (result == DialogResult.OK)
+                ConfigureWatchers();
+
+            return result;
+        }
+        finally
+        {
+            _watchDebounce.Stop();
+            _suspendWatcherScan = false;
+        }
+    }
+
+    private void MarkCacheDeleted()
+    {
+        if (_game is not null && _game.HasLocalization)
+        {
+            _game.NeedsExtraction = true;
+            _game.UiStatus = ModUiStatus.NeedsExtraction;
+        }
+
+        // MODS scan results can contain materialized UTOC paths inside Cached.
+        // DELETE CACHE removes those files, so keeping the old scan result would
+        // leave stale container paths and cause "UTOC not found" errors during
+        // extraction. Drop MODS state completely and require a fresh SCAN MODS.
+        _mods.Clear();
+        _modsScanSuccessful = false;
+
+        _builtVerifiedThisSession.Clear();
+
+        _gameScanSuccessful = _game is not null && _game.HasLocalization;
+
+        RefreshGrid();
+        UpdateButtons();
+
+        if (IsGameWorkspace && _gameScanSuccessful)
+        {
+            _statusText.Text = "READY FOR EXTRACTION";
+            AppendLog("=========== READY FOR EXTRACTION ===========");
+        }
+        else
+        {
+            _statusText.Text = "READY TO SCAN MODS";
+            AppendLog("MODS cache deleted: scan state reset.");
+            AppendLog("=========== READY TO SCAN MODS ===========");
+        }
+    }
+
+    private bool NeedsInitialSetup() =>
+        !AreRequiredToolsAvailable() || !IsGamePathValid();
+
+    private bool AreRequiredToolsAvailable()
+    {
+        return !string.IsNullOrWhiteSpace(_settings.RetocPath)
+               && File.Exists(_settings.RetocPath)
+               && !string.IsNullOrWhiteSpace(_settings.UAssetGuiPath)
+               && File.Exists(_settings.UAssetGuiPath)
+               && !string.IsNullOrWhiteSpace(_settings.MappingsPath)
+               && File.Exists(_settings.MappingsPath)
+               && !string.IsNullOrWhiteSpace(_settings.RepakPath)
+               && File.Exists(_settings.RepakPath)
+               && !string.IsNullOrWhiteSpace(_settings.S2HocmmPath)
+               && File.Exists(_settings.S2HocmmPath);
+    }
+
+    private bool IsGamePathValid()
+    {
+        return !string.IsNullOrWhiteSpace(_settings.GamePaksFolder)
+               && Directory.Exists(_settings.GamePaksFolder)
+               && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc"))
+               && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas"));
+    }
+
+    private string InitialSetupMessage()
+    {
+        var toolsMissing = !AreRequiredToolsAvailable();
+        var gamePathMissing = !IsGamePathValid();
+        var toolsFolder = Path.Combine(AppContext.BaseDirectory, "tools");
+
+        if (toolsMissing && gamePathMissing)
+        {
+            return
+                "Required tool files could not be found.\r\n" +
+                "Put the required files in the tools folder:\r\n" +
+                toolsFolder + "\r\n\r\n" +
+                "The game path could not be found or is not valid.\r\n" +
+                "Set the Game Paks folder in Settings.";
+        }
+
+        if (toolsMissing)
+        {
+            return
+                "Required tool files could not be found.\r\n" +
+                "Put the required files in the tools folder:\r\n" +
+                toolsFolder;
+        }
+
+        if (gamePathMissing)
+        {
+            return
+                "The game path could not be found or is not valid.\r\n" +
+                "Set the Game Paks folder in Settings.";
+        }
+
+        return string.Empty;
     }
 
     private bool ValidateExtractionPaths()
     {
         if (NeedsInitialSetup())
         {
-            MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return ShowSettings() == DialogResult.OK && !NeedsInitialSetup();
         }
         return true;
@@ -1182,7 +1959,7 @@ public sealed class MainForm : Form
             || !File.Exists(_settings.UAssetGuiPath)
             || !File.Exists(_settings.MappingsPath))
         {
-            MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return ShowSettings() == DialogResult.OK;
         }
         return true;
@@ -1207,7 +1984,7 @@ public sealed class MainForm : Form
 
         if (IsValid()) return true;
 
-        MessageBox.Show(this, _l.T("ui.first_run"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
         return ShowSettings() == DialogResult.OK && IsValid();
     }
 
@@ -1239,13 +2016,53 @@ public sealed class MainForm : Form
             NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.Size,
             EnableRaisingEvents = true,
         };
-        FileSystemEventHandler changed = (_, _) => QueueWatcherScan();
-        RenamedEventHandler renamed = (_, _) => QueueWatcherScan();
+        FileSystemEventHandler changed = (_, e) =>
+        {
+            if (!IsInternalWorkbenchCachePath(e.FullPath))
+                QueueWatcherScan();
+        };
+        RenamedEventHandler renamed = (_, e) =>
+        {
+            if (!IsInternalWorkbenchCachePath(e.FullPath)
+                && !IsInternalWorkbenchCachePath(e.OldFullPath))
+            {
+                QueueWatcherScan();
+            }
+        };
         watcher.Created += changed;
         watcher.Changed += changed;
         watcher.Deleted += changed;
         watcher.Renamed += renamed;
         return watcher;
+    }
+
+    private bool IsInternalWorkbenchCachePath(string path)
+    {
+        try
+        {
+            var cachedRoot = Path.GetFullPath(_settings.CachedFolder)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+            var fullPath = Path.GetFullPath(path);
+
+            if (!fullPath.StartsWith(cachedRoot, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            var relative = Path.GetRelativePath(_settings.CachedFolder, fullPath);
+            var firstPart = relative.Split(
+                new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                StringSplitOptions.RemoveEmptyEntries
+            ).FirstOrDefault();
+
+            return firstPart is not null
+                   && (firstPart.Equals(".workbench", StringComparison.OrdinalIgnoreCase)
+                       || firstPart.Equals(".scan_cache", StringComparison.OrdinalIgnoreCase)
+                       || firstPart.Equals(".source_cache", StringComparison.OrdinalIgnoreCase));
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void QueueWatcherScan()
@@ -1255,27 +2072,18 @@ public sealed class MainForm : Form
             BeginInvoke(new Action(QueueWatcherScan));
             return;
         }
-        if (_busy) return;
+        if (_busy || _suspendWatcherScan) return;
         _watchDebounce.Stop();
         _watchDebounce.Start();
     }
 
-    private void BuildLanguagesItemCheck(object? sender, ItemCheckEventArgs e)
+    private void BuildLanguagesSelectionChanged(object? sender, EventArgs e)
     {
         if (_loadingLanguageChecks) return;
 
-        var ids = _buildLanguages.CheckedItems
-            .Cast<BuildLanguageItem>()
-            .Select(item => item.Language.Id)
-            .ToHashSet();
-        if (_buildLanguages.Items[e.Index] is BuildLanguageItem changed)
-        {
-            if (e.NewValue == CheckState.Checked)
-                ids.Add(changed.Language.Id);
-            else
-                ids.Remove(changed.Language.Id);
-        }
-        _settings.BuildLanguageIds = ids.OrderBy(id => id).ToList();
+        _settings.BuildLanguageIds = _buildLanguages.CheckedIds
+            .OrderBy(id => id)
+            .ToList();
 
         BeginInvoke(new Action(() =>
         {
@@ -1290,6 +2098,7 @@ public sealed class MainForm : Form
         ModUiStatus.NeedsExtraction => _l.T("status.needs_extraction"),
         ModUiStatus.MissingTranslation => _l.T("status.missing_translation"),
         ModUiStatus.Available => _l.T("status.available"),
+        ModUiStatus.Extracted => _l.T("status.extracted"),
         ModUiStatus.BuiltVerified => _l.T("status.built_verified"),
         ModUiStatus.NoLanguageSelected => _l.T("status.no_language_selected"),
         ModUiStatus.Error => _l.T("status.error"),
@@ -1310,6 +2119,7 @@ public sealed class MainForm : Form
         ModUiStatus.NeedsExtraction => _l.T("help.status.needs_extraction"),
         ModUiStatus.MissingTranslation => _l.T("help.status.missing_translation"),
         ModUiStatus.Available => _l.T("help.status.available"),
+        ModUiStatus.Extracted => _l.T("help.status.extracted"),
         ModUiStatus.BuiltVerified => _l.T("help.status.built_verified"),
         ModUiStatus.NoLanguageSelected => _l.T("help.status.no_language_selected"),
         ModUiStatus.Error => _l.T("status.error"),
@@ -1326,6 +2136,60 @@ public sealed class MainForm : Form
         catch { }
     }
 
+    protected override void WndProc(ref Message m)
+    {
+        const int WmNcHitTest = 0x0084;
+        const int HtClient = 1;
+        const int HtCaption = 2;
+        const int HtLeft = 10;
+        const int HtRight = 11;
+        const int HtTop = 12;
+        const int HtTopLeft = 13;
+        const int HtTopRight = 14;
+        const int HtBottom = 15;
+        const int HtBottomLeft = 16;
+        const int HtBottomRight = 17;
+
+        base.WndProc(ref m);
+
+        if (m.Msg != WmNcHitTest || (int)m.Result != HtClient)
+            return;
+
+        var raw = m.LParam.ToInt64();
+        var screenPoint = new Point(
+            unchecked((short)(raw & 0xFFFF)),
+            unchecked((short)((raw >> 16) & 0xFFFF))
+        );
+        var point = PointToClient(screenPoint);
+
+        if (WindowState == FormWindowState.Normal)
+        {
+            const int grip = 6;
+            var left = point.X <= grip;
+            var right = point.X >= ClientSize.Width - grip;
+            var top = point.Y <= grip;
+            var bottom = point.Y >= ClientSize.Height - grip;
+
+            if (left && top) { m.Result = (IntPtr)HtTopLeft; return; }
+            if (right && top) { m.Result = (IntPtr)HtTopRight; return; }
+            if (left && bottom) { m.Result = (IntPtr)HtBottomLeft; return; }
+            if (right && bottom) { m.Result = (IntPtr)HtBottomRight; return; }
+            if (left) { m.Result = (IntPtr)HtLeft; return; }
+            if (right) { m.Result = (IntPtr)HtRight; return; }
+            if (top) { m.Result = (IntPtr)HtTop; return; }
+            if (bottom) { m.Result = (IntPtr)HtBottom; return; }
+        }
+
+        // Leave the right-hand caption-button zone clickable; the rest of the
+        // 74px title band behaves like a native draggable title bar.
+        if (point.Y >= 0
+            && point.Y < 74
+            && point.X < ClientSize.Width - 160)
+        {
+            m.Result = (IntPtr)HtCaption;
+        }
+    }
+
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         _operationCts?.Cancel();
@@ -1336,11 +2200,4 @@ public sealed class MainForm : Form
         base.OnFormClosing(e);
     }
 
-    private sealed class BuildLanguageItem
-    {
-        public BuildLanguage Language { get; }
-        private string Name { get; }
-        public BuildLanguageItem(BuildLanguage language, string name) { Language = language; Name = name; }
-        public override string ToString() => Name;
-    }
 }
