@@ -141,70 +141,71 @@ public sealed class MainForm : Form
             Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // title chrome
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54)); // title chrome
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));  // navigation
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Languages + workspace
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152)); // log
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // footer
         Controls.Add(root);
 
-        // TCD-style custom window chrome: one strong identity band, no native title bar.
+        // Match the True Custom Difficulty title bar geometry exactly:
+        // 54 px high, title-bar graphite, 12 px left inset, 30 px radiation mark,
+        // compact title typography and 42x30 caption buttons.
         var titleBar = new StalkerTitleBar
         {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            MinimumSize = new Size(0, 68),
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Height = 54,
             Margin = new Padding(0),
-            Padding = new Padding(14, 8, 10, 8),
+            Padding = new Padding(12, 0, 0, 0),
         };
 
         var titleLayout = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Fill,
+            AutoSize = false,
             ColumnCount = 2,
             RowCount = 1,
             Margin = new Padding(0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.WindowChrome,
+            BackColor = StalkerTheme.TitleBar,
         };
         titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        titleLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
 
         var identity = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
+            AutoSize = false,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             Margin = new Padding(0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.WindowChrome,
+            BackColor = StalkerTheme.TitleBar,
         };
 
-        _brandMark.Width = 52;
-        _brandMark.Height = 52;
-        _brandMark.Margin = new Padding(0, 2, 14, 0);
+        _brandMark.Width = 38;
+        _brandMark.Height = 38;
+        _brandMark.Margin = new Padding(0, 8, 9, 0);
 
         var titleWords = new FlowLayoutPanel
         {
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            Margin = new Padding(0, 12, 0, 0),
+            Margin = new Padding(0, 14, 0, 0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.WindowChrome,
+            BackColor = StalkerTheme.TitleBar,
         };
 
         _titleAccent.AutoSize = true;
-        _titleAccent.Font = new Font("Bahnschrift SemiCondensed", 22F, FontStyle.Bold);
+        _titleAccent.Font = new Font("Segoe UI", 19F, FontStyle.Bold);
         _titleAccent.Tag = StalkerTheme.SectionLabelTag;
-        _titleAccent.Margin = new Padding(0, 0, 8, 0);
+        _titleAccent.Margin = new Padding(0);
 
         _titleRest.AutoSize = true;
-        _titleRest.Font = new Font("Bahnschrift SemiCondensed", 22F, FontStyle.Bold);
+        _titleRest.Font = new Font("Segoe UI Semibold", 18F, FontStyle.Regular);
         _titleRest.Margin = new Padding(0);
 
         titleWords.Controls.Add(_titleAccent);
@@ -218,9 +219,9 @@ public sealed class MainForm : Form
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
-            Margin = new Padding(0),
+            Margin = new Padding(0, 12, 0, 0),
             Padding = new Padding(0),
-            BackColor = StalkerTheme.WindowChrome,
+            BackColor = StalkerTheme.TitleBar,
         };
 
         _minimizeButton.Text = "—";
@@ -746,8 +747,8 @@ public sealed class MainForm : Form
             ? split[0].ToUpperInvariant()
             : "LOCALIZATION";
         _titleRest.Text = split.Length > 1
-            ? split[1].ToUpperInvariant()
-            : "WORKBENCH";
+            ? " " + split[1].ToUpperInvariant()
+            : " WORKBENCH";
     }
 
     private void ApplyLocalization()
