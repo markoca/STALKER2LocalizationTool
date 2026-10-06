@@ -1,6 +1,6 @@
-using STALKER2LocalizationTool.Models;
+using LocalizationWorkbench.Models;
 
-namespace STALKER2LocalizationTool.Core;
+namespace LocalizationWorkbench.Core;
 
 public static class UAssetInspector
 {
