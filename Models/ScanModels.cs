@@ -35,6 +35,14 @@ public sealed class LocresSource
     public string CultureCode { get; set; } = string.Empty;
 }
 
+public sealed class ModScanSnapshot
+{
+    public int Version { get; set; } = 1;
+    public string ModsFolder { get; set; } = string.Empty;
+    public DateTime SavedAtUtc { get; set; }
+    public List<ModScanResult> Mods { get; set; } = new();
+}
+
 public sealed class ModScanResult
 {
     public string ModId { get; set; } = string.Empty;
