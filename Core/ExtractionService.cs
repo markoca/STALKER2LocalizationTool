@@ -37,10 +37,11 @@ public sealed class ExtractionService
         CancellationToken cancellationToken = default)
     {
         var list = mods
-            .Where(x =>
-                x.HasLocalization
-                && (x.NeedsExtraction
-                    || x.UiStatus == ModUiStatus.MissingTranslation))
+            .Where(mod =>
+                mod.HasLocalization
+                && (mod.NeedsExtraction
+                    || mod.UiStatus == ModUiStatus.MissingTranslation
+                    || CanRestoreEditableFromCache(mod)))
             .ToList();
 
         // Only a real source extraction needs retoc/UAssetGUI/repak.
@@ -58,7 +59,8 @@ public sealed class ExtractionService
             var mod = list[index];
 
             if (!mod.NeedsExtraction
-                && mod.UiStatus == ModUiStatus.MissingTranslation)
+                && (mod.UiStatus == ModUiStatus.MissingTranslation
+                    || CanRestoreEditableFromCache(mod)))
             {
                 progress?.Report((
                     index,
@@ -182,6 +184,45 @@ public sealed class ExtractionService
             TryDeleteDirectory(stagingRoot);
             throw;
         }
+    }
+
+    private bool CanRestoreEditableFromCache(ModScanResult mod)
+    {
+        var cachedRoot = Path.Combine(
+            _settings.CachedFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(cachedRoot))
+            return false;
+
+        var cachedHasEditableJson = BuildLanguageCatalog.All.Any(language =>
+            File.Exists(
+                Path.Combine(
+                    cachedRoot,
+                    language.Key + ".json"
+                )
+            )
+        );
+        if (!cachedHasEditableJson)
+            return false;
+
+        var editableRoot = Path.Combine(
+            _settings.EditableFolder,
+            mod.ModId
+        );
+        if (!Directory.Exists(editableRoot))
+            return true;
+
+        var editableHasAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
+            File.Exists(
+                Path.Combine(
+                    editableRoot,
+                    language.Key + ".json"
+                )
+            )
+        );
+
+        return !editableHasAnyLanguageJson;
     }
 
     private void RestoreMissingEditableWorkspace(ModScanResult mod)
