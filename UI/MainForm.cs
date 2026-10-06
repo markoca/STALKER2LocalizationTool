@@ -826,7 +826,7 @@ public sealed class MainForm : Form
             {
                 if (_settings.BuildLanguageIds.Count > 0
                     && _settings.BuildLanguageIds.All(id => _builtVerifiedThisSession.Contains(BuildSessionKey(mod.ModId, id)))
-                    && mod.UiStatus == ModUiStatus.Available)
+                    && mod.UiStatus == ModUiStatus.Extracted)
                     mod.UiStatus = ModUiStatus.BuiltVerified;
             }
 
@@ -1188,7 +1188,7 @@ public sealed class MainForm : Form
                     .Select(item =>
                     {
                         item.Mod.EditableTranslationFile = item.File;
-                        item.Mod.UiStatus = ModUiStatus.Available;
+                        item.Mod.UiStatus = ModUiStatus.Extracted;
                         return item.Mod;
                     })
                     .ToList();
@@ -1511,7 +1511,7 @@ public sealed class MainForm : Form
                 : editableFiles.Count == languages.Count
                   && languages.All(language => _builtVerifiedThisSession.Contains(BuildSessionKey(mod.ModId, language.Id)))
                     ? ModUiStatus.BuiltVerified
-                    : ModUiStatus.Available;
+                    : ModUiStatus.Extracted;
         }
         RefreshGrid();
         UpdateButtons();
@@ -1530,12 +1530,12 @@ public sealed class MainForm : Form
         var modsCanBuild = !_busy
             && hasLanguages
             && _mods.Any(mod =>
-                mod.UiStatus is ModUiStatus.Available
+                mod.UiStatus is ModUiStatus.Extracted
                     or ModUiStatus.BuiltVerified
             );
         var modsCanBuildAllInOne = !_busy
             && _mods.Any(mod =>
-                (mod.UiStatus is ModUiStatus.Available
+                (mod.UiStatus is ModUiStatus.Extracted
                     or ModUiStatus.BuiltVerified)
                 && mod.Assets.Count > 0
             );
@@ -1754,7 +1754,7 @@ public sealed class MainForm : Form
         }
 
         if (_mods.Any(mod =>
-                mod.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified))
+                mod.UiStatus is ModUiStatus.Extracted or ModUiStatus.BuiltVerified))
         {
             _statusText.Text = "READY TO BUILD";
             AppendLog("=========== READY TO BUILD ===========");
@@ -2045,6 +2045,7 @@ public sealed class MainForm : Form
         ModUiStatus.NeedsExtraction => _l.T("status.needs_extraction"),
         ModUiStatus.MissingTranslation => _l.T("status.missing_translation"),
         ModUiStatus.Available => _l.T("status.available"),
+        ModUiStatus.Extracted => _l.T("status.extracted"),
         ModUiStatus.BuiltVerified => _l.T("status.built_verified"),
         ModUiStatus.NoLanguageSelected => _l.T("status.no_language_selected"),
         ModUiStatus.Error => _l.T("status.error"),
@@ -2065,6 +2066,7 @@ public sealed class MainForm : Form
         ModUiStatus.NeedsExtraction => _l.T("help.status.needs_extraction"),
         ModUiStatus.MissingTranslation => _l.T("help.status.missing_translation"),
         ModUiStatus.Available => _l.T("help.status.available"),
+        ModUiStatus.Extracted => _l.T("help.status.extracted"),
         ModUiStatus.BuiltVerified => _l.T("help.status.built_verified"),
         ModUiStatus.NoLanguageSelected => _l.T("help.status.no_language_selected"),
         ModUiStatus.Error => _l.T("status.error"),
