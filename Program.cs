@@ -1,5 +1,5 @@
 using LocalizationWorkbench.Localization;
-using LocalizationWorkbench.Services;
+using LocalizationWorkbench.Models;
 using LocalizationWorkbench.UI;
 
 namespace LocalizationWorkbench;
@@ -11,10 +11,9 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
 
-        var settingsService = new SettingsService();
-        var settings = settingsService.Load();
+        var settings = AppSettings.CreateRuntime();
         var localizer = new Localizer();
 
-        Application.Run(new MainForm(settingsService, settings, localizer));
+        Application.Run(new MainForm(settings, localizer));
     }
 }
