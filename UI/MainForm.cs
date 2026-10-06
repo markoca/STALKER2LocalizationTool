@@ -140,7 +140,7 @@ public sealed class MainForm : Form
             BackColor = StalkerTheme.WindowBackground,
         };
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // title chrome
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // navigation
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));  // navigation
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Languages + workspace
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152)); // log
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // footer
@@ -241,18 +241,17 @@ public sealed class MainForm : Form
         // Navigation is a separate chrome band, like TCD's tab strip.
         var navBar = new StalkerNavigationBar
         {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Fill,
+            AutoSize = false,
+            Height = 44,
             Margin = new Padding(0),
             Padding = new Padding(14, 0, 10, 0),
         };
 
         var navLayout = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Fill,
+            AutoSize = false,
             ColumnCount = 2,
             RowCount = 1,
             Margin = new Padding(0),
@@ -383,15 +382,18 @@ public sealed class MainForm : Form
         var workspaceCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
+            AutoSize = false,
             BackColor = StalkerTheme.Panel,
-            Padding = new Padding(0),
+            Padding = new Padding(12, 10, 12, 10),
             Margin = new Padding(6, 0, 0, 0),
+            AccentEdge = false,
         };
 
         _workspaceHost.Dock = DockStyle.Fill;
         _workspaceHost.Margin = new Padding(0);
         _workspaceHost.Padding = new Padding(0);
         _workspaceHost.BackColor = StalkerTheme.Panel;
+        _workspaceHost.BorderStyle = BorderStyle.None;
 
         _gameTab.Dock = DockStyle.Fill;
         _gameTab.Margin = new Padding(0);
@@ -519,7 +521,7 @@ public sealed class MainForm : Form
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(14, 12, 14, 14),
+            Padding = new Padding(0),
             ColumnCount = 1,
             RowCount = 3,
             Margin = new Padding(0),
@@ -603,7 +605,7 @@ public sealed class MainForm : Form
         var layout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            Padding = new Padding(14, 12, 14, 14),
+            Padding = new Padding(0),
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0),
