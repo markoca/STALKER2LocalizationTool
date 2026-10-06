@@ -912,12 +912,21 @@ public sealed class MainForm : Form
 
     private async Task ExtractGameAsync()
     {
-        if (_game?.UiStatus != ModUiStatus.NeedsExtraction)
+        var canRestoreEditable = _game is not null
+            && CanRestoreEditableFromCache(_game);
+
+        if (_game is null
+            || (_game.UiStatus != ModUiStatus.NeedsExtraction
+                && _game.UiStatus != ModUiStatus.MissingTranslation
+                && !canRestoreEditable))
         {
             MessageBox.Show(this, _l.T("ui.no_extract"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
-        if (!ValidateGamePaths(requireExtractionTools: true)) return;
+
+        // A Cached -> Editable restore does not need retoc/UAssetGUI/repak.
+        if (!ValidateGamePaths(requireExtractionTools: _game.NeedsExtraction))
+            return;
 
         SetBusy(true, _l.T("ui.extracting_game"));
         _operationCts = new CancellationTokenSource();
@@ -1600,7 +1609,12 @@ public sealed class MainForm : Form
 
         _scanGameButton.Enabled = !_busy;
         _extractGameButton.Enabled = !_busy
-            && _game?.UiStatus == ModUiStatus.NeedsExtraction;
+            && _game is not null
+            && (
+                _game.UiStatus is ModUiStatus.NeedsExtraction
+                    or ModUiStatus.MissingTranslation
+                || CanRestoreEditableFromCache(_game)
+            );
         _buildGameButton.Enabled = !_busy
             && hasLanguages
             && _game?.UiStatus is (
@@ -1780,7 +1794,12 @@ public sealed class MainForm : Form
 
     private void LogGameWorkflowReady()
     {
-        if (_game?.UiStatus == ModUiStatus.NeedsExtraction)
+        if (_game is not null
+            && (
+                _game.UiStatus is ModUiStatus.NeedsExtraction
+                    or ModUiStatus.MissingTranslation
+                || CanRestoreEditableFromCache(_game)
+            ))
         {
             _statusText.Text = "READY FOR EXTRACTION";
             AppendLog("=========== READY FOR EXTRACTION ===========");
