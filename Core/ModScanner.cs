@@ -219,11 +219,7 @@ public sealed class ModScanner
     private void NormalizeLegacyEditableFolders(ModScanResult mod)
     {
         if (string.IsNullOrWhiteSpace(_editableRoot)
-            || !Directory.Exists(_editableRoot)
-            || !string.Equals(
-                mod.SourceKind,
-                "archive",
-                StringComparison.OrdinalIgnoreCase))
+            || !Directory.Exists(_editableRoot))
         {
             return;
         }
