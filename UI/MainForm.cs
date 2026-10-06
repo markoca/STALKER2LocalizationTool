@@ -1742,26 +1742,31 @@ public sealed class MainForm : Form
             _game.UiStatus = ModUiStatus.NeedsExtraction;
         }
 
-        foreach (var mod in _mods.Where(mod => mod.HasLocalization))
-        {
-            mod.NeedsExtraction = true;
-            mod.UiStatus = ModUiStatus.NeedsExtraction;
-        }
+        // MODS scan results can contain materialized UTOC paths inside Cached.
+        // DELETE CACHE removes those files, so keeping the old scan result would
+        // leave stale container paths and cause "UTOC not found" errors during
+        // extraction. Drop MODS state completely and require a fresh SCAN MODS.
+        _mods.Clear();
+        _modsScanSuccessful = false;
 
         _builtVerifiedThisSession.Clear();
 
         _gameScanSuccessful = _game is not null && _game.HasLocalization;
-        _modsScanSuccessful = _mods.Any(mod => mod.HasLocalization);
 
         RefreshGrid();
         UpdateButtons();
 
-        _statusText.Text = "READY FOR EXTRACTION";
-        AppendLog(
-            "Cache deleted: GAME and MODS extraction data was removed; "
-            + "existing scan results remain in memory."
-        );
-        AppendLog("=========== READY FOR EXTRACTION ===========");
+        if (IsGameWorkspace && _gameScanSuccessful)
+        {
+            _statusText.Text = "READY FOR EXTRACTION";
+            AppendLog("=========== READY FOR EXTRACTION ===========");
+        }
+        else
+        {
+            _statusText.Text = "READY TO SCAN MODS";
+            AppendLog("MODS cache deleted: scan state reset.");
+            AppendLog("=========== READY TO SCAN MODS ===========");
+        }
     }
 
     private bool NeedsInitialSetup() =>
