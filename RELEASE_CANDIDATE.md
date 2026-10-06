@@ -6,10 +6,12 @@ Localization Workbench has one supported application target: **Windows x64**.
 
 ## Runtime layout
 
-The authoritative helper-tool bundle is:
+Helper-tool binaries are **not distributed** with Localization Workbench.
+
+The user supplies compatible Windows x64 tools under:
 
 ```text
-tools/win-x64/
+tools/
   retoc.exe
   repak.exe
   UAssetGUI.exe
@@ -44,7 +46,7 @@ Windows PowerShell:
 .\scripts\publish-win-x64.ps1
 ```
 
-Both publishers preserve:
+Both publishers preserve locally existing runtime data:
 
 ```text
 user-paths.json
@@ -52,7 +54,10 @@ Mods/
 Cached/
 Editable/
 Output/
+tools/
 ```
+
+The publish process never sources or redistributes tool binaries from the repository.
 
 They do not contain legacy workspace or settings migration behavior.
 
@@ -63,6 +68,7 @@ publish/win-x64/
   Localization Workbench.exe
   user-paths.json        # created after a successful scan
   tools/
+    README.txt            # user places required tools here
   Mods/
   Cached/
   Editable/
