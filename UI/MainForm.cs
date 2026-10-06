@@ -29,22 +29,11 @@ public sealed class MainForm : Form
     private Panel? _activeWorkspaceTab;
     private bool IsGameWorkspace => ReferenceEquals(_activeWorkspaceTab, _gameTab);
     private readonly Label _gameIntro = new();
-    private readonly Label _gameStatusLabel = new();
-    private readonly Label _gameLocalizationLabel = new();
-    private readonly Label _gameDetailsLabel = new();
-    private readonly Label _gameAvailabilityTitleLabel = new();
-    private readonly Label _gameAvailabilityLabel = new();
     private readonly Button _scanGameButton = new();
     private readonly Button _extractGameButton = new();
     private readonly Button _buildGameButton = new();
     private readonly Button _openJsons = new();
     private readonly Button _openOutput = new();
-    private readonly Label _editableHeader = new();
-    private readonly Label _modsFound = new();
-    private readonly Label _localizationFound = new();
-    private readonly Label _changedFound = new();
-    private readonly Label _availableFound = new();
-    private readonly Label _missingFound = new();
     private readonly DataGridView _grid = new();
     private readonly TextBox _logBox = new();
     private readonly Label _logLabel = new();
@@ -54,7 +43,6 @@ public sealed class MainForm : Form
 
     private Button? _helpBuildLanguage;
     private Button? _helpExtract;
-    private Button? _helpEditable;
     private Button? _helpBuildModular;
     private Button? _helpBuildAllInOne;
     private Button? _helpGame;
@@ -416,12 +404,11 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(14, 12, 14, 14),
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 4,
             Margin = new Padding(0),
             BackColor = StalkerTheme.Panel,
         };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -433,31 +420,6 @@ public sealed class MainForm : Form
         _gameIntro.Tag = StalkerTheme.MutedLabelTag;
         _gameIntro.Margin = new Padding(2, 0, 0, 12);
         layout.Controls.Add(_gameIntro, 0, 0);
-
-        var statusGrid = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 3,
-            RowCount = 1,
-            Margin = new Padding(0, 0, 0, 12),
-        };
-        statusGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
-        statusGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
-        statusGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34F));
-
-        _gameStatusLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-        _gameAvailabilityTitleLabel.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-        var localizationTitle = new Label
-        {
-            Text = _l.T("ui.localization_types"),
-            AutoSize = true,
-            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-        };
-
-        statusGrid.Controls.Add(CreateGameMetricCard(_gameStatusLabel, _gameLocalizationLabel, new Padding(0, 0, 6, 0)), 0, 0);
-        statusGrid.Controls.Add(CreateGameMetricCard(localizationTitle, _gameDetailsLabel, new Padding(3, 0, 3, 0)), 1, 0);
-        statusGrid.Controls.Add(CreateGameMetricCard(_gameAvailabilityTitleLabel, _gameAvailabilityLabel, new Padding(6, 0, 0, 0)), 2, 0);
-        layout.Controls.Add(statusGrid, 0, 1);
 
         var workflowCard = new StalkerCardPanel
         {
@@ -496,7 +458,7 @@ public sealed class MainForm : Form
         workflow.Controls.Add(workflowTitle, 0, 0);
         workflow.Controls.Add(explanation, 0, 1);
         workflowCard.Controls.Add(workflow);
-        layout.Controls.Add(workflowCard, 0, 2);
+        layout.Controls.Add(workflowCard, 0, 1);
 
         var actionsCard = new StalkerCardPanel
         {
@@ -527,7 +489,7 @@ public sealed class MainForm : Form
         actions.Controls.Add(_buildGameButton);
         actions.Controls.Add(_helpGame);
         actionsCard.Controls.Add(actions);
-        layout.Controls.Add(actionsCard, 0, 4);
+        layout.Controls.Add(actionsCard, 0, 3);
     }
 
     private void BuildModsTab()
@@ -537,33 +499,16 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(14, 12, 14, 14),
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             Margin = new Padding(0),
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _modsTab.Controls.Add(layout);
 
-        var metrics = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 3,
-            RowCount = 1,
-            Margin = new Padding(0, 0, 0, 10),
-        };
-        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
-        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33F));
-        metrics.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34F));
-
-        metrics.Controls.Add(CreateSummaryCard(_modsFound, new Padding(0, 0, 4, 0)), 0, 0);
-        metrics.Controls.Add(CreateSummaryCard(_localizationFound, new Padding(2, 0, 2, 0)), 1, 0);
-        metrics.Controls.Add(CreateSummaryCard(_changedFound, new Padding(4, 0, 0, 0)), 2, 0);
-        layout.Controls.Add(metrics, 0, 0);
-
         ConfigureGrid();
         _grid.Margin = new Padding(0, 0, 0, 10);
-        layout.Controls.Add(_grid, 0, 1);
+        layout.Controls.Add(_grid, 0, 0);
 
         var actionCard = new StalkerCardPanel
         {
@@ -582,28 +527,6 @@ public sealed class MainForm : Form
         };
         actionLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         actionLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-        var editableSummary = new FlowLayoutPanel
-        {
-            AutoSize = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = true,
-            Margin = new Padding(0, 7, 12, 0),
-        };
-        _editableHeader.AutoSize = true;
-        _editableHeader.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-        _editableHeader.Tag = StalkerTheme.SectionLabelTag;
-        _editableHeader.Margin = new Padding(0, 2, 6, 0);
-        _helpEditable = MakeHelpButton("help.editable");
-        _helpEditable.Margin = new Padding(0, 0, 12, 0);
-        _availableFound.AutoSize = true;
-        _availableFound.Margin = new Padding(0, 2, 10, 0);
-        _missingFound.AutoSize = true;
-        _missingFound.Margin = new Padding(0, 2, 10, 0);
-        editableSummary.Controls.Add(_editableHeader);
-        editableSummary.Controls.Add(_helpEditable);
-        editableSummary.Controls.Add(_availableFound);
-        editableSummary.Controls.Add(_missingFound);
 
         var actionButtons = new FlowLayoutPanel
         {
@@ -633,79 +556,9 @@ public sealed class MainForm : Form
         actionButtons.Controls.Add(_buildAllInOneButton);
         actionButtons.Controls.Add(_helpBuildAllInOne);
 
-        actionLayout.Controls.Add(editableSummary, 0, 0);
         actionLayout.Controls.Add(actionButtons, 1, 0);
         actionCard.Controls.Add(actionLayout);
-        layout.Controls.Add(actionCard, 0, 2);
-    }
-
-    private StalkerCardPanel CreateGameMetricCard(Label caption, Label value, Padding margin)
-    {
-        var card = new StalkerCardPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = StalkerTheme.PanelAlt,
-            Padding = new Padding(12, 10, 12, 10),
-            Margin = margin,
-        };
-        var layout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(0),
-        };
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-
-        caption.AutoSize = true;
-        caption.Tag = StalkerTheme.MutedLabelTag;
-        caption.Margin = new Padding(0, 0, 0, 5);
-
-        value.AutoSize = true;
-        value.Font = new Font("Segoe UI", 11F, FontStyle.Bold);
-        value.Tag = StalkerTheme.AccentValueTag;
-        value.Margin = new Padding(0);
-
-        layout.Controls.Add(caption, 0, 0);
-        layout.Controls.Add(value, 0, 1);
-        card.Controls.Add(layout);
-        return card;
-    }
-
-    private StalkerCardPanel CreateSummaryCard(Label value, Padding margin)
-    {
-        var card = new StalkerCardPanel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = StalkerTheme.PanelAlt,
-            Padding = new Padding(10),
-            Margin = margin,
-            Font = new Font("Segoe UI", 9F, FontStyle.Bold),
-        };
-
-        // Keep the existing Label as the state holder used by UpdateSummary(), but draw its
-        // text ourselves. Wine occasionally lays out a Dock=Fill Label at the bottom edge
-        // of a TableLayoutPanel cell and clips half of the text.
-        value.Visible = false;
-        value.TextChanged += (_, _) => card.Invalidate();
-
-        card.Paint += (_, e) =>
-        {
-            var bounds = Rectangle.Inflate(card.ClientRectangle, -12, -8);
-            TextRenderer.DrawText(
-                e.Graphics,
-                value.Text,
-                card.Font,
-                bounds,
-                StalkerTheme.Text,
-                TextFormatFlags.HorizontalCenter
-                | TextFormatFlags.VerticalCenter
-                | TextFormatFlags.EndEllipsis
-                | TextFormatFlags.NoPrefix);
-        };
-
-        return card;
+        layout.Controls.Add(actionCard, 0, 1);
     }
 
     private static void ConfigureActionButton(Button button, int width, bool primary = false)
@@ -794,15 +647,12 @@ public sealed class MainForm : Form
         _gameTabButton.Text = _l.T("ui.tab_game");
         _modsTabButton.Text = _l.T("ui.tab_mods");
         _gameIntro.Text = _l.T("ui.game_intro");
-        _gameStatusLabel.Text = _l.T("ui.status");
-        _gameAvailabilityTitleLabel.Text = _l.T("ui.available");
         _scanGameButton.Text = _l.T("ui.scan_game");
         _extractGameButton.Text = _l.T("ui.extract_game");
         _buildGameButton.Text = _l.T("ui.build_game");
         _buildLanguageLabel.Text = _l.T("ui.build_language");
         _settingsButton.Text = _l.T("ui.settings");
         _refreshButton.Text = _l.T("ui.refresh");
-        _editableHeader.Text = _l.T("ui.editable_translations");
         _extractButton.Text = _l.T("ui.extract");
         _buildModularButton.Text = _l.T("ui.build_modular");
         _buildAllInOneButton.Text = _l.T("ui.build_all_in_one");
@@ -816,7 +666,7 @@ public sealed class MainForm : Form
         _grid.Columns["Status"].HeaderText = _l.T("ui.status");
         _grid.Columns["Details"].HeaderText = _l.T("ui.details");
 
-        foreach (var button in new[] { _helpBuildLanguage, _helpExtract, _helpEditable, _helpBuildModular, _helpBuildAllInOne, _helpGame })
+        foreach (var button in new[] { _helpBuildLanguage, _helpExtract, _helpBuildModular, _helpBuildAllInOne, _helpGame })
         {
             if (button?.Tag is string key)
                 _toolTip.SetToolTip(button, _l.T(key));
@@ -832,8 +682,8 @@ public sealed class MainForm : Form
         );
         _loadingLanguageChecks = false;
 
-        UpdateSummary();
-        RefreshGameStatus();
+        UpdateButtons();
+        UpdateButtons();
         RefreshGrid();
         if (!_busy) _statusText.Text = _l.T("ui.idle");
     }
@@ -876,7 +726,7 @@ public sealed class MainForm : Form
             }
 
             RefreshGrid();
-            UpdateSummary();
+            UpdateButtons();
             _statusText.Text = _l.T("ui.done");
         }
         catch (OperationCanceledException)
@@ -902,7 +752,7 @@ public sealed class MainForm : Form
         if (!File.Exists(_settings.RetocPath) || !File.Exists(_settings.RepakPath) || !Directory.Exists(_settings.GamePaksFolder))
         {
             _game = null;
-            RefreshGameStatus();
+            UpdateButtons();
             UpdateButtons();
             MessageBox.Show(this, _l.T("ui.game_paths_missing"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             if (ShowSettings() == DialogResult.OK)
@@ -930,7 +780,7 @@ public sealed class MainForm : Form
                 && _settings.BuildLanguageIds.All(id => _builtVerifiedThisSession.Contains(BuildSessionKey(_game.ModId, id)))
                 && _game.UiStatus == ModUiStatus.Available)
                 _game.UiStatus = ModUiStatus.BuiltVerified;
-            RefreshGameStatus();
+            UpdateButtons();
             _statusText.Text = _l.T("ui.done");
         }
         catch (OperationCanceledException)
@@ -1330,50 +1180,6 @@ public sealed class MainForm : Form
         return string.Join(Environment.NewLine, lines);
     }
 
-    private void UpdateSummary()
-    {
-        _modsFound.Text = string.Format(_l.T("ui.mods_found"), _mods.Count);
-        _localizationFound.Text = string.Format(_l.T("ui.localization_found"), _mods.Count(x => x.Assets.Count > 0));
-        _changedFound.Text = string.Format(_l.T("ui.changed_found"), _mods.Count(x => x.UiStatus == ModUiStatus.NeedsExtraction));
-        _availableFound.Text = string.Format(_l.T("ui.available_found"), _mods.Count(x => x.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified));
-        _missingFound.Text = string.Format(_l.T("ui.missing_found"), _mods.Count(x => x.UiStatus == ModUiStatus.MissingTranslation));
-        UpdateButtons();
-    }
-
-    private void RefreshGameStatus()
-    {
-        var gameJsonRoot = Path.Combine(_settings.EditableFolder, "Game");
-        var availableJsonCount = CountGameJsonFiles(gameJsonRoot);
-        var allJsonsAvailable = availableJsonCount == BuildLanguageCatalog.All.Count;
-        var availabilityText = allJsonsAvailable
-            ? _l.T("ui.all_jsons")
-            : availableJsonCount > 0
-                ? string.Format(_l.T("ui.json_count"), availableJsonCount, BuildLanguageCatalog.All.Count)
-                : "—";
-
-        if (_game is null)
-        {
-            _gameLocalizationLabel.Text = _l.T("ui.not_scanned");
-            _gameDetailsLabel.Text = "—";
-            _gameAvailabilityLabel.Text = availabilityText;
-            _toolTip.SetToolTip(_gameAvailabilityLabel, availableJsonCount > 0 ? gameJsonRoot : string.Empty);
-            UpdateButtons();
-            return;
-        }
-
-        _gameLocalizationLabel.Text = StatusText(_game.UiStatus);
-        var parts = new List<string>();
-        if (_game.Assets.Count > 0)
-            parts.Add(string.Format(_l.T("details.database"), _game.Assets.Count));
-        if (_game.LocresAssets.Count > 0)
-            parts.Add(string.Format(_l.T("details.locres"), _game.LocresAssets.Count));
-        _gameDetailsLabel.Text = parts.Count > 0 ? string.Join("; ", parts) : "—";
-        _gameAvailabilityLabel.Text = availabilityText;
-        _toolTip.SetToolTip(_gameAvailabilityLabel, availableJsonCount > 0 ? gameJsonRoot : string.Empty);
-        _toolTip.SetToolTip(_gameLocalizationLabel, StatusHelp(_game.UiStatus));
-        UpdateButtons();
-    }
-
     private void RefreshGameEditableTranslation()
     {
         if (_game is null) return;
@@ -1398,23 +1204,7 @@ public sealed class MainForm : Form
                         ? ModUiStatus.BuiltVerified
                         : ModUiStatus.Available;
         }
-        RefreshGameStatus();
-    }
-
-    private static int CountGameJsonFiles(string directory)
-    {
-        try
-        {
-            if (!Directory.Exists(directory))
-                return 0;
-
-            return BuildLanguageCatalog.All.Count(language =>
-                File.Exists(Path.Combine(directory, language.Key + ".json")));
-        }
-        catch
-        {
-            return 0;
-        }
+        UpdateButtons();
     }
 
     private void RefreshModEditableStatuses()
@@ -1445,7 +1235,7 @@ public sealed class MainForm : Form
                     : ModUiStatus.Available;
         }
         RefreshGrid();
-        UpdateSummary();
+        UpdateButtons();
     }
 
     private void UpdateButtons()
