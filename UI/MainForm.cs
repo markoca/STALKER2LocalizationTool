@@ -1,9 +1,9 @@
-using STALKER2LocalizationTool.Core;
-using STALKER2LocalizationTool.Localization;
-using STALKER2LocalizationTool.Models;
-using STALKER2LocalizationTool.Services;
+using LocalizationWorkbench.Core;
+using LocalizationWorkbench.Localization;
+using LocalizationWorkbench.Models;
+using LocalizationWorkbench.Services;
 
-namespace STALKER2LocalizationTool.UI;
+namespace LocalizationWorkbench.UI;
 
 public sealed class MainForm : Form
 {
