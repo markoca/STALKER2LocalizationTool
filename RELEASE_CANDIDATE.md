@@ -76,6 +76,6 @@ GAME opens without an automatic scan. When all required GAME resources are avail
 =========== READY TO SCAN ===========
 ```
 
-MODS is scoped to the MODS tab. It is not scanned at startup or while GAME is active. Entering MODS starts a fresh MODS scan.
+MODS is manual-only. It is never scanned at startup, by watchers, by Settings, or by entering the MODS tab. Entering MODS performs only a lightweight source-presence check; when mod sources are present the log reports `=========== MODS FOUND ===========` and `=========== READY TO SCAN ===========`. The full MODS scan starts only when the user clicks **SCAN MODS**.
 
 Run the complete regression list in `RC_CHECKLIST.md` before shipping the candidate.
