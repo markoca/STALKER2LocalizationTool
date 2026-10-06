@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$Project = Join-Path $Root "STALKER2LocalizationTool.csproj"
+$Project = Join-Path $Root "LocalizationWorkbench.csproj"
 $Required = @("retoc.exe", "repak.exe", "UAssetGUI.exe", "Mappings.usmap", "S2HOCMM.exe")
 foreach ($Name in $Required) {
     $Path = Join-Path $Root "tools\$Name"
