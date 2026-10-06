@@ -1,4 +1,4 @@
-namespace STALKER2LocalizationTool.Models;
+namespace LocalizationWorkbench.Models;
 
 public sealed class ExtractedManifest
 {
