@@ -48,6 +48,8 @@ public sealed class MainForm : Form
     private bool _busy;
     private bool _shownOnce;
     private bool _loadingLanguageChecks;
+    private bool _suspendWatcherScan;
+    private bool _lastSettingsClearedGameCache;
 
     private FileSystemWatcher? _modsWatcher;
     private FileSystemWatcher? _editableWatcher;
@@ -178,8 +180,13 @@ public sealed class MainForm : Form
         _refreshButton.Click += async (_, _) => await ScanActiveAsync();
         _settingsButton.Click += async (_, _) =>
         {
-            if (ShowSettings() == DialogResult.OK)
-                await ScanActiveAsync();
+            if (ShowSettings() != DialogResult.OK)
+                return;
+
+            if (_lastSettingsClearedGameCache)
+                return;
+
+            await ScanActiveAsync();
         };
         headerActions.Controls.Add(_refreshButton);
         headerActions.Controls.Add(_settingsButton);
@@ -422,7 +429,7 @@ public sealed class MainForm : Form
         };
         var workflowTitle = new Label
         {
-            Text = "BASE GAME WORKFLOW",
+            Text = "WORKFLOW",
             AutoSize = true,
             Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
             Tag = StalkerTheme.SectionLabelTag,
@@ -1234,14 +1241,50 @@ public sealed class MainForm : Form
 
     private DialogResult ShowSettings()
     {
-        using var dialog = new SettingsForm(_settings, _l);
-        var result = dialog.ShowDialog(this);
-        if (result == DialogResult.OK)
+        _lastSettingsClearedGameCache = false;
+        _watchDebounce.Stop();
+        _suspendWatcherScan = true;
+
+        try
         {
-            _settingsService.Save(_settings);
-            ConfigureWatchers();
+            using var dialog = new SettingsForm(_settings, _l);
+            var result = dialog.ShowDialog(this);
+            _lastSettingsClearedGameCache = dialog.GameCacheCleared;
+
+            if (dialog.GameCacheCleared)
+                MarkGameCacheCleared();
+
+            if (result == DialogResult.OK)
+            {
+                _settingsService.Save(_settings);
+                ConfigureWatchers();
+            }
+
+            return result;
         }
-        return result;
+        finally
+        {
+            _watchDebounce.Stop();
+            _suspendWatcherScan = false;
+        }
+    }
+
+    private void MarkGameCacheCleared()
+    {
+        if (_game is null || !_game.HasLocalization)
+        {
+            UpdateButtons();
+            return;
+        }
+
+        _game.NeedsExtraction = true;
+        _game.UiStatus = ModUiStatus.NeedsExtraction;
+
+        foreach (var language in BuildLanguageCatalog.All)
+            _builtVerifiedThisSession.Remove(BuildSessionKey(_game.ModId, language.Id));
+
+        UpdateButtons();
+        AppendLog("GAME cache cleared: extraction is required; existing scan result kept in memory.");
     }
 
     private bool NeedsInitialSetup() =>
@@ -1395,7 +1438,7 @@ public sealed class MainForm : Form
             BeginInvoke(new Action(QueueWatcherScan));
             return;
         }
-        if (_busy) return;
+        if (_busy || _suspendWatcherScan) return;
         _watchDebounce.Stop();
         _watchDebounce.Start();
     }
