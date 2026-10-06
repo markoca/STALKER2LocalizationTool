@@ -28,7 +28,6 @@ public sealed class MainForm : Form
     private readonly StalkerNavButton _modsTabButton = new();
     private Panel? _activeWorkspaceTab;
     private bool IsGameWorkspace => ReferenceEquals(_activeWorkspaceTab, _gameTab);
-    private readonly Label _gameIntro = new();
     private readonly Button _scanGameButton = new();
     private readonly Button _extractGameButton = new();
     private readonly Button _buildGameButton = new();
@@ -404,22 +403,14 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(14, 12, 14, 14),
             ColumnCount = 1,
-            RowCount = 4,
+            RowCount = 3,
             Margin = new Padding(0),
             BackColor = StalkerTheme.Panel,
         };
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _gameTab.Controls.Add(layout);
-
-        _gameIntro.AutoSize = true;
-        _gameIntro.MaximumSize = new Size(1120, 0);
-        _gameIntro.Font = new Font("Segoe UI", 9F);
-        _gameIntro.Tag = StalkerTheme.MutedLabelTag;
-        _gameIntro.Margin = new Padding(2, 0, 0, 12);
-        layout.Controls.Add(_gameIntro, 0, 0);
 
         var workflowCard = new StalkerCardPanel
         {
@@ -450,7 +441,7 @@ public sealed class MainForm : Form
         {
             AutoSize = true,
             MaximumSize = new Size(1120, 0),
-            Text = "1  Scan the base game     2  Extract all language JSON files     3  Edit them in Editable\\Game     4  Build the selected languages",
+            Text = "1  Scan the base game     2  Extract all language JSON files     3  Edit in /Editable/Game     4  Build the selected languages",
             Font = new Font("Segoe UI", 8.5F),
             Tag = StalkerTheme.MutedLabelTag,
             Margin = new Padding(0),
@@ -458,7 +449,7 @@ public sealed class MainForm : Form
         workflow.Controls.Add(workflowTitle, 0, 0);
         workflow.Controls.Add(explanation, 0, 1);
         workflowCard.Controls.Add(workflow);
-        layout.Controls.Add(workflowCard, 0, 1);
+        layout.Controls.Add(workflowCard, 0, 0);
 
         var actionsCard = new StalkerCardPanel
         {
@@ -489,7 +480,7 @@ public sealed class MainForm : Form
         actions.Controls.Add(_buildGameButton);
         actions.Controls.Add(_helpGame);
         actionsCard.Controls.Add(actions);
-        layout.Controls.Add(actionsCard, 0, 3);
+        layout.Controls.Add(actionsCard, 0, 2);
     }
 
     private void BuildModsTab()
@@ -646,7 +637,6 @@ public sealed class MainForm : Form
         _title.Text = _l.T("app.title");
         _gameTabButton.Text = _l.T("ui.tab_game");
         _modsTabButton.Text = _l.T("ui.tab_mods");
-        _gameIntro.Text = _l.T("ui.game_intro");
         _scanGameButton.Text = _l.T("ui.scan_game");
         _extractGameButton.Text = _l.T("ui.extract_game");
         _buildGameButton.Text = _l.T("ui.build_game");
