@@ -108,7 +108,7 @@ The full MODS workflow is:
 1. Place loose mod files or original ZIP/7z/RAR archives under the configured Mods source folder.
 2. Click **SCAN MODS**.
 3. Complete IoStore triplets are discovered and localization content is inspected.
-4. OverrideContent-side localization containers are used; NewContent containers are ignored.
+4. MODS localization uses supported OverrideContent-side containers only.
 5. New or changed mods are marked **Needs extraction**.
 6. **EXTRACT** writes canonical rebuild data under `Cached/<mod>` and seeds `Editable/<mod>`.
 7. Edit `Editable/<mod>/<language>.json`.
