@@ -140,7 +140,7 @@ public sealed class MainForm : Form
             BackColor = StalkerTheme.WindowBackground,
         };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 74));
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 170));
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152));
@@ -276,8 +276,9 @@ public sealed class MainForm : Form
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
-            Anchor = AnchorStyles.Right,
-            Margin = new Padding(0, 4, 0, 4),
+            Anchor = AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom,
+            Margin = new Padding(0),
+            Padding = new Padding(0, 8, 0, 8),
             Padding = new Padding(0),
             BackColor = StalkerTheme.TitleBar,
         };
