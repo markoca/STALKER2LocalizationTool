@@ -274,6 +274,10 @@ public sealed class ModScanner
                         FingerprintLine = fingerprintLine,
                         Aliases = scannedAliases,
                         RetocScanned = true,
+                        SparseAccepted =
+                            usedSparsePlaceholder
+                            && !sparseFallbackUsed,
+                        SparseFallback = sparseFallbackUsed,
                     };
                 }
                 catch (OperationCanceledException)
@@ -304,6 +308,12 @@ public sealed class ModScanner
         var scanOutcomes = await Task.WhenAll(scanTasks);
         var scanCacheHits = scanOutcomes.Count(outcome => outcome.CacheHit);
         var retocScans = scanOutcomes.Count(outcome => outcome.RetocScanned);
+        var sparseAccepted = scanOutcomes.Count(
+            outcome => outcome.SparseAccepted
+        );
+        var sparseFallbacks = scanOutcomes.Count(
+            outcome => outcome.SparseFallback
+        );
 
         var completedGroups = 0;
 
@@ -400,7 +410,9 @@ public sealed class ModScanner
         _log?.Invoke(
             $"MODS scan completed in {scanTimer.Elapsed.TotalSeconds:N1}s; "
             + $"containers={totalSources}, cache-reused={scanCacheHits}, "
-            + $"retoc-scanned={retocScans}."
+            + $"retoc-scanned={retocScans}, "
+            + $"sparse-accepted={sparseAccepted}, "
+            + $"sparse-fallback={sparseFallbacks}."
         );
 
         return groups
@@ -424,6 +436,8 @@ public sealed class ModScanner
         public string? Error { get; init; }
         public bool CacheHit { get; init; }
         public bool RetocScanned { get; init; }
+        public bool SparseAccepted { get; init; }
+        public bool SparseFallback { get; init; }
     }
 
     private sealed class InlineProgress<T> : IProgress<T>
