@@ -808,8 +808,12 @@ public sealed class MainForm : Form
             }
 
             var color = StatusTextColor(_mods[e.RowIndex].UiStatus);
-            e.CellStyle.ForeColor = color;
-            e.CellStyle.SelectionForeColor = color;
+            var cellStyle = e.CellStyle;
+            if (cellStyle is null)
+                return;
+
+            cellStyle.ForeColor = color;
+            cellStyle.SelectionForeColor = color;
         };
         _grid.CellToolTipTextNeeded += (_, e) =>
         {
