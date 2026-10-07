@@ -28,7 +28,6 @@ internal static class StalkerTheme
     public static readonly Color AccentHover = Color.FromArgb(0xFF, 0xD4, 0x38);
     public static readonly Color AccentDark = Color.FromArgb(0x80, 0x6B, 0x12);
     public static readonly Color Success = Color.FromArgb(0x8E, 0xB0, 0x78);
-    public static readonly Color SuccessDark = Color.FromArgb(0x45, 0x5D, 0x3B);
     public static readonly Color Danger = Color.FromArgb(0xD7, 0x7A, 0x62);
     public static readonly Color BorderSoft = Color.FromArgb(0x2C, 0x30, 0x2A);
 
