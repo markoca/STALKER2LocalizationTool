@@ -13,6 +13,8 @@
 - Third-party helper-tool binaries are no longer tracked or distributed; users supply compatible tools under `tools/`.
 - GAME action buttons were simplified to **SCAN GAME**, **EXTRACT**, and **BUILD**; the v2 quick user handbook was added and aligned with the current workflow.
 - MODS extraction button was simplified from **EXTRACT NEW / CHANGED** to **EXTRACT**.
+- Added the first **Industrial Zone** visual pass: chamfered cards/action buttons, step-aware GAME/MODS workflow rails, refined surface hierarchy, and owner-drawn MODS status badges.
+- The new main-window styling remains owner-drawn WinForms to preserve deterministic Windows/Wine rendering without adding a UI framework dependency.
 - Consolidated the current development baseline onto `main` and refreshed release-candidate documentation.
 
 ## 1.0.0-rc.7
