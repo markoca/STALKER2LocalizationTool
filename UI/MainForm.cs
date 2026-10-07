@@ -1759,7 +1759,7 @@ public sealed class MainForm : Form
 
         return newestDatabaseDate?
             .UtcDateTime
-            .ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+            .ToString("dd MMM yyyy", CultureInfo.InvariantCulture);
     }
 
     private static string BuildModDetailsTooltip(ModScanResult mod)
