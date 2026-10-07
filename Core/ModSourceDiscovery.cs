@@ -183,6 +183,10 @@ public static class ModSourceDiscovery
                     )
                 );
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 log?.Invoke(

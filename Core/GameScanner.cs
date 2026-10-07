@@ -63,8 +63,6 @@ public sealed class GameScanner
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        _log?.Invoke("=== FOUND GAME LOCALIZATION ===");
-
         var aliases = new List<LocalizationAlias>();
         var locres = new List<LocresSource>();
         var errors = new List<string>();
@@ -78,6 +76,10 @@ public sealed class GameScanner
             try
             {
                 aliases.AddRange(await _retoc.ListLocalizationAssetsAsync(utoc, _gamePaksRoot, cancellationToken));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -98,6 +100,10 @@ public sealed class GameScanner
             try
             {
                 locres.AddRange(await _repak.ListLocresAsync(pak, _gamePaksRoot, cancellationToken));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -131,6 +137,8 @@ public sealed class GameScanner
 
         if (game.HasLocalization)
         {
+            _log?.Invoke("=== FOUND GAME LOCALIZATION ===");
+
             var relevantFiles = game.Assets
                 .SelectMany(group => group.Aliases)
                 .Select(alias => alias.SourceUtoc)

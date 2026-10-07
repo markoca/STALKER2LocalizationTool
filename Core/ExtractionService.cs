@@ -18,8 +18,7 @@ public sealed class ExtractionService
         RepakService repak,
         UAssetGuiService uassetGui,
         Action<string>? log = null,
-        string? sourceRoot = null,
-        bool hashSourceFiles = true)
+        string? sourceRoot = null)
     {
         _settings = settings;
         _retoc = retoc;
