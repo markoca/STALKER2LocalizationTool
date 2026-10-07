@@ -167,7 +167,7 @@ public sealed class BuildService
             progress?.Report((i, progressTotal, $"Adding {mod.ModName}"));
             _log?.Invoke($"=== Adding {mod.ModName} to All-in-One ===");
 
-            var result = new ModBuildResult { ModId = mod.ModId, ModName = mod.ModName };
+            var result = new ModBuildResult { ModId = mod.ModId };
             results.Add(result);
 
             var sourceRoot = Path.Combine(_settings.SourceFolder, mod.ModId);
