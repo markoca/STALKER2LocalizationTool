@@ -781,9 +781,29 @@ public sealed class MainForm : Form
         _grid.RowTemplate.Height = 34;
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Mod", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 52 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Localization", Width = 155 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", Width = 180 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        {
+            Name = "Status",
+            Width = 180,
+            DefaultCellStyle = new DataGridViewCellStyle
+            {
+                Alignment = DataGridViewContentAlignment.MiddleLeft,
+            },
+        });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Details", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 48 });
-        _grid.CellPainting += PaintModGridStatusCell;
+        _grid.CellFormatting += (_, e) =>
+        {
+            if (e.RowIndex < 0
+                || e.RowIndex >= _mods.Count
+                || e.ColumnIndex != _grid.Columns["Status"].Index)
+            {
+                return;
+            }
+
+            var color = StatusTextColor(_mods[e.RowIndex].UiStatus);
+            e.CellStyle.ForeColor = color;
+            e.CellStyle.SelectionForeColor = color;
+        };
         _grid.CellToolTipTextNeeded += (_, e) =>
         {
             if (e.RowIndex < 0 || e.RowIndex >= _mods.Count) return;
@@ -804,64 +824,14 @@ public sealed class MainForm : Form
         };
     }
 
-    private void PaintModGridStatusCell(object? sender, DataGridViewCellPaintingEventArgs e)
+    private static Color StatusTextColor(ModUiStatus status) => status switch
     {
-        if (e.RowIndex < 0
-            || e.RowIndex >= _mods.Count
-            || e.ColumnIndex != _grid.Columns["Status"].Index)
-        {
-            return;
-        }
-
-        e.PaintBackground(e.CellBounds, true);
-
-        var status = _mods[e.RowIndex].UiStatus;
-        var textValue = StatusText(status);
-        var accent = status switch
-        {
-            ModUiStatus.BuiltVerified => StalkerTheme.Success,
-            ModUiStatus.Available or ModUiStatus.Extracted => StalkerTheme.Accent,
-            ModUiStatus.NeedsExtraction or ModUiStatus.MissingTranslation => StalkerTheme.AccentHover,
-            ModUiStatus.Error => StalkerTheme.Danger,
-            _ => StalkerTheme.MutedText,
-        };
-
-        var badge = Rectangle.Inflate(e.CellBounds, -8, -6);
-        if (badge.Width <= 0 || badge.Height <= 0)
-        {
-            e.Handled = true;
-            return;
-        }
-
-        var fillBase = (e.State & DataGridViewElementStates.Selected) != 0
-            ? StalkerTheme.PanelHover
-            : (e.RowIndex % 2 == 0 ? StalkerTheme.Panel : StalkerTheme.PanelAlt);
-        var fillColor = StalkerTheme.Blend(accent, fillBase, 34);
-
-        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        using (var path = StalkerTheme.CreateChamferPath(badge, 5))
-        {
-            using var fill = new SolidBrush(fillColor);
-            using var border = new Pen(StalkerTheme.Blend(accent, fillBase, 175));
-            e.Graphics.FillPath(fill, path);
-            e.Graphics.DrawPath(border, path);
-        }
-
-        using var badgeFont = new Font("Segoe UI", 7.5F, FontStyle.Bold);
-        TextRenderer.DrawText(
-            e.Graphics,
-            textValue.ToUpperInvariant(),
-            badgeFont,
-            badge,
-            accent,
-            TextFormatFlags.HorizontalCenter
-            | TextFormatFlags.VerticalCenter
-            | TextFormatFlags.EndEllipsis
-            | TextFormatFlags.NoPrefix
-        );
-
-        e.Handled = true;
-    }
+        ModUiStatus.BuiltVerified => StalkerTheme.Success,
+        ModUiStatus.Available or ModUiStatus.Extracted => StalkerTheme.Accent,
+        ModUiStatus.NeedsExtraction or ModUiStatus.MissingTranslation => StalkerTheme.AccentHover,
+        ModUiStatus.Error => StalkerTheme.Danger,
+        _ => StalkerTheme.MutedText,
+    };
 
     private void ApplyWindowTitle()
     {
