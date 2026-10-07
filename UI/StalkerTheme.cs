@@ -2019,10 +2019,14 @@ internal sealed class StalkerLanguageSelector : Panel
             ResumeLayout(true);
             _loading = false;
 
-            var preferred = GetPreferredSize(
-                new Size(Parent?.ClientSize.Width ?? Width, 0)
-            );
-            Height = preferred.Height;
+            if (Dock != DockStyle.Fill)
+            {
+                var preferred = GetPreferredSize(
+                    new Size(Parent?.ClientSize.Width ?? Width, 0)
+                );
+                Height = preferred.Height;
+            }
+
             Parent?.PerformLayout();
         }
     }
@@ -2031,11 +2035,14 @@ internal sealed class StalkerLanguageSelector : Panel
     {
         base.OnResize(eventargs);
 
-        var preferred = GetPreferredSize(
-            new Size(Parent?.ClientSize.Width ?? Width, 0)
-        );
-        if (Height != preferred.Height)
-            Height = preferred.Height;
+        if (Dock != DockStyle.Fill)
+        {
+            var preferred = GetPreferredSize(
+                new Size(Parent?.ClientSize.Width ?? Width, 0)
+            );
+            if (Height != preferred.Height)
+                Height = preferred.Height;
+        }
 
         LayoutItems();
         Invalidate();
