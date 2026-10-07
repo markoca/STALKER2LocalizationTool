@@ -8,11 +8,10 @@
 - Added lightweight persistence of validated external GAME and MODS source paths through `user-paths.json`.
 - Separated GAME and MODS workflow readiness/status logging with consistent decorated banners.
 - MODS scanning is now strictly manual: it starts only from **SCAN MODS**.
-- Optimized large archive MODS scanning by avoiding full archive SHA-256 reads and deferring `.pak` materialization until EXTRACT. Archive SCAN materializes the `.utoc` + `.ucas` pair required by `retoc list`.
-- Removed the full archive SHA-256 read from MODS discovery and collapsed loose/archive source discovery into a single filesystem traversal; scan logs now include discovery time, total scan time, cache hits and actual `retoc` scans.
-- Added bounded parallel container scanning with at most **2 concurrent `retoc list` operations**, while preserving deterministic per-mod aggregation and cancellation; per-container logs now report UTOC hash time, `retoc` time or cache hits.
-- Added an experimental archive SCAN fast path: keep the real `.utoc`, create a logical-size zero-backed `.ucas` placeholder, and run `retoc list` without decompressing the real UCAS when possible. If `retoc` rejects the placeholder, the app materializes that container's real `.ucas` and retries automatically; `.pak` remains lazy until EXTRACT.
-- Cold archive discovery now logs fast-payload setup time, while scan timing records whether sparse UCAS was accepted or whether a real-UCAS fallback was required.
+- MODS SCAN now reads localization database paths and IoStore chunk IDs directly from the UTOC directory index; supported containers no longer require `.ucas` decompression or a `retoc list` process merely to discover localization.
+- ZIP/7z/RAR discovery materializes only `.utoc` for the normal scan path. If the direct UTOC reader encounters an encrypted or unsupported layout, only that container's real `.ucas` is materialized and stock `retoc list` is used as a compatibility fallback.
+- Removed the full archive SHA-256 read from MODS discovery and collapsed loose/archive source discovery into a single filesystem traversal.
+- MODS container scanning remains bounded to at most **2 concurrent jobs**, preserves deterministic aggregation/cancellation, and now logs UTOC-index timing plus final `utoc-indexed` / `retoc-fallback` counts.
 - Entering MODS performs only a one-shot pre-scan source-presence check and reports **MODS FOUND / READY TO SCAN** when appropriate.
 - Removed obsolete MODS scan snapshot persistence and related dead code.
 - Third-party helper-tool binaries are no longer tracked or distributed; users supply compatible tools under `tools/`.
