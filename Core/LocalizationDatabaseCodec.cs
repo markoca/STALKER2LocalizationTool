@@ -51,7 +51,6 @@ public static class LocalizationDatabaseCodec
                 {
                     LanguageId = languageId,
                     Value = valueResult.Value,
-                    Encoding = valueResult.Encoding,
                 });
             }
 
