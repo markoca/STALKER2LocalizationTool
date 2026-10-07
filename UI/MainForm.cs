@@ -24,7 +24,6 @@ public sealed class MainForm : Form
     private readonly StalkerActionButton _extractButton = new();
     private readonly StalkerActionButton _buildModularButton = new();
     private readonly StalkerActionButton _buildAllInOneButton = new();
-    private readonly StalkerWorkflowRail _modsWorkflowRail = new("SCAN", "EXTRACT", "BUILD");
     private readonly Panel _workspaceHost = new();
     private readonly Panel _gameTab = new();
     private readonly Panel _modsTab = new();
@@ -36,7 +35,9 @@ public sealed class MainForm : Form
     private readonly StalkerActionButton _scanGameButton = new();
     private readonly StalkerActionButton _extractGameButton = new();
     private readonly StalkerActionButton _buildGameButton = new();
-    private readonly StalkerWorkflowRail _gameWorkflowRail = new("SCAN", "EXTRACT", "BUILD");
+    private readonly Label _gameLocalizationTitle = new();
+    private readonly Label _gameLocalizationStatus = new();
+    private readonly Label _gameLocalizationDetails = new();
     private readonly Button _openJsons = new StalkerUtilityButton();
     private readonly Button _openOutput = new StalkerUtilityButton();
     private readonly DataGridView _grid = new();
@@ -511,51 +512,62 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             Margin = new Padding(0),
             BackColor = StalkerTheme.Panel,
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _gameTab.Controls.Add(layout);
 
-        var workflowCard = new StalkerCardPanel
+        var localizationCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
+            AutoSize = false,
             BackColor = StalkerTheme.PanelAlt,
-            Padding = new Padding(14, 10, 14, 11),
+            Padding = new Padding(24, 18, 24, 18),
             Margin = new Padding(0, 0, 0, 12),
-            AccentEdge = false,
+            AccentEdge = true,
         };
-        var workflow = new TableLayoutPanel
+
+        var localizationLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
-            AutoSize = true,
             ColumnCount = 1,
-            RowCount = 2,
+            RowCount = 5,
             Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.PanelAlt,
         };
-        workflow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        workflow.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+        localizationLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        localizationLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        localizationLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        localizationLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        localizationLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
-        var workflowTitle = new Label
-        {
-            Text = "GAME PIPELINE",
-            AutoSize = true,
-            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-            Tag = StalkerTheme.SectionLabelTag,
-            Margin = new Padding(0, 0, 0, 3),
-        };
+        _gameLocalizationTitle.AutoSize = true;
+        _gameLocalizationTitle.Anchor = AnchorStyles.None;
+        _gameLocalizationTitle.Text = "GAME LOCALIZATION";
+        _gameLocalizationTitle.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _gameLocalizationTitle.Tag = StalkerTheme.SectionLabelTag;
+        _gameLocalizationTitle.Margin = new Padding(0, 0, 0, 8);
 
-        _gameWorkflowRail.Dock = DockStyle.Fill;
-        _gameWorkflowRail.Margin = new Padding(0);
+        _gameLocalizationStatus.AutoSize = true;
+        _gameLocalizationStatus.Anchor = AnchorStyles.None;
+        _gameLocalizationStatus.Font = new Font("Segoe UI Semibold", 20F, FontStyle.Bold);
+        _gameLocalizationStatus.Margin = new Padding(0, 0, 0, 6);
 
-        workflow.Controls.Add(workflowTitle, 0, 0);
-        workflow.Controls.Add(_gameWorkflowRail, 0, 1);
-        workflowCard.Controls.Add(workflow);
-        layout.Controls.Add(workflowCard, 0, 0);
+        _gameLocalizationDetails.AutoSize = true;
+        _gameLocalizationDetails.Anchor = AnchorStyles.None;
+        _gameLocalizationDetails.Font = new Font("Segoe UI", 9F);
+        _gameLocalizationDetails.Tag = StalkerTheme.MutedLabelTag;
+        _gameLocalizationDetails.Margin = new Padding(0);
+
+        localizationLayout.Controls.Add(_gameLocalizationTitle, 0, 1);
+        localizationLayout.Controls.Add(_gameLocalizationStatus, 0, 2);
+        localizationLayout.Controls.Add(_gameLocalizationDetails, 0, 3);
+        localizationCard.Controls.Add(localizationLayout);
+        layout.Controls.Add(localizationCard, 0, 0);
 
         var actionsCard = new StalkerCardPanel
         {
@@ -583,7 +595,7 @@ public sealed class MainForm : Form
         actions.Controls.Add(_extractGameButton);
         actions.Controls.Add(_buildGameButton);
         actionsCard.Controls.Add(actions);
-        layout.Controls.Add(actionsCard, 0, 2);
+        layout.Controls.Add(actionsCard, 0, 1);
     }
 
     private void BuildModsTab()
@@ -593,52 +605,16 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             Margin = new Padding(0),
         };
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _modsTab.Controls.Add(layout);
 
-        var workflowCard = new StalkerCardPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            BackColor = StalkerTheme.PanelAlt,
-            Padding = new Padding(14, 8, 14, 8),
-            Margin = new Padding(0, 0, 0, 10),
-        };
-        var workflowLayout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            ColumnCount = 1,
-            RowCount = 2,
-            Margin = new Padding(0),
-        };
-        workflowLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        workflowLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
-
-        var workflowTitle = new Label
-        {
-            Text = "MOD PIPELINE",
-            AutoSize = true,
-            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
-            Tag = StalkerTheme.SectionLabelTag,
-            Margin = new Padding(0, 0, 0, 3),
-        };
-
-        _modsWorkflowRail.Dock = DockStyle.Fill;
-        _modsWorkflowRail.Margin = new Padding(0);
-        workflowLayout.Controls.Add(workflowTitle, 0, 0);
-        workflowLayout.Controls.Add(_modsWorkflowRail, 0, 1);
-        workflowCard.Controls.Add(workflowLayout);
-        layout.Controls.Add(workflowCard, 0, 0);
-
         ConfigureGrid();
         _grid.Margin = new Padding(0, 0, 0, 10);
-        layout.Controls.Add(_grid, 0, 1);
+        layout.Controls.Add(_grid, 0, 0);
 
         var actionCard = new StalkerCardPanel
         {
@@ -674,7 +650,6 @@ public sealed class MainForm : Form
         _buildModularButton.Click += async (_, _) => await BuildAsync(BuildMode.Modular);
         _buildAllInOneButton.Click += async (_, _) => await BuildAsync(BuildMode.AllInOne);
 
-
         actionButtons.Controls.Add(_scanModsButton);
         actionButtons.Controls.Add(_extractButton);
         actionButtons.Controls.Add(_buildModularButton);
@@ -682,7 +657,7 @@ public sealed class MainForm : Form
 
         actionLayout.Controls.Add(actionButtons, 1, 0);
         actionCard.Controls.Add(actionLayout);
-        layout.Controls.Add(actionCard, 0, 2);
+        layout.Controls.Add(actionCard, 0, 1);
     }
 
     private static void ConfigureActionButton(Button button, int width)
@@ -1607,6 +1582,63 @@ public sealed class MainForm : Form
         return !editableHasAnyLanguageJson;
     }
 
+    private void RefreshGameLocalizationOverview()
+    {
+        var supportedLanguages = BuildLanguageCatalog.All.Count;
+
+        _gameLocalizationTitle.Text = "GAME LOCALIZATION";
+
+        if (_game is null)
+        {
+            _gameLocalizationStatus.Text = "READY TO SCAN";
+            _gameLocalizationStatus.ForeColor = StalkerTheme.Accent;
+            _gameLocalizationDetails.Text =
+                $"{supportedLanguages} supported languages  •  pakchunk0 localization source";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_game.ScanError))
+        {
+            _gameLocalizationStatus.Text = "SCAN ERROR";
+            _gameLocalizationStatus.ForeColor = StalkerTheme.Danger;
+            _gameLocalizationDetails.Text =
+                _game.ScanError.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .FirstOrDefault()
+                ?? "Localization scan failed.";
+            return;
+        }
+
+        if (!_game.HasLocalization)
+        {
+            _gameLocalizationStatus.Text = "NOT FOUND";
+            _gameLocalizationStatus.ForeColor = StalkerTheme.Danger;
+            _gameLocalizationDetails.Text =
+                "No supported GAME localization source was detected.";
+            return;
+        }
+
+        _gameLocalizationStatus.Text = "LOCALIZATION FOUND";
+        _gameLocalizationStatus.ForeColor = StalkerTheme.Success;
+
+        var state = _game.UiStatus switch
+        {
+            ModUiStatus.NeedsExtraction or ModUiStatus.MissingTranslation
+                => "Ready to extract",
+            ModUiStatus.Available or ModUiStatus.Extracted
+                => "Ready to build",
+            ModUiStatus.BuiltVerified
+                => "Built & verified",
+            ModUiStatus.NoLanguageSelected
+                => "Select a build language",
+            ModUiStatus.Error
+                => "Error",
+            _ => "Detected",
+        };
+
+        _gameLocalizationDetails.Text =
+            $"{supportedLanguages} supported languages  •  {_game.LocalizationKind}  •  {state}";
+    }
+
     private void UpdateButtons()
     {
         _settingsButton.Enabled = !_busy;
@@ -1708,52 +1740,7 @@ public sealed class MainForm : Form
             modsBuildStage && _buildAllInOneButton.Enabled
         );
 
-        var gameExtractComplete = _gameScanSuccessful
-            && _game is not null
-            && !_extractGameButton.Enabled
-            && !_game.NeedsExtraction;
-        var gameBuildComplete = _game?.UiStatus == ModUiStatus.BuiltVerified;
-
-        _gameWorkflowRail.SetStates(
-            gameScanPrimary
-                ? StalkerWorkflowState.Active
-                : StalkerWorkflowState.Complete,
-            gameExtractPrimary
-                ? StalkerWorkflowState.Active
-                : gameExtractComplete
-                    ? StalkerWorkflowState.Complete
-                    : StalkerWorkflowState.Pending,
-            gameBuildPrimary
-                ? StalkerWorkflowState.Active
-                : gameBuildComplete
-                    ? StalkerWorkflowState.Complete
-                    : StalkerWorkflowState.Pending
-        );
-
-        var modsLocalized = _mods.Where(mod => mod.HasLocalization).ToList();
-        var modsExtractComplete = _modsScanSuccessful
-            && modsLocalized.Count > 0
-            && !modsCanExtract;
-        var modsBuildComplete = modsLocalized.Count > 0
-            && modsLocalized.All(mod => mod.UiStatus == ModUiStatus.BuiltVerified);
-        var modsBuildActive = modsBuildStage
-            && (_buildModularButton.Enabled || _buildAllInOneButton.Enabled);
-
-        _modsWorkflowRail.SetStates(
-            modsScanPrimary
-                ? StalkerWorkflowState.Active
-                : StalkerWorkflowState.Complete,
-            modsExtractPrimary
-                ? StalkerWorkflowState.Active
-                : modsExtractComplete
-                    ? StalkerWorkflowState.Complete
-                    : StalkerWorkflowState.Pending,
-            modsBuildComplete
-                ? StalkerWorkflowState.Complete
-                : modsBuildActive
-                    ? StalkerWorkflowState.Active
-                    : StalkerWorkflowState.Pending
-        );
+        RefreshGameLocalizationOverview();
     }
 
     private IProgress<(int Current, int Total, string Message)> CreateUiProgress(
