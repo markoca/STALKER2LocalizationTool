@@ -6,7 +6,6 @@ public sealed class DirectPatchInfo
 {
     public long OldSerialSize { get; init; }
     public long NewSerialSize { get; init; }
-    public int UexpPayloadOffset { get; init; }
 }
 
 public static class PackagePatcher
@@ -72,7 +71,6 @@ public static class PackagePatcher
         {
             OldSerialSize = export.SerialSize,
             NewSerialSize = patchedPayload.Length,
-            UexpPayloadOffset = first,
         };
     }
 
