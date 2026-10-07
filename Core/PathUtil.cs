@@ -170,16 +170,6 @@ public static class PathUtil
         return value.Replace('/', Path.DirectorySeparatorChar);
     }
 
-    public static string InferModName(string modsRoot, string sourcePath)
-    {
-        var relative = Path.GetRelativePath(modsRoot, sourcePath);
-        var parts = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (parts.Length > 1)
-            return parts[0];
-
-        return InferContainerFamilyName(sourcePath);
-    }
-
     public static string InferContainerFamilyName(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
