@@ -5,14 +5,14 @@ namespace LocalizationWorkbench.Core;
 public static class UnrealStringCodec
 {
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
-    public static (string Value, FStringEncoding Encoding, int Offset) ReadFString(byte[] data, int offset)
+    public static (string Value, int Offset) ReadFString(byte[] data, int offset)
     {
         Ensure(data, offset, 4, "FString length is outside payload");
         var length = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(offset, 4));
         offset += 4;
 
         if (length == 0)
-            return (string.Empty, FStringEncoding.Ansi, offset);
+            return (string.Empty, offset);
 
         if (length < 0)
         {
@@ -26,7 +26,7 @@ public static class UnrealStringCodec
                 throw new InvalidDataException("UTF-16 FString is missing terminator");
 
             var value = Encoding.Unicode.GetString(raw[..^2]);
-            return (value, FStringEncoding.Wide, offset);
+            return (value, offset);
         }
 
         var narrowByteCount = length;
@@ -38,7 +38,7 @@ public static class UnrealStringCodec
             throw new InvalidDataException("ANSI FString is missing terminator");
 
         var narrowValue = StrictUtf8.GetString(narrow[..^1]);
-        return (narrowValue, FStringEncoding.Ansi, offset);
+        return (narrowValue, offset);
     }
 
     public static int SkipFString(byte[] data, int offset)
