@@ -101,7 +101,6 @@ public sealed class BuildService
 
         TryDeleteDirectory(workRoot);
 
-        result.Built = result.OutputFiles.Count > 0;
         result.Verified = true;
         if (!result.Built)
             TryDeleteDirectory(outputModRoot);
@@ -288,7 +287,7 @@ public sealed class BuildService
                 }
 
                 expectedPackages[identityPath] = ExpectedDatabasePackage.From(asset, patch.Payload);
-                result.AssetsPatched++;
+                result.Built = true;
             }
 
             progress?.Report((i + 1, progressTotal, $"Added {mod.ModName}"));
@@ -324,20 +323,8 @@ public sealed class BuildService
         );
         progress?.Report((progressTotal, progressTotal, "All-in-One verified"));
 
-        var sharedFiles = new[]
-        {
-            outputUtoc,
-            Path.ChangeExtension(outputUtoc, ".ucas"),
-            Path.ChangeExtension(outputUtoc, ".pak"),
-        };
-
         foreach (var result in results)
-        {
             result.Verified = true;
-            result.Built = result.AssetsPatched > 0;
-            if (result.Built)
-                result.OutputFiles.AddRange(sharedFiles);
-        }
 
         TryDeleteDirectory(workRoot);
         _log?.Invoke($"All-in-One database package built & verified: {outputUtoc}");
@@ -462,7 +449,6 @@ public sealed class BuildService
             expectedPackages[normalizedVirtualPath] = ExpectedDatabasePackage.From(asset, patch.Payload);
         }
 
-        result.AssetsPatched = assetsPatched;
 
         if (assetsPatched == 0)
         {
@@ -490,9 +476,7 @@ public sealed class BuildService
             cancellationToken
         );
 
-        result.OutputFiles.Add(outputUtoc);
-        result.OutputFiles.Add(Path.ChangeExtension(outputUtoc, ".ucas"));
-        result.OutputFiles.Add(Path.ChangeExtension(outputUtoc, ".pak"));
+        result.Built = true;
         _log?.Invoke($"Database overlay built & verified: {outputUtoc}");
     }
 
@@ -628,8 +612,7 @@ public sealed class BuildService
         var outputLocres = Path.Combine(outputModRoot, "Game.locres");
         File.Copy(generatedLocres, outputLocres, overwrite: true);
 
-        result.OutputFiles.Add(outputPak);
-        result.OutputFiles.Add(outputLocres);
+        result.Built = true;
         _log?.Invoke(
             $"LOCRES built from authoritative Translation JSON via S2HOCMM: entries={flatLocres.Count}"
         );
