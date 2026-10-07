@@ -85,7 +85,17 @@ public sealed class MainForm : Form
         Size = new Size(1360, 820);
         Font = new Font("Segoe UI", 9F);
         FormBorderStyle = FormBorderStyle.None;
-        ShowIcon = false;
+
+        // Keep the native window icon enabled for the shell/taskbar. This form
+        // has no native caption, and the custom title bar never renders Icon,
+        // so no extra icon is added to the top bar.
+        var executableIcon = System.Drawing.Icon.ExtractAssociatedIcon(
+            Application.ExecutablePath
+        );
+        if (executableIcon is not null)
+            Icon = executableIcon;
+        ShowIcon = true;
+
         Padding = new Padding(1);
         BackColor = StalkerTheme.Border;
         DoubleBuffered = true;
