@@ -707,10 +707,11 @@ public static class ModSourceDiscovery
                 );
 
                 return requested.Contains(utocPath)
-                       && !FileMatchesSize(
-                           ucasPath,
-                           triplet.UcasSize
-                       );
+                       && (!FileMatchesSize(
+                               ucasPath,
+                               triplet.UcasSize
+                           )
+                           || HasLegacyScanPlaceholder(ucasPath));
             })
             .ToList();
 
@@ -773,12 +774,14 @@ public static class ModSourceDiscovery
                 triplet
             );
 
+            var ucasPath = Path.Combine(
+                dir,
+                triplet.Stem + ".ucas"
+            );
+            RemoveLegacyScanPlaceholder(ucasPath);
             await ExtractIfNeededAsync(
                 ucasEntry,
-                Path.Combine(
-                    dir,
-                    triplet.Stem + ".ucas"
-                ),
+                ucasPath,
                 cancellationToken
             );
         }
@@ -880,7 +883,9 @@ public static class ModSourceDiscovery
                            triplet.UtocSize)
                        || !FileMatchesSize(
                            Path.Combine(dir, triplet.Stem + ".ucas"),
-                           triplet.UcasSize);
+                           triplet.UcasSize)
+                       || HasLegacyScanPlaceholder(
+                           Path.Combine(dir, triplet.Stem + ".ucas"));
             })
             .ToList();
 
@@ -960,12 +965,14 @@ public static class ModSourceDiscovery
                 ),
                 cancellationToken
             );
+            var ucasPath = Path.Combine(
+                materializedDir,
+                triplet.Stem + ".ucas"
+            );
+            RemoveLegacyScanPlaceholder(ucasPath);
             await ExtractIfNeededAsync(
                 ucasEntry,
-                Path.Combine(
-                    materializedDir,
-                    triplet.Stem + ".ucas"
-                ),
+                ucasPath,
                 cancellationToken
             );
         }
@@ -1077,6 +1084,35 @@ public static class ModSourceDiscovery
             PathUtil.MakeSafeName(archiveDisplay) + "_" + archiveIdentity[..12],
             PathUtil.MakeSafeName(triplet.Stem) + "_" + memberIdentity
         );
+    }
+
+    private static bool HasLegacyScanPlaceholder(
+        string ucasPath) =>
+        File.Exists(ucasPath + ".scan-placeholder");
+
+    private static void RemoveLegacyScanPlaceholder(
+        string ucasPath)
+    {
+        var marker = ucasPath + ".scan-placeholder";
+        if (!File.Exists(marker))
+            return;
+
+        try
+        {
+            if (File.Exists(ucasPath))
+                File.Delete(ucasPath);
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            File.Delete(marker);
+        }
+        catch
+        {
+        }
     }
 
     private static bool FileMatchesSize(string path, long expectedSize)
