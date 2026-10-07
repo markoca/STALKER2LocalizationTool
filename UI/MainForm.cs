@@ -1079,8 +1079,7 @@ public sealed class MainForm : Form
             _game = null;
             UpdateButtons();
             MessageBox.Show(this, _l.T("ui.game_paths_missing"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            if (ShowSettings() == DialogResult.OK)
-                await ScanGameAsync();
+            OpenSettingsTab();
             return;
         }
 
@@ -2117,33 +2116,6 @@ public sealed class MainForm : Form
         }
     }
 
-    private DialogResult ShowSettings()
-    {
-        _lastSettingsDeletedSource = false;
-        _watchDebounce.Stop();
-        _suspendWatcherScan = true;
-
-        try
-        {
-            using var dialog = new SettingsForm(_settings, _l);
-            var result = dialog.ShowDialog(this);
-            _lastSettingsDeletedSource = dialog.SourceDeleted;
-
-            if (dialog.SourceDeleted)
-                MarkSourceDeleted();
-
-            if (result == DialogResult.OK)
-                ConfigureWatchers();
-
-            return result;
-        }
-        finally
-        {
-            _watchDebounce.Stop();
-            _suspendWatcherScan = false;
-        }
-    }
-
     private void MarkSourceDeleted()
     {
         if (_game is not null && _game.HasLocalization)
@@ -2252,7 +2224,8 @@ public sealed class MainForm : Form
         if (NeedsInitialSetup())
         {
             MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return ShowSettings() == DialogResult.OK && !NeedsInitialSetup();
+            OpenSettingsTab();
+            return false;
         }
         return true;
     }
@@ -2267,7 +2240,8 @@ public sealed class MainForm : Form
             || !File.Exists(_settings.MappingsPath))
         {
             MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return ShowSettings() == DialogResult.OK;
+            OpenSettingsTab();
+            return false;
         }
         return true;
     }
@@ -2292,7 +2266,8 @@ public sealed class MainForm : Form
         if (IsValid()) return true;
 
         MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-        return ShowSettings() == DialogResult.OK && IsValid();
+        OpenSettingsTab();
+        return false;
     }
 
     private void ConfigureWatchers()
