@@ -7,23 +7,23 @@ public sealed class ModScanner
 {
     private readonly RetocService _retoc;
     private readonly string _modsRoot;
-    private readonly string _cachedRoot;
-    private readonly string _editableRoot;
+    private readonly string _sourceRoot;
+    private readonly string _translationsRoot;
     private readonly IReadOnlyList<BuildLanguage> _buildLanguages;
     private readonly Action<string>? _log;
 
     public ModScanner(
         RetocService retoc,
         string modsRoot,
-        string cachedRoot,
-        string editableRoot,
+        string sourceRoot,
+        string translationsRoot,
         IEnumerable<int> buildLanguageIds,
         Action<string>? log = null)
     {
         _retoc = retoc;
         _modsRoot = modsRoot;
-        _cachedRoot = cachedRoot;
-        _editableRoot = editableRoot;
+        _sourceRoot = sourceRoot;
+        _translationsRoot = translationsRoot;
         _buildLanguages = buildLanguageIds
             .Select(BuildLanguageCatalog.ById)
             .DistinctBy(language => language.Id)
@@ -40,8 +40,8 @@ public sealed class ModScanner
 
         progress?.Report((0, 100, "Starting MODS scan..."));
 
-        var materializationRoot = Path.Combine(_cachedRoot, ".source_cache");
-        var scanCacheRoot = Path.Combine(_cachedRoot, ".scan_cache");
+        var materializationRoot = Path.Combine(_sourceRoot, ".source_cache");
+        var scanCacheRoot = Path.Combine(_sourceRoot, ".scan_cache");
         var discoveryProgress = new InlineProgress<(int Current, int Total, string Message)>(p =>
         {
             var fraction = p.Total <= 0 ? 0.0 : p.Current / (double)p.Total;
@@ -183,11 +183,11 @@ public sealed class ModScanner
                 ? string.Join(Environment.NewLine, errors)
                 : null;
 
-            var manifestPath = Path.Combine(_cachedRoot, group.ModId, "manifest.json");
+            var manifestPath = Path.Combine(_sourceRoot, group.ModId, "manifest.json");
             group.NeedsExtraction = group.HasLocalization
                                     && !ManifestMatches(manifestPath, group.SourceFingerprint);
-            group.EditableTranslationFile = _buildLanguages
-                .Select(language => EditableScanner.FindTranslationFile(_editableRoot, group, language))
+            group.TranslationFile = _buildLanguages
+                .Select(language => TranslationScanner.FindTranslationFile(_translationsRoot, group, language))
                 .FirstOrDefault(path => !string.IsNullOrWhiteSpace(path));
             group.UiStatus = ResolveStatus(group, _buildLanguages.Count);
 
@@ -412,7 +412,7 @@ public sealed class ModScanner
             return ModUiStatus.NeedsExtraction;
         if (selectedLanguageCount == 0)
             return ModUiStatus.NoLanguageSelected;
-        if (string.IsNullOrWhiteSpace(mod.EditableTranslationFile))
+        if (string.IsNullOrWhiteSpace(mod.TranslationFile))
             return ModUiStatus.MissingTranslation;
         return ModUiStatus.Extracted;
     }
