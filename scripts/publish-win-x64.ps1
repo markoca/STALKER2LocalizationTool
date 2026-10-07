@@ -8,9 +8,33 @@ $Out = Join-Path $PublishRoot "win-x64"
 $Stage = Join-Path $PublishRoot (".win-x64-stage-" + [guid]::NewGuid().ToString("N"))
 $Preserve = Join-Path $PublishRoot (".win-x64-preserve-" + [guid]::NewGuid().ToString("N"))
 
-$PreservedNames = @("user-paths.json", "Mods", "Cached", "Editable", "Output", "tools")
+$PreservedNames = @("user-paths.json", "Mods", "Source", "Translations", "Output", "tools")
 
 New-Item -ItemType Directory -Force -Path @($PublishRoot, $Stage, $Preserve) | Out-Null
+
+function Move-LegacyWorkspaceDirectory {
+    param(
+        [string]$LegacyName,
+        [string]$CurrentName
+    )
+
+    $Legacy = Join-Path $Out $LegacyName
+    $Current = Join-Path $Out $CurrentName
+
+    if ((Test-Path $Legacy) -and (Test-Path $Current)) {
+        throw "Both legacy $LegacyName and current $CurrentName exist in $Out; refusing to merge automatically."
+    }
+
+    if (Test-Path $Legacy) {
+        Move-Item $Legacy $Current
+        Write-Host "Migrated workspace: $LegacyName -> $CurrentName"
+    }
+}
+
+if (Test-Path $Out) {
+    Move-LegacyWorkspaceDirectory "Cached" "Source"
+    Move-LegacyWorkspaceDirectory "Editable" "Translations"
+}
 
 function Restore-RuntimeData {
     New-Item -ItemType Directory -Force $Out | Out-Null
@@ -52,7 +76,7 @@ try {
     # Copy only the application publish output. Runtime helper tools are supplied separately.
     Copy-Item (Join-Path $Stage "*") $Out -Recurse -Force
 
-    foreach ($Name in @("Mods", "Cached", "Editable", "Output", "tools")) {
+    foreach ($Name in @("Mods", "Source", "Translations", "Output", "tools")) {
         New-Item -ItemType Directory -Force (Join-Path $Out $Name) | Out-Null
     }
 
