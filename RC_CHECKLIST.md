@@ -13,10 +13,10 @@
 
 - [ ] GAME action buttons are labeled exactly **SCAN GAME**, **EXTRACT**, and **BUILD**.
 - [ ] SCAN GAME reaches **LOCALIZATION READY FOR EXTRACTION** for a new/changed source.
-- [ ] EXTRACT creates `Cached/Game` and `Editable/Game`.
+- [ ] EXTRACT creates `Source/Game` and `Translations/Game`.
 - [ ] A valid existing extraction reaches **LOCALIZATION READY FOR BUILD** without rescanning after extraction.
-- [ ] Deleting `Editable/Game` while keeping valid `Cached/Game` makes EXTRACT available again and reports **LOCALIZATION READY FOR EXTRACTION**.
-- [ ] Cached -> Editable recovery does not require a new source extraction.
+- [ ] Deleting `Translations/Game` while keeping valid `Source/Game` makes EXTRACT available again and reports **LOCALIZATION READY FOR EXTRACTION**.
+- [ ] Source -> Translations recovery does not require a new source extraction.
 - [ ] BUILD verifies S2HOCMM output and the final repak package.
 
 ## MODS
@@ -30,21 +30,21 @@
 - [ ] Nexus download IDs are not shown in mod display names and detected versions are normalized.
 - [ ] New/changed mods show **Needs extraction**.
 - [ ] Successful extraction changes the status to **Extracted** without an automatic second scan.
-- [ ] Removing Editable translation files while keeping valid Cached data enables EXTRACT recovery.
-- [ ] Recovery copies only missing Editable files and never overwrites existing edits.
+- [ ] Removing Translation files while keeping valid Source data enables EXTRACT recovery.
+- [ ] Recovery copies only missing Translation files and never overwrites existing edits.
 - [ ] Modular and All-in-One builds complete and round-trip verification passes.
 - [ ] Already-correct target-language values do not emit redundant physical overlays.
 
 ## Workspace and UI
 
-- [ ] DELETE CACHE removes Cached state and forces MODS to be scanned again.
+- [ ] DELETE SOURCE DATA removes Source state and forces MODS to be scanned again.
 - [ ] GAME / MODS workflow buttons remain step-aware.
 - [ ] Custom title bar, window controls and spinning radiation mark render correctly.
 - [ ] Main and Settings windows can be dragged from the title area, including over title labels/panels, while minimize/maximize/close remain clickable.
 - [ ] Industrial Zone chamfered cards and action buttons render cleanly with no clipped text at 100%, 125% and 150% Windows scaling.
 - [ ] GAME localization overview shows only **READY TO SCAN** before scanning, without redundant supported-language or `pakchunk0` text.
-- [ ] After GAME EXTRACT, the central panel shows **EXTRACTED** and lists the actual editable language JSON files; no extraction-complete MessageBox is shown.
-- [ ] Each extracted GAME language result shows the correct editable JSON filename.
+- [ ] After GAME EXTRACT, the central panel shows **EXTRACTED** and lists the actual translation language JSON files; no extraction-complete MessageBox is shown.
+- [ ] Each extracted GAME language result shows the correct translation JSON filename.
 - [ ] Before extraction is complete, a successful GAME scan may report **LOCALIZATION FOUND** with extraction readiness, but must not show stale extraction results.
 - [ ] MODS status messages remain readable as plain color-coded text for every status and selected row state.
 - [ ] Build-language selection tiles clearly distinguish unchecked, hover, checked and disabled states at 100%, 125% and 150% scaling.
