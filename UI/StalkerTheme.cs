@@ -365,6 +365,49 @@ internal static class StalkerTheme
         );
     }
 
+    public static void EnableWindowDragging(Form owner, Control surface)
+    {
+        Attach(surface);
+
+        void Attach(Control control)
+        {
+            if (control is ButtonBase
+                || control is TextBoxBase
+                || control is ListBox
+                || control is ComboBox)
+            {
+                return;
+            }
+
+            control.MouseDown += (_, e) =>
+            {
+                if (e.Button != MouseButtons.Left
+                    || owner.WindowState == FormWindowState.Minimized)
+                {
+                    return;
+                }
+
+                try
+                {
+                    _ = ReleaseCapture();
+                    _ = SendMessage(
+                        owner.Handle,
+                        WmNcLButtonDown,
+                        new IntPtr(HtCaption),
+                        IntPtr.Zero
+                    );
+                }
+                catch
+                {
+                    // Presentation-only fallback. WndProc hit testing still remains.
+                }
+            };
+
+            foreach (Control child in control.Controls)
+                Attach(child);
+        }
+    }
+
     public static Icon? CreateWindowIcon()
     {
         if (!OperatingSystem.IsWindows())
@@ -618,6 +661,8 @@ internal static class StalkerTheme
 
     private const int WmThemeChanged = 0x031A;
     private const int WmSetIcon = 0x0080;
+    private const int WmNcLButtonDown = 0x00A1;
+    private const int HtCaption = 2;
     private const int IconSmall = 0;
     private const int IconBig = 1;
 
@@ -640,6 +685,10 @@ internal static class StalkerTheme
         int msg,
         IntPtr wParam,
         IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ReleaseCapture();
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(
