@@ -10,7 +10,6 @@ public sealed class LocalizationTranslation
 {
     public long LanguageId { get; set; }
     public string Value { get; set; } = string.Empty;
-    public FStringEncoding Encoding { get; set; }
 }
 
 public sealed class LocalizationRecord
