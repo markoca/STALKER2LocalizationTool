@@ -831,9 +831,17 @@ public sealed class MainForm : Form
         _activeWorkspaceTab = tab;
         _gameTab.Visible = ReferenceEquals(tab, _gameTab);
         _modsTab.Visible = ReferenceEquals(tab, _modsTab);
+        _settingsTab.Visible = ReferenceEquals(tab, _settingsTab);
         _gameTabButton.Selected = ReferenceEquals(tab, _gameTab);
         _modsTabButton.Selected = ReferenceEquals(tab, _modsTab);
+        _settingsButton.Selected = ReferenceEquals(tab, _settingsTab);
         tab.BringToFront();
+    }
+
+    private void OpenSettingsTab()
+    {
+        SetWorkspace(_settingsTab);
+        _statusText.Text = "SETTINGS";
     }
 
     private void ShowModsReadyToScan()
