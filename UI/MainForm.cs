@@ -43,7 +43,7 @@ public sealed class MainForm : Form
     private readonly Button _openJsons = new StalkerUtilityButton();
     private readonly Button _openOutput = new StalkerUtilityButton();
     private readonly DataGridView _grid = new();
-    private readonly TextBox _logBox = new();
+    private readonly StalkerLogBox _logBox = new();
     private readonly Label _logLabel = new();
     private readonly StalkerProgressBar _progress = new();
     private readonly Label _statusText = new();
@@ -326,7 +326,7 @@ public sealed class MainForm : Form
             BackColor = StalkerTheme.Panel,
             Padding = new Padding(12, 10, 12, 10),
             Margin = new Padding(0, 0, 6, 0),
-            AccentEdge = false,
+            AccentEdge = true,
         };
         var languagesLayout = new TableLayoutPanel
         {
@@ -408,9 +408,10 @@ public sealed class MainForm : Form
         var logCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
-            BackColor = StalkerTheme.Panel,
+            BackColor = StalkerTheme.PanelAlt,
             Padding = new Padding(10, 8, 10, 10),
             Margin = new Padding(14, 0, 14, 10),
+            TechnicalMarks = false,
         };
         var logLayout = new TableLayoutPanel
         {
@@ -426,13 +427,13 @@ public sealed class MainForm : Form
         _logLabel.Tag = StalkerTheme.SectionLabelTag;
         _logLabel.Margin = new Padding(0, 2, 0, 0);
         _logBox.Dock = DockStyle.Fill;
-        _logBox.Multiline = true;
-        _logBox.ReadOnly = true;
         _logBox.ScrollBars = StalkerTheme.IsWine
             ? ScrollBars.None
             : ScrollBars.Vertical;
-        _logBox.Font = new Font("Consolas", 8.5F);
         _logBox.Margin = new Padding(0);
+        _logBox.BackColor = StalkerTheme.TitleBar;
+        _logBox.ForeColor = StalkerTheme.MutedText;
+        _logBox.BorderStyle = BorderStyle.None;
         logLayout.Controls.Add(_logLabel, 0, 0);
         logLayout.Controls.Add(_logBox, 0, 1);
         logCard.Controls.Add(logLayout);
@@ -467,7 +468,7 @@ public sealed class MainForm : Form
         _statusText.Dock = DockStyle.Fill;
         _statusText.AutoEllipsis = true;
         _statusText.TextAlign = ContentAlignment.MiddleLeft;
-        _statusText.Font = new Font("Segoe UI", 8.5F);
+        _statusText.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
         _statusText.Tag = StalkerTheme.MutedLabelTag;
         _statusText.Margin = new Padding(0, 0, 12, 0);
 
@@ -1740,20 +1741,12 @@ public sealed class MainForm : Form
             {
                 var result = results[index];
 
-                var item = new Label
+                var item = new StalkerResultTile
                 {
-                    AutoSize = false,
                     Dock = DockStyle.Fill,
                     Height = rowHeight - 6,
-                    Text =
-                        $"✓  {_l.LanguageName(result.Language)}"
-                        + Environment.NewLine
-                        + $"    {result.FileName}",
-                    TextAlign = ContentAlignment.MiddleLeft,
-                    Font = new Font("Segoe UI", 8.25F),
-                    ForeColor = StalkerTheme.Text,
-                    BackColor = StalkerTheme.Panel,
-                    Padding = new Padding(8, 3, 8, 3),
+                    TitleText = _l.LanguageName(result.Language),
+                    SubtitleText = result.FileName,
                     Margin = new Padding(3),
                 };
 
