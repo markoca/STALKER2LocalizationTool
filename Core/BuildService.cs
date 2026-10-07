@@ -657,8 +657,6 @@ public sealed class BuildService
         var outputLocres = Path.Combine(outputModRoot, "Game.locres");
         File.Copy(generatedLocres, outputLocres, overwrite: true);
 
-        result.LocresBuilt = true;
-        result.OutputLocresPak = outputPak;
         result.OutputFiles.Add(outputPak);
         result.OutputFiles.Add(outputLocres);
         _log?.Invoke(
