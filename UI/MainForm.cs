@@ -1744,7 +1744,10 @@ public sealed class MainForm : Form
             {
                 var result = results[index];
                 var lineText = result.Lines >= 0
-                    ? $"{result.Lines:N0} JSON lines"
+                    ? result.Lines.ToString(
+                        "N0",
+                        System.Globalization.CultureInfo.InvariantCulture
+                    ) + " JSON lines"
                     : "Line count unavailable";
 
                 var item = new Label
