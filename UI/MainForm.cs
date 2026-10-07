@@ -290,7 +290,7 @@ public sealed class MainForm : Form
         root.Controls.Add(navBar, 0, 1);
 
         // Main work area follows the True Custom Difficulty composition:
-        // Languages on the left, active GAME/MODS workspace on the right.
+        // Languages/log on the left, active GAME/MODS/SETTINGS workspace on the right.
         var mainContent = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
@@ -788,16 +788,6 @@ public sealed class MainForm : Form
         button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
     }
 
-    private static void ConfigureNavButton(Button button, int width)
-    {
-        button.AutoSize = false;
-        button.Width = width;
-        button.Height = 44;
-        button.Margin = new Padding(0, 0, 6, 0);
-        button.Padding = new Padding(10, 5, 10, 5);
-        button.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-    }
-
     private static void ConfigureChromeButton(Button button, int width)
     {
         button.AutoSize = false;
@@ -990,7 +980,7 @@ public sealed class MainForm : Form
         _extractGameButton.Text = _l.T("ui.extract_game");
         _buildGameButton.Text = _l.T("ui.build_game");
         _buildLanguageLabel.Text = _l.T("ui.build_language");
-        _settingsButton.Text = _l.T("ui.settings");
+        _settingsButton.Text = _l.T("ui.settings").ToUpperInvariant();
         _scanModsButton.Text = _l.T("ui.scan_mods");
         _extractButton.Text = _l.T("ui.extract");
         _buildModularButton.Text = _l.T("ui.build_modular");
