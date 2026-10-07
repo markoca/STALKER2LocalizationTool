@@ -351,7 +351,7 @@ public static class UtocDirectoryIndexScanner
                 var file = files[(int)fileIndex];
                 if (candidateNames.Contains(file.Name))
                 {
-                    if (file.UserData >= (uint)chunkIds.Count)
+                    if (file.UserData >= (uint)chunkIds.Length)
                     {
                         throw new InvalidDataException(
                             "IoStore file entry points outside the chunk table."
@@ -463,7 +463,7 @@ public static class UtocDirectoryIndexScanner
         uint index,
         string label)
     {
-        if (index >= (uint)strings.Count)
+        if (index >= (uint)strings.Length)
         {
             throw new InvalidDataException(
                 $"IoStore {label} name points outside the string table."

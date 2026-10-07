@@ -1517,7 +1517,7 @@ public sealed class MainForm : Form
             foreach (var item in languageSummaries)
                 summary.AppendLine(CultureInfo.InvariantCulture, $"  {item.Language}: {item.Built} built, {item.Skipped} skipped");
             summary.AppendLine();
-            summary.AppendLine(string.Format(_l.T("ui.build_summary_output"), _settings.OutputFolder));
+            summary.AppendLine(string.Format(CultureInfo.InvariantCulture, _l.T("ui.build_summary_output"), _settings.OutputFolder));
             CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, summary.ToString().TrimEnd(), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
