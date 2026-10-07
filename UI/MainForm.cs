@@ -121,20 +121,14 @@ public sealed class MainForm : Form
             if (NeedsInitialSetup())
             {
                 MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-                if (ShowSettings() != DialogResult.OK)
-                {
-                    UpdateButtons();
-                    return;
-                }
+                OpenSettingsTab();
+                UpdateButtons();
+                return;
             }
 
-            if (!NeedsInitialSetup())
-            {
-                AppendLog("=========== GAME FOUND ===========");
-                AppendLog("=========== READY TO SCAN ===========");
-                _statusText.Text = "READY TO SCAN";
-            }
-
+            AppendLog("=========== GAME FOUND ===========");
+            AppendLog("=========== READY TO SCAN ===========");
+            _statusText.Text = "READY TO SCAN";
             UpdateButtons();
         };
     }
