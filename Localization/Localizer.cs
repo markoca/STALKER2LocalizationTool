@@ -82,7 +82,6 @@ public sealed class Localizer
         ["ui.no_languages_selected"] = "Select at least one build language.",
         ["ui.operation_failed"] = "Operation failed",
         ["ui.operation_complete"] = "Operation complete",
-        ["ui.extract_complete"] = "Extraction finished.",
         ["ui.build_complete"] = "Build finished.",
         ["ui.build_summary_output"] = "Output: {0}",
         ["ui.delete_source_data"] = "DELETE SOURCE DATA",
