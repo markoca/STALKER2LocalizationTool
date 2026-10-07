@@ -1236,7 +1236,6 @@ public sealed class MainForm : Form
             RefreshModTranslationStatuses();
             CompleteProgress(_l.T("ui.done"));
             LogModsWorkflowReady();
-            MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
         {
