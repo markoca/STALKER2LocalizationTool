@@ -8,6 +8,8 @@
 - Added lightweight persistence of validated external GAME and MODS source paths through `user-paths.json`.
 - Separated GAME and MODS workflow readiness/status logging with consistent decorated banners.
 - MODS scanning is now strictly manual: it starts only from **SCAN MODS**.
+- Optimized large archive MODS scanning with **UTOC-only archive discovery**: ZIP/7z/RAR scans no longer materialize `.pak` / `.ucas` payloads up front; those files are materialized lazily only on EXTRACT for containers that actually contain localization.
+- Removed the full archive SHA-256 read from MODS discovery and collapsed loose/archive source discovery into a single filesystem traversal; scan logs now include discovery time, total scan time, cache hits and actual `retoc` scans.
 - Entering MODS performs only a one-shot pre-scan source-presence check and reports **MODS FOUND / READY TO SCAN** when appropriate.
 - Removed obsolete MODS scan snapshot persistence and related dead code.
 - Third-party helper-tool binaries are no longer tracked or distributed; users supply compatible tools under `tools/`.
