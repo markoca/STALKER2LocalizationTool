@@ -485,7 +485,7 @@ public sealed class BuildService
             var normalizedVirtualPath = PathUtil.NormalizeVirtualPathForComparison(asset.VirtualPath);
             if (expectedPackages.ContainsKey(normalizedVirtualPath))
                 throw new InvalidDataException($"{manifest.ModName}: duplicate canonical output path: {asset.VirtualPath}");
-            expectedPackages[normalizedVirtualPath] = ExpectedDatabasePackage.From(asset, patch.Payload, manifest.ModName);
+            expectedPackages[normalizedVirtualPath] = ExpectedDatabasePackage.From(asset, patch.Payload);
         }
 
         result.AssetsPatched = assetsPatched;
