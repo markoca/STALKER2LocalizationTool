@@ -315,7 +315,7 @@ public static class UtocDirectoryIndexScanner
                 );
             }
 
-            var directory = directories[directoryIndex];
+            var directory = directories[(int)directoryIndex];
             var currentPath = parentPath;
 
             if (directory.Name != InvalidIndex)
@@ -348,7 +348,7 @@ public static class UtocDirectoryIndexScanner
                     );
                 }
 
-                var file = files[fileIndex];
+                var file = files[(int)fileIndex];
                 if (candidateNames.Contains(file.Name))
                 {
                     if (file.UserData >= (uint)chunkIds.Count)
@@ -415,7 +415,7 @@ public static class UtocDirectoryIndexScanner
                     childIndex,
                     currentPath
                 ));
-                childIndex = directories[childIndex].NextSibling;
+                childIndex = directories[(int)childIndex].NextSibling;
             }
         }
 
