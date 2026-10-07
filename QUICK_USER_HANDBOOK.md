@@ -744,7 +744,7 @@ SCAN MODS
 
 is required before extraction.
 
-Use DELETE CACHE when you intentionally want Localization Workbench to rebuild its internal extraction state.
+Use DELETE SOURCE DATA when you intentionally want Localization Workbench to rebuild its internal extraction state.
 
 ---
 
