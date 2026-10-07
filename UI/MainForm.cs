@@ -2049,17 +2049,26 @@ public sealed class MainForm : Form
         RefreshGrid();
         UpdateButtons();
 
-        if (IsGameWorkspace && _gameScanSuccessful)
+        AppendLog("GAME and MODS source data deleted: workspace state reset.");
+
+        if (IsGameWorkspace)
         {
-            _statusText.Text = "LOCALIZATION READY FOR EXTRACTION";
-            AppendLog("=========== LOCALIZATION READY FOR EXTRACTION ===========");
+            if (_gameScanSuccessful)
+            {
+                _statusText.Text = "LOCALIZATION READY FOR EXTRACTION";
+                AppendLog("=========== LOCALIZATION READY FOR EXTRACTION ===========");
+            }
+            else
+            {
+                _statusText.Text = "READY TO SCAN";
+                AppendLog("=========== READY TO SCAN ===========");
+            }
+
+            return;
         }
-        else
-        {
-            _statusText.Text = "READY TO SCAN MODS";
-            AppendLog("MODS source data deleted: scan state reset.");
-            AppendLog("=========== READY TO SCAN MODS ===========");
-        }
+
+        _statusText.Text = "READY TO SCAN MODS";
+        AppendLog("=========== READY TO SCAN MODS ===========");
     }
 
     private bool NeedsInitialSetup() =>
