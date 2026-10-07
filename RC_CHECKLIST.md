@@ -46,7 +46,7 @@
 - [ ] After GAME EXTRACT, the central panel shows **EXTRACTED** and lists the actual editable language JSON files; no extraction-complete MessageBox is shown.
 - [ ] Each extracted GAME language result shows the correct editable JSON filename.
 - [ ] Before extraction is complete, a successful GAME scan may report **LOCALIZATION FOUND** with extraction readiness, but must not show stale extraction results.
-- [ ] MODS status badges remain readable for every status and selected row state.
+- [ ] MODS status messages remain readable as plain color-coded text for every status and selected row state.
 - [ ] Build-language selection tiles clearly distinguish unchecked, hover, checked and disabled states at 100%, 125% and 150% scaling.
 - [ ] GAME extracted-file result tiles render filenames without clipping and retain full-path tooltips.
 - [ ] LOG remains readable and scrollable with the borderless terminal treatment on Windows and Wine.
