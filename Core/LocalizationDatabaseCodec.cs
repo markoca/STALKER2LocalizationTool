@@ -246,8 +246,7 @@ public static class LocalizationDatabaseCodec
                 );
                 UnrealStringCodec.WriteFString(
                     output,
-                    replacement,
-                    FStringEncoding.Wide
+                    replacement
                 );
                 output.Write(
                     originalPayload.AsSpan(
@@ -275,8 +274,7 @@ public static class LocalizationDatabaseCodec
                 WriteInt64(output, targetLanguageId);
                 UnrealStringCodec.WriteFString(
                     output,
-                    replacement,
-                    FStringEncoding.Wide
+                    replacement
                 );
             }
         }

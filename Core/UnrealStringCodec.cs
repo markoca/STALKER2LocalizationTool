@@ -96,68 +96,30 @@ public static class UnrealStringCodec
 
     public static void WriteFString(
         Stream stream,
-        string? value,
-        FStringEncoding preferredEncoding)
+        string? value)
     {
         value ??= string.Empty;
 
-        if (preferredEncoding == FStringEncoding.Ansi)
-        {
-            var byteCount = Encoding.UTF8.GetByteCount(value);
-            var rented = System.Buffers.ArrayPool<byte>.Shared.Rent(
-                Math.Max(1, byteCount)
-            );
-            try
-            {
-                var written = Encoding.UTF8.GetBytes(
-                    value.AsSpan(),
-                    rented.AsSpan(0, byteCount)
-                );
-
-                var asciiOnly = true;
-                for (var i = 0; i < written; i++)
-                {
-                    if (rented[i] >= 0x80)
-                    {
-                        asciiOnly = false;
-                        break;
-                    }
-                }
-
-                if (asciiOnly)
-                {
-                    WriteLength(stream, written + 1);
-                    stream.Write(rented, 0, written);
-                    stream.WriteByte(0);
-                    return;
-                }
-            }
-            finally
-            {
-                System.Buffers.ArrayPool<byte>.Shared.Return(rented);
-            }
-        }
-
-        var wideByteCount = Encoding.Unicode.GetByteCount(value);
-        var wideRented = System.Buffers.ArrayPool<byte>.Shared.Rent(
-            Math.Max(2, wideByteCount)
+        var byteCount = Encoding.Unicode.GetByteCount(value);
+        var rented = System.Buffers.ArrayPool<byte>.Shared.Rent(
+            Math.Max(2, byteCount)
         );
         try
         {
             var written = Encoding.Unicode.GetBytes(
                 value.AsSpan(),
-                wideRented.AsSpan(0, wideByteCount)
+                rented.AsSpan(0, byteCount)
             );
 
             var codeUnitsWithTerminator = checked(written / 2 + 1);
             WriteLength(stream, -codeUnitsWithTerminator);
-            stream.Write(wideRented, 0, written);
+            stream.Write(rented, 0, written);
             stream.WriteByte(0);
             stream.WriteByte(0);
         }
         finally
         {
-            System.Buffers.ArrayPool<byte>.Shared.Return(wideRented);
+            System.Buffers.ArrayPool<byte>.Shared.Return(rented);
         }
     }
 

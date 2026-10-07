@@ -1,11 +1,5 @@
 namespace LocalizationWorkbench.Models;
 
-public enum FStringEncoding
-{
-    Ansi,
-    Wide,
-}
-
 public sealed class LocalizationTranslation
 {
     public long LanguageId { get; set; }
