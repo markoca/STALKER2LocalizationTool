@@ -356,7 +356,7 @@ public sealed class SettingsForm : UserControl
         string labelText,
         string value)
     {
-        AddPathRow(grid, key, labelText, value, true, null);
+        AddEditableFolderRow(grid, key, labelText, value);
     }
     private void AddResolvedPathRow(
         TableLayoutPanel grid,
@@ -398,13 +398,11 @@ public sealed class SettingsForm : UserControl
     }
 
 
-    private void AddPathRow(
+    private void AddEditableFolderRow(
         TableLayoutPanel grid,
         string key,
         string labelText,
-        string value,
-        bool folder,
-        string? filter)
+        string value)
     {
         var row = grid.RowCount++;
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 36));
@@ -440,33 +438,15 @@ public sealed class SettingsForm : UserControl
 
         browse.Click += (_, _) =>
         {
-            if (folder)
+            using var dialog = new FolderBrowserDialog
             {
-                using var dialog = new FolderBrowserDialog
-                {
-                    Description = _l.T("ui.select_folder"),
-                    SelectedPath = Directory.Exists(box.Text) ? box.Text : string.Empty,
-                    ShowNewFolderButton = true,
-                };
+                Description = _l.T("ui.select_folder"),
+                SelectedPath = Directory.Exists(box.Text) ? box.Text : string.Empty,
+                ShowNewFolderButton = true,
+            };
 
-                if (dialog.ShowDialog(this) == DialogResult.OK)
-                    box.Text = dialog.SelectedPath;
-            }
-            else
-            {
-                using var dialog = new OpenFileDialog
-                {
-                    Title = _l.T("ui.select_file"),
-                    Filter = filter ?? "All files (*.*)|*.*",
-                    FileName = File.Exists(box.Text) ? box.Text : string.Empty,
-                    InitialDirectory = File.Exists(box.Text)
-                        ? Path.GetDirectoryName(box.Text)
-                        : string.Empty,
-                };
-
-                if (dialog.ShowDialog(this) == DialogResult.OK)
-                    box.Text = dialog.FileName;
-            }
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+                box.Text = dialog.SelectedPath;
         };
 
         grid.Controls.Add(label, 0, row);
