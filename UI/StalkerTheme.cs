@@ -115,9 +115,15 @@ internal static class StalkerTheme
                 break;
 
             case TextBoxBase textBox:
-                textBox.BackColor = PanelAlt;
-                textBox.ForeColor = Text;
-                textBox.BorderStyle = BorderStyle.FixedSingle;
+                textBox.BackColor = textBox.Parent is StalkerPathField
+                    ? PanelAlt
+                    : PanelAlt;
+                textBox.ForeColor = textBox.ReadOnly
+                    ? MutedText
+                    : Text;
+                textBox.BorderStyle = textBox.Parent is StalkerPathField
+                    ? BorderStyle.None
+                    : BorderStyle.FixedSingle;
                 break;
 
             case CheckedListBox checkedList:
