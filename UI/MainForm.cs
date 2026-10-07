@@ -1646,7 +1646,7 @@ public sealed class MainForm : Form
 
         return newestDatabaseDate?
             .UtcDateTime
-            .ToString("MM/dd/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+            .ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
     }
 
     private static string BuildModDetailsTooltip(ModScanResult mod)
