@@ -15,9 +15,7 @@ public sealed class ModBuildResult
     public int AssetsPatched { get; set; }
     public int MatchedSids { get; set; }
     public int ChangedSids { get; set; }
-    public bool LocresBuilt { get; set; }
     public string? OutputUtoc { get; set; }
-    public string? OutputLocresPak { get; set; }
     public List<string> OutputFiles { get; set; } = new();
     public string? Message { get; set; }
 }
