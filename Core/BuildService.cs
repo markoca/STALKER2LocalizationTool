@@ -225,9 +225,6 @@ public sealed class BuildService
                     + $"changed={patch.ChangedSids.Count}"
                 );
 
-                result.MatchedSids += patch.MatchedSids.Count;
-                result.ChangedSids += patch.ChangedSids.Count;
-
                 // Match current launch.py: an already-correct source needs no physical
                 // overlay asset. Only a real Serbian-slot change enters the output.
                 if (patch.ChangedSids.Count == 0)
@@ -339,14 +336,7 @@ public sealed class BuildService
             result.Verified = true;
             result.Built = result.AssetsPatched > 0;
             if (result.Built)
-            {
-                        result.OutputFiles.AddRange(sharedFiles);
-                result.Message = $"Included {result.AssetsPatched} verified localization package(s) in the All-in-One overlay.";
-            }
-            else
-            {
-                result.Message ??= "No Translation values required LocalizationDatabase changes; not included.";
-            }
+                result.OutputFiles.AddRange(sharedFiles);
         }
 
         TryDeleteDirectory(workRoot);
