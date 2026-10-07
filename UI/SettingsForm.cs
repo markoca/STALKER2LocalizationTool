@@ -539,7 +539,7 @@ public sealed class SettingsForm : Form
             Anchor = AnchorStyles.Right,
             Margin = new Padding(4, 8, 0, 0),
             Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
-            ForeColor = StalkerTheme.AccentDark,
+            Tag = StalkerTheme.AccentValueTag,
         };
 
         grid.Controls.Add(label, 0, row);
