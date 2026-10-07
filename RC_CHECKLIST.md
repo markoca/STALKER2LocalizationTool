@@ -21,6 +21,7 @@
 
 ## MODS
 
+- [ ] MODS extraction action is labeled exactly **EXTRACT**.
 - [ ] MODS is not scanned at startup or while GAME is active.
 - [ ] Before the first MODS scan in a session, entering the MODS tab shows **MODS FOUND** and **READY TO SCAN** once when mod sources are present; tab switching does not duplicate the banners.
 - [ ] MODS scanning starts only when the user clicks **SCAN MODS**.
