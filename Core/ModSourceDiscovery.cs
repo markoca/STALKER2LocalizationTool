@@ -569,7 +569,8 @@ public static class ModSourceDiscovery
 
         log?.Invoke(
             $"Archive mod source: {archiveRelative} -> "
-            + $"{retained.Count} IoStore container(s) [{displayName}]"
+            + $"{retained.Count} IoStore container(s) [{displayName}] "
+            + "(UTOC-only scan materialization)"
         );
 
         yield return new SourceGroup
@@ -995,12 +996,6 @@ public static class ModSourceDiscovery
 
         return parts.Any(part => IgnoredSourceDirectories.Contains(part));
     }
-
-    private static bool IsSupportedArchive(string path) =>
-        ArchiveExtensions.Contains(
-            Path.GetExtension(path),
-            StringComparer.OrdinalIgnoreCase
-        );
 
     private static string NormalizeArchivePath(string path) =>
         path.Replace('\\', '/').TrimStart('/');
