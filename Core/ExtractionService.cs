@@ -894,12 +894,6 @@ public sealed class ExtractionService
             dump[key] = value;
     }
 
-    private static string FileMetadataFingerprint(string path)
-    {
-        var info = new FileInfo(path);
-        return $"size:{info.Length};utc:{info.LastWriteTimeUtc.Ticks}";
-    }
-
     private void ValidatePrerequisites(IReadOnlyCollection<ModScanResult> mods)
     {
         if (mods.Any(x => x.Assets.Count > 0))
