@@ -18,6 +18,8 @@
 - Each extracted GAME language result shows its actual editable JSON filename, keeping the post-extraction list concise and directly tied to `Editable/Game`.
 - The pre-scan GAME overview was simplified to **READY TO SCAN** without redundant supported-language or `pakchunk0` source text.
 - The new main-window styling remains owner-drawn WinForms to preserve deterministic Windows/Wine rendering without adding a UI framework dependency.
+- Extended the **Industrial Zone** styling to the remaining UI: language-selection tiles, GAME extraction result tiles, borderless terminal log, chamfered utility buttons, industrial Settings path fields, Auto Scan switch, primary Save action, and destructive Delete Cache treatment.
+- Settings typography now uses the same Segoe UI family as the main window, avoiding a separate Bahnschrift rendering dependency across Windows/Wine.
 - Consolidated the current development baseline onto `main` and refreshed release-candidate documentation.
 
 ## 1.0.0-rc.7
