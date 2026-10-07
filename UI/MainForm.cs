@@ -203,12 +203,12 @@ public sealed class MainForm : Form
         };
 
         _titleAccent.AutoSize = true;
-        _titleAccent.Font = new Font("Segoe UI", 19F, FontStyle.Bold);
+        _titleAccent.Font = new Font("Segoe UI", 17F, FontStyle.Bold);
         _titleAccent.Tag = StalkerTheme.SectionLabelTag;
         _titleAccent.Margin = new Padding(0);
 
         _titleRest.AutoSize = true;
-        _titleRest.Font = new Font("Segoe UI Semibold", 18F, FontStyle.Regular);
+        _titleRest.Font = new Font("Segoe UI Semibold", 17F, FontStyle.Regular);
         _titleRest.Margin = new Padding(0);
 
         titleWords.Controls.Add(_titleAccent);
