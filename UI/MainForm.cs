@@ -701,18 +701,15 @@ public sealed class MainForm : Form
 
     private void BuildSettingsTab()
     {
-        _settingsView = new SettingsForm(_settings, _l, embedded: true)
+        _settingsView = new SettingsForm(_settings, _l)
         {
-            TopLevel = false,
             Dock = DockStyle.Fill,
-            FormBorderStyle = FormBorderStyle.None,
         };
 
         _settingsView.SettingsSaved += (_, _) => ApplyEmbeddedSettings();
         _settingsView.SourceDataDeleted += (_, _) => MarkSourceDeleted();
 
         _settingsTab.Controls.Add(_settingsView);
-        _settingsView.Show();
     }
 
     private void ApplyEmbeddedSettings()
