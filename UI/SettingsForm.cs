@@ -84,7 +84,7 @@ public sealed class SettingsForm : Form
         var body = new Panel
         {
             Dock = DockStyle.Fill,
-            AutoScroll = false,
+            AutoScroll = _embedded,
             Margin = new Padding(0, 0, 0, 10),
             BackColor = StalkerTheme.WindowBackground,
         };
