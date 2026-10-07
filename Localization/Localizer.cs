@@ -85,7 +85,7 @@ public sealed class Localizer
         ["ui.extract_complete"] = "Extraction finished.",
         ["ui.build_complete"] = "Build finished.",
         ["ui.build_summary_output"] = "Output: {0}",
-        ["ui.delete_source_data"] = "DELETE CACHE",
+        ["ui.delete_source_data"] = "DELETE SOURCE DATA",
         ["ui.delete_source_confirm"] = "Delete all GAME and MODS source data?\r\n\r\n{0}\r\n\r\nTranslations and Output will not be changed.",
         ["ui.source_deleted"] = "GAME and MODS source data deleted. Extraction will be required again.",
         ["ui.source_empty"] = "There is no source data to delete.",
