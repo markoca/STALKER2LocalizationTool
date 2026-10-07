@@ -10,6 +10,8 @@
 - MODS scanning is now strictly manual: it starts only from **SCAN MODS**.
 - Optimized large archive MODS scanning with **UTOC-only archive discovery**: ZIP/7z/RAR scans no longer materialize `.pak` / `.ucas` payloads up front; those files are materialized lazily only on EXTRACT for containers that actually contain localization.
 - Removed the full archive SHA-256 read from MODS discovery and collapsed loose/archive source discovery into a single filesystem traversal; scan logs now include discovery time, total scan time, cache hits and actual `retoc` scans.
+- Added bounded parallel container scanning with at most **2 concurrent `retoc list` operations**, while preserving deterministic per-mod aggregation and cancellation; per-container logs now report UTOC hash time, `retoc` time or cache hits.
+- Cold archive discovery now logs the time required to materialize each scan-only UTOC, making 7z/RAR decompression bottlenecks visible separately from `retoc` time.
 - Entering MODS performs only a one-shot pre-scan source-presence check and reports **MODS FOUND / READY TO SCAN** when appropriate.
 - Removed obsolete MODS scan snapshot persistence and related dead code.
 - Third-party helper-tool binaries are no longer tracked or distributed; users supply compatible tools under `tools/`.
