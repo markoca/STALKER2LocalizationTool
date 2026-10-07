@@ -96,7 +96,7 @@ public static class UtocDirectoryIndexScanner
 
         var version = header[16];
         var headerSize = ReadUInt32(header, 20);
-        if (headerSize != TocHeaderSize)
+        if (headerSize != (uint)TocHeaderSize)
         {
             throw new NotSupportedException(
                 $"Unsupported IoStore TOC header size: {headerSize}."
@@ -301,7 +301,7 @@ public static class UtocDirectoryIndexScanner
         while (stack.Count > 0)
         {
             var (directoryIndex, parentPath) = stack.Pop();
-            if (directoryIndex >= directories.Length)
+            if (directoryIndex >= (uint)directories.Length)
             {
                 throw new InvalidDataException(
                     "IoStore directory index points outside the directory table."
@@ -335,7 +335,7 @@ public static class UtocDirectoryIndexScanner
             var fileIndex = directory.FirstFile;
             while (fileIndex != InvalidIndex)
             {
-                if (fileIndex >= files.Length)
+                if (fileIndex >= (uint)files.Length)
                 {
                     throw new InvalidDataException(
                         "IoStore directory index points outside the file table."
@@ -351,7 +351,7 @@ public static class UtocDirectoryIndexScanner
                 var file = files[fileIndex];
                 if (candidateNames.Contains(file.Name))
                 {
-                    if (file.UserData >= chunkIds.Count)
+                    if (file.UserData >= (uint)chunkIds.Count)
                     {
                         throw new InvalidDataException(
                             "IoStore file entry points outside the chunk table."
@@ -398,7 +398,7 @@ public static class UtocDirectoryIndexScanner
             var siblingGuard = new HashSet<uint>();
             while (childIndex != InvalidIndex)
             {
-                if (childIndex >= directories.Length)
+                if (childIndex >= (uint)directories.Length)
                 {
                     throw new InvalidDataException(
                         "IoStore child directory points outside the table."
@@ -463,7 +463,7 @@ public static class UtocDirectoryIndexScanner
         uint index,
         string label)
     {
-        if (index >= strings.Count)
+        if (index >= (uint)strings.Count)
         {
             throw new InvalidDataException(
                 $"IoStore {label} name points outside the string table."
