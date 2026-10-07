@@ -8,8 +8,8 @@ public sealed class GameScanner
     private readonly RetocService _retoc;
     private readonly RepakService _repak;
     private readonly string _gamePaksRoot;
-    private readonly string _cachedRoot;
-    private readonly string _editableRoot;
+    private readonly string _sourceRoot;
+    private readonly string _translationsRoot;
     private readonly IReadOnlyList<BuildLanguage> _buildLanguages;
     private readonly Action<string>? _log;
 
@@ -17,16 +17,16 @@ public sealed class GameScanner
         RetocService retoc,
         RepakService repak,
         string gamePaksRoot,
-        string cachedRoot,
-        string editableRoot,
+        string sourceRoot,
+        string translationsRoot,
         IEnumerable<int> buildLanguageIds,
         Action<string>? log = null)
     {
         _retoc = retoc;
         _repak = repak;
         _gamePaksRoot = gamePaksRoot;
-        _cachedRoot = cachedRoot;
-        _editableRoot = editableRoot;
+        _sourceRoot = sourceRoot;
+        _translationsRoot = translationsRoot;
         _buildLanguages = buildLanguageIds
             .Select(BuildLanguageCatalog.ById)
             .DistinctBy(language => language.Id)
@@ -148,10 +148,10 @@ public sealed class GameScanner
             game.SourceFingerprint = HashUtil.Sha256Text(string.Join("\n", fingerprintLines));
         }
 
-        var manifestPath = Path.Combine(_cachedRoot, game.ModId, "manifest.json");
+        var manifestPath = Path.Combine(_sourceRoot, game.ModId, "manifest.json");
         game.NeedsExtraction = game.HasLocalization && !ManifestMatches(manifestPath, game.SourceFingerprint);
-        game.EditableTranslationFile = _buildLanguages
-            .Select(language => Path.Combine(_editableRoot, game.ModId, language.Key + ".json"))
+        game.TranslationFile = _buildLanguages
+            .Select(language => Path.Combine(_translationsRoot, game.ModId, language.Key + ".json"))
             .Where(File.Exists)
             .FirstOrDefault(path => !string.IsNullOrWhiteSpace(path));
         game.UiStatus = ResolveStatus(game, _buildLanguages.Count);
@@ -189,7 +189,7 @@ public sealed class GameScanner
         if (!game.HasLocalization) return ModUiStatus.NoLocalization;
         if (game.NeedsExtraction) return ModUiStatus.NeedsExtraction;
         if (selectedLanguageCount == 0) return ModUiStatus.NoLanguageSelected;
-        if (string.IsNullOrWhiteSpace(game.EditableTranslationFile)) return ModUiStatus.MissingTranslation;
+        if (string.IsNullOrWhiteSpace(game.TranslationFile)) return ModUiStatus.MissingTranslation;
         return ModUiStatus.Available;
     }
 }
