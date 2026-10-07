@@ -3,9 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
-PROJECT="$(find "$ROOT" -maxdepth 1 -type f -name '*.csproj' -print -quit)"
-if [[ -z "$PROJECT" ]]; then
-    echo "ERROR: no .csproj found in project root: $ROOT" >&2
+PROJECT="$ROOT/LocalizationWorkbench.csproj"
+if [[ ! -f "$PROJECT" ]]; then
+    echo "ERROR: project file not found: $PROJECT" >&2
     exit 1
 fi
 PUBLISH_ROOT="$ROOT/publish"
@@ -67,10 +67,6 @@ dotnet publish "$PROJECT" \
   -c Release \
   -r win-x64 \
   --self-contained true \
-  -p:EnableWindowsTargeting=true \
-  -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
-  -p:EnableCompressionInSingleFile=true \
   -p:DebugType=None \
   -p:DebugSymbols=false \
   -o "$STAGE"

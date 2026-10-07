@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$Project = Get-ChildItem -LiteralPath $Root -Filter *.csproj -File | Select-Object -First 1 -ExpandProperty FullName
-if (-not $Project) { throw "No .csproj found in project root: $Root" }
+$Project = Join-Path $Root "LocalizationWorkbench.csproj"
+if (-not (Test-Path -LiteralPath $Project -PathType Leaf)) { throw "Project file not found: $Project" }
 $PublishRoot = Join-Path $Root "publish"
 $Out = Join-Path $PublishRoot "win-x64"
 $Stage = Join-Path $PublishRoot (".win-x64-stage-" + [guid]::NewGuid().ToString("N"))
@@ -61,10 +61,6 @@ try {
       -c Release `
       -r win-x64 `
       --self-contained true `
-      -p:EnableWindowsTargeting=true `
-      -p:PublishSingleFile=true `
-      -p:IncludeNativeLibrariesForSelfExtract=true `
-      -p:EnableCompressionInSingleFile=true `
       -p:DebugType=None `
       -p:DebugSymbols=false `
       -o $Stage
