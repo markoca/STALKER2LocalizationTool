@@ -1019,10 +1019,10 @@ public sealed class MainForm : Form
         _openOutput.Text = _l.T("ui.open_output");
         _logLabel.Text = _l.T("ui.log");
 
-        _grid.Columns["Mod"].HeaderText = _l.T("ui.mod");
-        _grid.Columns["Localization"].HeaderText = _l.T("ui.localization_types");
-        _grid.Columns["Status"].HeaderText = _l.T("ui.status");
-        _grid.Columns["Details"].HeaderText = _l.T("ui.details");
+        _grid.Columns["Mod"]!.HeaderText = _l.T("ui.mod");
+        _grid.Columns["Localization"]!.HeaderText = _l.T("ui.localization_types");
+        _grid.Columns["Status"]!.HeaderText = _l.T("ui.status");
+        _grid.Columns["Details"]!.HeaderText = _l.T("ui.details");
 
         _loadingLanguageChecks = true;
         _buildLanguages.SetLanguages(

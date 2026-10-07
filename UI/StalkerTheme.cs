@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 
@@ -763,6 +764,8 @@ internal sealed class StalkerWindowButton : Button
     private bool _hovered;
     private bool _pressed;
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool IsCloseButton { get; set; }
 
     public StalkerWindowButton()
@@ -851,6 +854,8 @@ internal sealed class StalkerUtilityButton : Button
     private bool _hovered;
     private bool _pressed;
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool DangerStyle { get; set; }
 
     public StalkerUtilityButton()
@@ -1007,6 +1012,8 @@ internal sealed class StalkerBrandMark : Control
     private bool _spinning;
     private int _paintPending;
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Spinning
     {
         get => _spinning;
@@ -1131,8 +1138,14 @@ internal sealed class StalkerBrandMark : Control
 /// </summary>
 internal sealed class StalkerCardPanel : Panel
 {
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool AccentEdge { get; set; }
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool TechnicalMarks { get; set; } = true;
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int ChamferSize { get; set; } = 8;
 
     public StalkerCardPanel()
@@ -1249,6 +1262,8 @@ internal sealed class StalkerActionButton : Button
     private bool _hovered;
     private bool _pressed;
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Primary
     {
         get => _primary;
@@ -1411,6 +1426,8 @@ internal sealed class StalkerNavButton : Button
     private bool _hovered;
     private bool _pressed;
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool Selected
     {
         get => _selected;
@@ -1515,6 +1532,8 @@ internal sealed class StalkerProgressBar : Control
     private int _maximum = 100;
     private int _value;
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int Minimum
     {
         get => _minimum;
@@ -1528,6 +1547,8 @@ internal sealed class StalkerProgressBar : Control
         }
     }
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int Maximum
     {
         get => _maximum;
@@ -1539,6 +1560,8 @@ internal sealed class StalkerProgressBar : Control
         }
     }
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int Value
     {
         get => _value;
@@ -1678,7 +1701,11 @@ internal sealed class StalkerLogBox : TextBox
 /// </summary>
 internal sealed class StalkerResultTile : Control
 {
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string TitleText { get; set; } = string.Empty;
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string SubtitleText { get; set; } = string.Empty;
 
     public StalkerResultTile()
@@ -2072,6 +2099,8 @@ internal sealed class StalkerLanguageCheckBox : CheckBox
 {
     private bool _hovered;
 
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int LanguageId { get; set; }
 
     public StalkerLanguageCheckBox()
