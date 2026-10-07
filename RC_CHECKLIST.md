@@ -40,3 +40,6 @@
 - [ ] DELETE CACHE removes Cached state and forces MODS to be scanned again.
 - [ ] GAME / MODS workflow buttons remain step-aware.
 - [ ] Custom title bar, window controls and spinning radiation mark render correctly.
+- [ ] Industrial Zone chamfered cards and action buttons render cleanly with no clipped text at 100%, 125% and 150% Windows scaling.
+- [ ] GAME and MODS workflow rails show the correct active/completed stage after scan, extraction and build.
+- [ ] MODS status badges remain readable for every status and selected row state.
