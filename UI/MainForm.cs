@@ -68,8 +68,9 @@ public sealed class MainForm : Form
     private string _gameLocalizationResultSignature = string.Empty;
     private readonly Button _openJsons = new StalkerUtilityButton();
     private readonly Button _openOutput = new StalkerUtilityButton();
-    private readonly DataGridView _grid = new();
+    private readonly StalkerModsGrid _grid = new();
     private readonly StalkerVScrollBar _gridScroll = new();
+    private int _gridWheelRemainder;
     private readonly StalkerLogBox _logBox = new();
     private readonly Label _logLabel = new();
     private readonly StalkerProgressBar _progress = new();
@@ -1000,7 +1001,32 @@ public sealed class MainForm : Form
         _grid.Scroll += (_, _) => SyncGridScrollBar();
         _grid.Resize += (_, _) => SyncGridScrollBar();
         _grid.Sorted += (_, _) => SyncGridScrollBar();
+        _grid.WheelScrollRequested += ScrollGridByWheel;
         _gridScroll.ValueChanged += (_, _) => ScrollGridTo(_gridScroll.Value);
+    }
+
+    private void ScrollGridByWheel(object? sender, MouseEventArgs e)
+    {
+        if (_grid.RowCount == 0 || e.Delta == 0)
+            return;
+
+        var wheelLines = SystemInformation.MouseWheelScrollLines;
+        if (wheelLines == 0)
+            return;
+
+        // High-resolution wheels can send sub-notch deltas. Accumulate them
+        // before moving rows so scrolling stays consistent on Windows and Wine.
+        _gridWheelRemainder += e.Delta;
+        var notches = _gridWheelRemainder / SystemInformation.MouseWheelScrollDelta;
+        _gridWheelRemainder %= SystemInformation.MouseWheelScrollDelta;
+        if (notches == 0)
+            return;
+
+        var rowsPerNotch = wheelLines < 0
+            ? Math.Max(1, _grid.DisplayedRowCount(includePartialRow: false))
+            : wheelLines;
+        var firstRow = Math.Max(0, _grid.FirstDisplayedScrollingRowIndex);
+        ScrollGridTo(firstRow - notches * rowsPerNotch);
     }
 
     private void SyncGridScrollBar()

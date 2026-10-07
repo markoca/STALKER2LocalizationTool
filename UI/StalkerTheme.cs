@@ -1003,6 +1003,23 @@ internal sealed class StalkerUtilityButton : Button
 }
 
 /// <summary>
+/// MODS grid routes mouse-wheel input explicitly because hiding the native
+/// DataGridView scrollbar also disables its reliable built-in wheel scrolling.
+/// Keyboard, selection and sorting behavior remain owned by DataGridView.
+/// </summary>
+internal sealed class StalkerModsGrid : DataGridView
+{
+    internal event MouseEventHandler? WheelScrollRequested;
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        // Do not call base: its native-scrollbar path would compete with the
+        // owner-drawn scrollbar and can scroll twice on some Windows builds.
+        WheelScrollRequested?.Invoke(this, e);
+    }
+}
+
+/// <summary>
 /// Owner-drawn vertical scrollbar used where native WinForms scrollbars would
 /// break the graphite/yellow visual system, especially under Wine.
 /// </summary>
