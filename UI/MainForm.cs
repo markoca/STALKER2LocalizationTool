@@ -852,10 +852,11 @@ public sealed class MainForm : Form
             e.Graphics.DrawPath(border, path);
         }
 
+        using var badgeFont = new Font("Segoe UI", 7.5F, FontStyle.Bold);
         TextRenderer.DrawText(
             e.Graphics,
             textValue.ToUpperInvariant(),
-            new Font("Segoe UI", 7.5F, FontStyle.Bold),
+            badgeFont,
             badge,
             accent,
             TextFormatFlags.HorizontalCenter
