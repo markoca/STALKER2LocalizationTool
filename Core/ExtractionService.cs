@@ -98,11 +98,16 @@ public sealed class ExtractionService
             {
                 ModId = mod.ModId,
                 ModName = mod.ModName,
-                    SourceFingerprint = mod.SourceFingerprint,
+                SourceFingerprint = mod.SourceFingerprint,
                 SourceContainerLabels = mod.ContainerLabels
                     .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
                     .ToList(),
             };
+
+            var languageDumps = BuildLanguageCatalog.All.ToDictionary(
+                language => language.Id,
+                _ => new SortedDictionary<string, string>(StringComparer.Ordinal)
+            );
 
             var isGame = string.Equals(mod.ModId, "Game", StringComparison.OrdinalIgnoreCase);
             await ExtractDatabaseAssetsAsync(mod, manifest, languageDumps, stagingRoot, cancellationToken);
