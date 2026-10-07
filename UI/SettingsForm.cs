@@ -3,47 +3,28 @@ using LocalizationWorkbench.Models;
 
 namespace LocalizationWorkbench.UI;
 
-public sealed class SettingsForm : Form
+public sealed class SettingsForm : UserControl
 {
     private readonly AppSettings _settings;
     private readonly Localizer _l;
-    private readonly bool _embedded;
     private readonly Dictionary<string, TextBox> _boxes = new();
     private readonly StalkerToggleCheckBox _autoScan = new();
 
-    private readonly Label _titleAccent = new();
-    private readonly Label _titleRest = new();
-    private readonly StalkerWindowButton _minimizeButton = new();
-    private readonly StalkerWindowButton _maximizeButton = new();
-    private readonly StalkerWindowButton _closeButton = new() { IsCloseButton = true };
-
-    public bool SourceDeleted { get; private set; }
     public event EventHandler? SettingsSaved;
     public event EventHandler? SourceDataDeleted;
 
-    public SettingsForm(AppSettings settings, Localizer localizer, bool embedded = false)
+    public SettingsForm(AppSettings settings, Localizer localizer)
     {
         _settings = settings;
         _l = localizer;
-        _embedded = embedded;
 
-        Text = _l.T("ui.settings") + " - " + AppConstants.AppName;
-        StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = _embedded ? System.Drawing.Size.Empty : new Size(920, 700);
-        Size = _embedded ? new Size(860, 620) : new Size(980, 800);
         Font = new Font("Segoe UI", 9F);
-        FormBorderStyle = FormBorderStyle.None;
-        ShowIcon = false;
-        Padding = _embedded ? new Padding(0) : new Padding(1);
-        BackColor = _embedded ? StalkerTheme.WindowBackground : StalkerTheme.Border;
+        Padding = new Padding(0);
+        BackColor = StalkerTheme.WindowBackground;
         DoubleBuffered = true;
 
         BuildUi();
-        ApplyWindowTitle();
         StalkerTheme.Apply(this);
-
-        if (!_embedded)
-            Resize += (_, _) => UpdateMaximizeButtonGlyph();
     }
 
     private void BuildUi()
@@ -53,21 +34,13 @@ public sealed class SettingsForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 3,
+            RowCount = 2,
             Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
-        root.RowStyles.Add(
-            _embedded
-                ? new RowStyle(SizeType.Absolute, 0)
-                : new RowStyle(SizeType.AutoSize)
-        );                                                       // title chrome
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // settings content
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // footer chrome
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         Controls.Add(root);
-
-        if (!_embedded)
-            root.Controls.Add(BuildTitleBar(), 0, 0);
 
         var content = new TableLayoutPanel
         {
@@ -84,7 +57,7 @@ public sealed class SettingsForm : Form
         var body = new Panel
         {
             Dock = DockStyle.Fill,
-            AutoScroll = _embedded,
+            AutoScroll = true,
             Margin = new Padding(0, 0, 0, 10),
             BackColor = StalkerTheme.WindowBackground,
         };
@@ -110,135 +83,8 @@ public sealed class SettingsForm : Form
         content.Controls.Add(body, 0, 0);
         content.Controls.Add(BuildAutoScanCard(), 0, 1);
 
-        root.Controls.Add(content, 0, 1);
-        root.Controls.Add(BuildFooter(), 0, 2);
-
-        UpdateMaximizeButtonGlyph();
-    }
-
-    private Control BuildTitleBar()
-    {
-        var titleBar = new StalkerTitleBar
-        {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            MinimumSize = new Size(0, 68),
-            Margin = new Padding(0),
-            Padding = new Padding(14, 8, 10, 8),
-        };
-
-        var titleLayout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            ColumnCount = 2,
-            RowCount = 1,
-            Margin = new Padding(0),
-            Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
-        };
-        titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        titleLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-
-        var identity = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoSize = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Margin = new Padding(0),
-            Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
-        };
-
-        var titleWords = new FlowLayoutPanel
-        {
-            AutoSize = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Margin = new Padding(0, 12, 0, 0),
-            Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
-        };
-
-        _titleAccent.AutoSize = true;
-        _titleAccent.Font = new Font(
-            "Segoe UI",
-            17F,
-            FontStyle.Bold
-        );
-        _titleAccent.Tag = StalkerTheme.SectionLabelTag;
-        _titleAccent.Margin = new Padding(0, 0, 8, 0);
-
-        _titleRest.AutoSize = true;
-        _titleRest.Font = new Font(
-            "Segoe UI Semibold",
-            17F,
-            FontStyle.Regular
-        );
-        _titleRest.Margin = new Padding(0);
-
-        titleWords.Controls.Add(_titleAccent);
-        titleWords.Controls.Add(_titleRest);
-        identity.Controls.Add(titleWords);
-
-        var captionButtons = new FlowLayoutPanel
-        {
-            AutoSize = true,
-            FlowDirection = FlowDirection.LeftToRight,
-            WrapContents = false,
-            Anchor = AnchorStyles.Top | AnchorStyles.Right,
-            Margin = new Padding(0),
-            Padding = new Padding(0),
-            BackColor = StalkerTheme.TitleBar,
-        };
-
-        _minimizeButton.Text = "—";
-        _maximizeButton.Text = "□";
-        _closeButton.Text = "×";
-
-        _minimizeButton.Click += (_, _) =>
-            WindowState = FormWindowState.Minimized;
-        _maximizeButton.Click += (_, _) => ToggleMaximize();
-        _closeButton.Click += (_, _) =>
-        {
-            DialogResult = DialogResult.Cancel;
-            Close();
-        };
-
-        captionButtons.Controls.Add(_minimizeButton);
-        captionButtons.Controls.Add(_maximizeButton);
-        captionButtons.Controls.Add(_closeButton);
-
-        titleLayout.Controls.Add(identity, 0, 0);
-        titleLayout.Controls.Add(captionButtons, 1, 0);
-        titleBar.Controls.Add(titleLayout);
-        StalkerTheme.EnableWindowDragging(this, titleBar);
-
-        return titleBar;
-    }
-
-    private void ApplyWindowTitle()
-    {
-        _titleAccent.Text = _l.T("ui.settings").Trim().ToUpperInvariant();
-        _titleRest.Text = string.Empty;
-    }
-
-    private void ToggleMaximize()
-    {
-        WindowState = WindowState == FormWindowState.Maximized
-            ? FormWindowState.Normal
-            : FormWindowState.Maximized;
-        UpdateMaximizeButtonGlyph();
-    }
-
-    private void UpdateMaximizeButtonGlyph()
-    {
-        _maximizeButton.Text = WindowState == FormWindowState.Maximized
-            ? "❐"
-            : "□";
+        root.Controls.Add(content, 0, 0);
+        root.Controls.Add(BuildFooter(), 0, 1);
     }
 
     private Control BuildPathsCard()
@@ -462,9 +308,6 @@ public sealed class SettingsForm : Form
         layout.Controls.Add(rightActions, 1, 0);
         footerBar.Controls.Add(layout);
 
-        AcceptButton = save;
-        CancelButton = cancel;
-
         return footerBar;
     }
 
@@ -554,16 +397,6 @@ public sealed class SettingsForm : Form
         grid.Controls.Add(auto, 2, row);
     }
 
-
-    private void AddFileRow(
-        TableLayoutPanel grid,
-        string key,
-        string labelText,
-        string value,
-        string filter)
-    {
-        AddPathRow(grid, key, labelText, value, false, filter);
-    }
 
     private void AddPathRow(
         TableLayoutPanel grid,
@@ -700,7 +533,6 @@ public sealed class SettingsForm : Form
                 Directory.CreateDirectory(sourceRoot);
             }
 
-            SourceDeleted = true;
             SourceDataDeleted?.Invoke(this, EventArgs.Empty);
 
             MessageBox.Show(
@@ -730,96 +562,7 @@ public sealed class SettingsForm : Form
         _boxes["mods"].Text = Path.Combine(AppContext.BaseDirectory, "Mods");
     }
 
-    protected override void WndProc(ref Message m)
-    {
-        const int WmNcHitTest = 0x0084;
-        const int HtClient = 1;
-        const int HtCaption = 2;
-        const int HtLeft = 10;
-        const int HtRight = 11;
-        const int HtTop = 12;
-        const int HtTopLeft = 13;
-        const int HtTopRight = 14;
-        const int HtBottom = 15;
-        const int HtBottomLeft = 16;
-        const int HtBottomRight = 17;
-
-        base.WndProc(ref m);
-
-        if (_embedded)
-            return;
-
-        if (m.Msg != WmNcHitTest || (int)m.Result != HtClient)
-            return;
-
-        var raw = m.LParam.ToInt64();
-        var screenPoint = new Point(
-            unchecked((short)(raw & 0xFFFF)),
-            unchecked((short)((raw >> 16) & 0xFFFF))
-        );
-        var point = PointToClient(screenPoint);
-
-        if (WindowState == FormWindowState.Normal)
-        {
-            const int grip = 6;
-            var left = point.X <= grip;
-            var right = point.X >= ClientSize.Width - grip;
-            var top = point.Y <= grip;
-            var bottom = point.Y >= ClientSize.Height - grip;
-
-            if (left && top)
-            {
-                m.Result = (IntPtr)HtTopLeft;
-                return;
-            }
-            if (right && top)
-            {
-                m.Result = (IntPtr)HtTopRight;
-                return;
-            }
-            if (left && bottom)
-            {
-                m.Result = (IntPtr)HtBottomLeft;
-                return;
-            }
-            if (right && bottom)
-            {
-                m.Result = (IntPtr)HtBottomRight;
-                return;
-            }
-            if (left)
-            {
-                m.Result = (IntPtr)HtLeft;
-                return;
-            }
-            if (right)
-            {
-                m.Result = (IntPtr)HtRight;
-                return;
-            }
-            if (top)
-            {
-                m.Result = (IntPtr)HtTop;
-                return;
-            }
-            if (bottom)
-            {
-                m.Result = (IntPtr)HtBottom;
-                return;
-            }
-        }
-
-        // Keep the caption buttons clickable; the rest of the top chrome drags
-        // exactly like the main Localization Workbench window.
-        if (point.Y >= 0
-            && point.Y < 74
-            && point.X < ClientSize.Width - 160)
-        {
-            m.Result = (IntPtr)HtCaption;
-        }
-    }
-
-    public void ReloadFromSettings()
+    private void ReloadFromSettings()
     {
         if (_boxes.TryGetValue("game", out var game))
             game.Text = _settings.GamePaksFolder;
@@ -831,14 +574,7 @@ public sealed class SettingsForm : Form
 
     private void CancelChanges()
     {
-        if (_embedded)
-        {
-            ReloadFromSettings();
-            return;
-        }
-
-        DialogResult = DialogResult.Cancel;
-        Close();
+        ReloadFromSettings();
     }
 
     private void SaveSettings()
@@ -854,13 +590,6 @@ public sealed class SettingsForm : Form
             try { Directory.CreateDirectory(_settings.ModsFolder); } catch { }
         }
 
-        if (_embedded)
-        {
-            SettingsSaved?.Invoke(this, EventArgs.Empty);
-            return;
-        }
-
-        DialogResult = DialogResult.OK;
-        Close();
+        SettingsSaved?.Invoke(this, EventArgs.Empty);
     }
 }
