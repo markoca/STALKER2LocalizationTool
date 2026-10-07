@@ -158,8 +158,8 @@ public sealed class MainForm : Form
                 return;
             }
 
-            AppendLog("=========== GAME FOUND ===========");
-            AppendLog("=========== READY TO SCAN ===========");
+            AppendLog("=== GAME FOUND ===");
+            AppendLog("=== READY TO SCAN ===");
             _statusText.Text = "READY TO SCAN";
             UpdateButtons();
         };
@@ -899,8 +899,8 @@ public sealed class MainForm : Form
             return;
         }
 
-        AppendLog("=========== MODS FOUND ===========");
-        AppendLog("=========== READY TO SCAN ===========");
+        AppendLog("=== MODS FOUND ===");
+        AppendLog("=== READY TO SCAN ===");
         _statusText.Text = "READY TO SCAN";
         _modsReadyPromptShown = true;
     }
@@ -1055,7 +1055,7 @@ public sealed class MainForm : Form
 
         try
         {
-            AppendLog("=========== SCANNING MODS ===========");
+            AppendLog("=== SCANNING MODS ===");
             var retoc = new RetocService(_settings.RetocPath, AppendLog);
             var scanner = new ModScanner(
                 retoc,
@@ -1124,7 +1124,7 @@ public sealed class MainForm : Form
         _operationCts = new CancellationTokenSource();
         try
         {
-            AppendLog("=========== SCANNING GAME ===========");
+            AppendLog("=== SCANNING GAME ===");
             var scanner = new GameScanner(
                 new RetocService(_settings.RetocPath, AppendLog),
                 new RepakService(_settings.RepakPath, AppendLog),
@@ -1209,7 +1209,7 @@ public sealed class MainForm : Form
             _game!.NeedsExtraction = false;
             RefreshGameTranslation();
             CompleteProgress(_l.T("ui.done"));
-            AppendLog("=========== LOCALIZATION EXTRACTION DONE ===========");
+            AppendLog("=== LOCALIZATION EXTRACTION DONE ===");
             LogGameWorkflowReady();
         }
         catch (OperationCanceledException)
@@ -2167,7 +2167,7 @@ public sealed class MainForm : Form
             ))
         {
             _statusText.Text = "LOCALIZATION READY FOR EXTRACTION";
-            AppendLog("=========== LOCALIZATION READY FOR EXTRACTION ===========");
+            AppendLog("=== LOCALIZATION READY FOR EXTRACTION ===");
             return;
         }
 
@@ -2177,7 +2177,7 @@ public sealed class MainForm : Form
         if (_game?.UiStatus is ModUiStatus.Available or ModUiStatus.BuiltVerified)
         {
             _statusText.Text = "LOCALIZATION READY FOR BUILD";
-            AppendLog("=========== LOCALIZATION READY FOR BUILD ===========");
+            AppendLog("=== LOCALIZATION READY FOR BUILD ===");
         }
     }
 
@@ -2186,7 +2186,7 @@ public sealed class MainForm : Form
         if (_mods.Any(mod => mod.UiStatus == ModUiStatus.NeedsExtraction))
         {
             _statusText.Text = "MODS READY FOR EXTRACTION";
-            AppendLog("=========== MODS READY FOR EXTRACTION ===========");
+            AppendLog("=== MODS READY FOR EXTRACTION ===");
             return;
         }
 
@@ -2194,7 +2194,7 @@ public sealed class MainForm : Form
                 mod.UiStatus is ModUiStatus.Extracted or ModUiStatus.BuiltVerified))
         {
             _statusText.Text = "MODS READY FOR BUILD";
-            AppendLog("=========== MODS READY FOR BUILD ===========");
+            AppendLog("=== MODS READY FOR BUILD ===");
         }
     }
 
@@ -2227,12 +2227,12 @@ public sealed class MainForm : Form
             if (_gameScanSuccessful)
             {
                 _statusText.Text = "LOCALIZATION READY FOR EXTRACTION";
-                AppendLog("=========== LOCALIZATION READY FOR EXTRACTION ===========");
+                AppendLog("=== LOCALIZATION READY FOR EXTRACTION ===");
             }
             else
             {
                 _statusText.Text = "READY TO SCAN";
-                AppendLog("=========== READY TO SCAN ===========");
+                AppendLog("=== READY TO SCAN ===");
             }
 
             return;
@@ -2245,7 +2245,7 @@ public sealed class MainForm : Form
         }
 
         _statusText.Text = "READY TO SCAN MODS";
-        AppendLog("=========== READY TO SCAN MODS ===========");
+        AppendLog("=== READY TO SCAN MODS ===");
     }
 
     private bool NeedsInitialSetup() =>
