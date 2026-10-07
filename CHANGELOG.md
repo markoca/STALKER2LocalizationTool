@@ -15,7 +15,7 @@
 - MODS extraction button was simplified from **EXTRACT NEW / CHANGED** to **EXTRACT**.
 - Added the first **Industrial Zone** visual pass: chamfered cards/action buttons, a compact GAME localization overview, refined surface hierarchy, and owner-drawn MODS status badges.
 - GAME EXTRACT now reports its result directly in the central panel: the generic post-extraction popup was removed and the panel lists the actual editable language JSON files created under `Editable/Game`.
-- Each extracted GAME language result now shows the number of top-level localization SID entries in its `Editable/Game/<language>.json` file; counts are cached by file size and modification time and refresh when a JSON changes.
+- Each extracted GAME language result shows its actual editable JSON filename, keeping the post-extraction list concise and directly tied to `Editable/Game`.
 - The pre-scan GAME overview was simplified to **READY TO SCAN** without redundant supported-language or `pakchunk0` source text.
 - The new main-window styling remains owner-drawn WinForms to preserve deterministic Windows/Wine rendering without adding a UI framework dependency.
 - Consolidated the current development baseline onto `main` and refreshed release-candidate documentation.
