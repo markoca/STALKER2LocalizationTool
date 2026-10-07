@@ -10,8 +10,8 @@ public static class WorkspaceCleanup
     {
         var targets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        CollectTopLevelStaging(settings.CachedFolder, targets);
-        CollectTopLevelStaging(settings.EditableFolder, targets);
+        CollectTopLevelStaging(settings.SourceFolder, targets);
+        CollectTopLevelStaging(settings.TranslationsFolder, targets);
         CollectWorkDirectories(settings.OutputFolder, targets);
 
         var removed = 0;
