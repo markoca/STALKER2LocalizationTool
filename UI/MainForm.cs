@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using LocalizationWorkbench.Core;
 using LocalizationWorkbench.Localization;
 using LocalizationWorkbench.Models;
@@ -7,9 +8,30 @@ namespace LocalizationWorkbench.UI;
 
 public sealed class MainForm : Form
 {
+    private const uint WmSetIcon = 0x0080;
+    private const int IconSmall = 0;
+    private const int IconBig = 1;
+    private const int IconSmall2 = 2;
+    private const int GclpHicon = -14;
+    private const int GclpHiconSm = -34;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "SendMessageW")]
+    private static extern IntPtr SendMessage(
+        IntPtr hWnd,
+        uint msg,
+        IntPtr wParam,
+        IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "SetClassLongPtrW")]
+    private static extern IntPtr SetClassLongPtr(
+        IntPtr hWnd,
+        int index,
+        IntPtr newValue);
+
     private readonly AppSettings _settings;
     private readonly Localizer _l;
     private readonly ToolTip _toolTip = new();
+    private readonly Icon? _windowIcon;
 
     private readonly Label _titleAccent = new();
     private readonly Label _titleRest = new();
@@ -86,18 +108,12 @@ public sealed class MainForm : Form
         Font = new Font("Segoe UI", 9F);
         FormBorderStyle = FormBorderStyle.None;
 
-        // Keep the shell/taskbar icon independent from Wine's executable icon
-        // extraction. The form is borderless, so this never adds an icon to the
-        // custom title bar.
-        using (var iconStream = typeof(MainForm).Assembly.GetManifestResourceStream(
-                   "LocalizationWorkbench.Assets.localization-workbench.ico"))
-        {
-            if (iconStream is not null)
-            {
-                using var resourceIcon = new Icon(iconStream);
-                Icon = (Icon)resourceIcon.Clone();
-            }
-        }
+        // Keep a real HICON alive for the whole HWND lifetime. Wine/KDE may ignore
+        // WinForms' executable-icon lookup for borderless windows, so the same icon
+        // is also pushed explicitly through WM_SETICON after handle creation.
+        _windowIcon = LoadWindowIcon();
+        if (_windowIcon is not null)
+            Icon = (Icon)_windowIcon.Clone();
         ShowIcon = true;
 
         Padding = new Padding(1);
@@ -129,6 +145,8 @@ public sealed class MainForm : Form
 
         Shown += (_, _) =>
         {
+            ApplyShellWindowIcon();
+
             if (_shownOnce) return;
             _shownOnce = true;
 
@@ -2484,6 +2502,54 @@ public sealed class MainForm : Form
         catch { }
     }
 
+    private static Icon? LoadWindowIcon()
+    {
+        using var iconStream = typeof(MainForm).Assembly.GetManifestResourceStream(
+            "LocalizationWorkbench.Assets.localization-workbench.ico"
+        );
+        if (iconStream is null)
+            return null;
+
+        using var resourceIcon = new Icon(iconStream);
+        return (Icon)resourceIcon.Clone();
+    }
+
+    private void ApplyShellWindowIcon()
+    {
+        if (_windowIcon is null || !IsHandleCreated)
+            return;
+
+        var iconHandle = _windowIcon.Handle;
+        if (iconHandle == IntPtr.Zero)
+            return;
+
+        try
+        {
+            _ = SendMessage(Handle, WmSetIcon, (IntPtr)IconBig, iconHandle);
+            _ = SendMessage(Handle, WmSetIcon, (IntPtr)IconSmall, iconHandle);
+            _ = SendMessage(Handle, WmSetIcon, (IntPtr)IconSmall2, iconHandle);
+
+            // Wine's X11/Wayland window metadata may follow the class icons even
+            // when WM_SETICON alone is not reflected by the desktop task manager.
+            _ = SetClassLongPtr(Handle, GclpHicon, iconHandle);
+            _ = SetClassLongPtr(Handle, GclpHiconSm, iconHandle);
+        }
+        catch (EntryPointNotFoundException)
+        {
+            // Form.Icon remains the portable fallback.
+        }
+        catch (DllNotFoundException)
+        {
+            // Form.Icon remains the portable fallback.
+        }
+    }
+
+    protected override void OnHandleCreated(EventArgs e)
+    {
+        base.OnHandleCreated(e);
+        ApplyShellWindowIcon();
+    }
+
     protected override void WndProc(ref Message m)
     {
         const int WmNcHitTest = 0x0084;
@@ -2536,6 +2602,14 @@ public sealed class MainForm : Form
         {
             m.Result = (IntPtr)HtCaption;
         }
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            _windowIcon?.Dispose();
+
+        base.Dispose(disposing);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
