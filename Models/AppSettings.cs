@@ -8,8 +8,8 @@ public sealed class AppSettings
 
     public string GamePaksFolder { get; set; } = string.Empty;
     public string ModsFolder { get; set; } = string.Empty;
-    public string CachedFolder { get; set; } = string.Empty;
-    public string EditableFolder { get; set; } = string.Empty;
+    public string SourceFolder { get; set; } = string.Empty;
+    public string TranslationsFolder { get; set; } = string.Empty;
     public string OutputFolder { get; set; } = string.Empty;
 
     public string RetocPath { get; set; } = string.Empty;
@@ -24,12 +24,26 @@ public sealed class AppSettings
     {
         var baseDir = AppContext.BaseDirectory;
 
+        var sourceFolder = Path.Combine(baseDir, "Source");
+        var translationsFolder = Path.Combine(baseDir, "Translations");
+
+        // One-time safe rename for pre-v2 workspace names. Never merge or overwrite
+        // a destination that already exists.
+        TryMigrateWorkspaceDirectory(
+            Path.Combine(baseDir, "Cached"),
+            sourceFolder
+        );
+        TryMigrateWorkspaceDirectory(
+            Path.Combine(baseDir, "Editable"),
+            translationsFolder
+        );
+
         var settings = new AppSettings
         {
             GamePaksFolder = SteamLocator.TryFindGamePaksFolder() ?? string.Empty,
             ModsFolder = Path.Combine(baseDir, "Mods"),
-            CachedFolder = Path.Combine(baseDir, "Cached"),
-            EditableFolder = Path.Combine(baseDir, "Editable"),
+            SourceFolder = sourceFolder,
+            TranslationsFolder = translationsFolder,
             OutputFolder = Path.Combine(baseDir, "Output"),
             RetocPath = Path.Combine(baseDir, "tools", "retoc.exe"),
             UAssetGuiPath = Path.Combine(baseDir, "tools", "UAssetGUI.exe"),
@@ -41,8 +55,8 @@ public sealed class AppSettings
         foreach (var path in new[]
                  {
                      settings.ModsFolder,
-                     settings.CachedFolder,
-                     settings.EditableFolder,
+                     settings.SourceFolder,
+                     settings.TranslationsFolder,
                      settings.OutputFolder,
                  })
         {
@@ -50,5 +64,25 @@ public sealed class AppSettings
         }
 
         return settings;
+    }
+
+    private static void TryMigrateWorkspaceDirectory(
+        string legacyPath,
+        string destinationPath)
+    {
+        if (!Directory.Exists(legacyPath)
+            || Directory.Exists(destinationPath))
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.Move(legacyPath, destinationPath);
+        }
+        catch
+        {
+            // Upgrade convenience only. Runtime will safely use the new workspace path.
+        }
     }
 }
