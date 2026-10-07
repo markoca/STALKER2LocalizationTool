@@ -10,7 +10,6 @@ public sealed class ExtractionService
     private readonly RepakService _repak;
     private readonly UAssetGuiService _uassetGui;
     private readonly string _sourceRoot;
-    private readonly bool _hashSourceFiles;
     private readonly Action<string>? _log;
 
     public ExtractionService(
@@ -27,7 +26,6 @@ public sealed class ExtractionService
         _repak = repak;
         _uassetGui = uassetGui;
         _sourceRoot = string.IsNullOrWhiteSpace(sourceRoot) ? settings.ModsFolder : sourceRoot;
-        _hashSourceFiles = hashSourceFiles;
         _log = log;
     }
 
@@ -100,49 +98,13 @@ public sealed class ExtractionService
             {
                 ModId = mod.ModId,
                 ModName = mod.ModName,
-                ExtractedAtUtc = DateTime.UtcNow,
-                SourceFingerprint = mod.SourceFingerprint,
+                    SourceFingerprint = mod.SourceFingerprint,
                 SourceContainerLabels = mod.ContainerLabels
                     .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
                     .ToList(),
             };
 
             var isGame = string.Equals(mod.ModId, "Game", StringComparison.OrdinalIgnoreCase);
-            var relevantFiles = mod.OriginalSourceFiles.Count > 0
-                ? mod.OriginalSourceFiles
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                    .ToList()
-                : mod.Assets
-                    .SelectMany(x => x.Aliases)
-                    .Select(x => x.SourceUtoc)
-                    .Concat(isGame ? mod.LocresAssets.Select(x => x.SourcePak) : Enumerable.Empty<string>())
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-            var fingerprintTimer = Stopwatch.StartNew();
-            foreach (var source in relevantFiles)
-            {
-                manifest.SourceFiles.Add(new SourceFileFingerprint
-                {
-                    RelativePath = Path.GetRelativePath(_sourceRoot, source),
-                    Sha256 = _hashSourceFiles
-                        ? await HashUtil.Sha256FileAsync(source, cancellationToken)
-                        : FileMetadataFingerprint(source),
-                });
-            }
-            fingerprintTimer.Stop();
-            _log?.Invoke(
-                $"Source fingerprint metadata for {mod.ModName}: "
-                + $"{fingerprintTimer.Elapsed.TotalSeconds:N1}s"
-            );
-
-            var languageDumps = BuildLanguageCatalog.All.ToDictionary(
-                language => language.Id,
-                _ => new SortedDictionary<string, string>(StringComparer.Ordinal)
-            );
-
             await ExtractDatabaseAssetsAsync(mod, manifest, languageDumps, stagingRoot, cancellationToken);
             if (isGame)
                 await ExtractLocresAssetsAsync(mod, manifest, languageDumps, stagingRoot, cancellationToken);
@@ -747,12 +709,9 @@ public sealed class ExtractionService
 
             manifest.LocresAssets.Add(new ExtractedLocresManifest
             {
-                SourcePakRelativePath = source.SourcePakRelative,
                 InternalPath = source.InternalPath,
                 CultureCode = source.CultureCode,
-                SourceLocresFile = Path.Combine(assetFolderRelative, "source.locres"),
                 SidCount = document.EntryCount,
-                LocresVersion = (int)document.Version,
             });
 
             _log?.Invoke($"{source.InternalPath}: native LOCRES v{(int)document.Version}, {document.EntryCount} entries");
