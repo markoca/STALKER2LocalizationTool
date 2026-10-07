@@ -38,6 +38,7 @@
 ## Workspace and UI
 
 - [ ] DELETE SOURCE DATA removes Source state and forces MODS to be scanned again.
+- [ ] After DELETE SOURCE DATA, the log reports that GAME and MODS source data were reset; GAME shows READY TO SCAN or READY FOR EXTRACTION as appropriate, while MODS shows READY TO SCAN MODS.
 - [ ] GAME / MODS workflow buttons remain step-aware.
 - [ ] Custom title bar, window controls and spinning radiation mark render correctly.
 - [ ] Main and Settings windows can be dragged from the title area, including over title labels/panels, while minimize/maximize/close remain clickable.
