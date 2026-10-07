@@ -29,6 +29,8 @@
 - [ ] ZIP/7z/RAR SCAN MODS is UTOC-only: `.pak` / `.ucas` payloads are not materialized merely to discover localization.
 - [ ] EXTRACT lazily materializes the required archive `.pak` / `.ucas` siblings and completes normally for an archive-backed localization container.
 - [ ] A second unchanged archive scan reuses discovery/scan caches and logs discovery time, total scan time, cache reuse and `retoc` scan counts.
+- [ ] Initial MODS scanning runs at most 2 concurrent container scans and remains cancellable without converting cancellation into scan errors.
+- [ ] Cold-scan logs show per-container UTOC hash / `retoc` timing, and archive-backed sources additionally report UTOC materialization time when decompression is required.
 - [ ] MODS localization uses supported OverrideContent-side containers only.
 - [ ] Nexus download IDs are not shown in mod display names and detected versions are normalized.
 - [ ] New/changed mods show **Needs extraction**.
