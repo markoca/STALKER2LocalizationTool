@@ -32,24 +32,30 @@ cleanup() {
 }
 trap cleanup EXIT
 
-migrate_legacy_workspace_names() {
-    if [[ -e "$OUT/Cached" && -e "$OUT/Source" ]]; then
-        echo "ERROR: both legacy Cached and current Source exist in $OUT; refusing to merge automatically." >&2
-        exit 1
-    fi
-    if [[ -e "$OUT/Editable" && -e "$OUT/Translations" ]]; then
-        echo "ERROR: both legacy Editable and current Translations exist in $OUT; refusing to merge automatically." >&2
-        exit 1
+migrate_legacy_workspace_directory() {
+    local legacy_name="$1"
+    local current_name="$2"
+    local legacy="$OUT/$legacy_name"
+    local current="$OUT/$current_name"
+
+    [[ -e "$legacy" ]] || return 0
+
+    if [[ -e "$current" ]]; then
+        if [[ -d "$current" && -z "$(find "$current" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+            rmdir "$current"
+        else
+            echo "ERROR: both legacy $legacy_name and populated current $current_name exist in $OUT; refusing to merge automatically." >&2
+            exit 1
+        fi
     fi
 
-    if [[ -e "$OUT/Cached" ]]; then
-        mv "$OUT/Cached" "$OUT/Source"
-        echo "Migrated workspace: Cached -> Source"
-    fi
-    if [[ -e "$OUT/Editable" ]]; then
-        mv "$OUT/Editable" "$OUT/Translations"
-        echo "Migrated workspace: Editable -> Translations"
-    fi
+    mv "$legacy" "$current"
+    echo "Migrated workspace: $legacy_name -> $current_name"
+}
+
+migrate_legacy_workspace_names() {
+    migrate_legacy_workspace_directory "Cached" "Source"
+    migrate_legacy_workspace_directory "Editable" "Translations"
 }
 
 [[ -e "$OUT" ]] && migrate_legacy_workspace_names
