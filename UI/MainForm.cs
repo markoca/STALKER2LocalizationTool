@@ -140,15 +140,14 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 4,
             Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
         root.RowStyles.Add(new RowStyle(SizeType.Absolute, 54)); // title chrome
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));  // navigation
-        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Languages + workspace
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 152)); // log
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));      // footer
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute, 44)); // navigation
+        root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // Languages/log + workspace
+        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // footer
         Controls.Add(root);
 
         // Match the True Custom Difficulty title bar geometry exactly:
@@ -319,6 +318,23 @@ public sealed class MainForm : Form
         mainContent.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         root.Controls.Add(mainContent, 0, 2);
 
+        // The left rail uses its otherwise empty lower area for the log.
+        // Keep enough fixed height for all 18 language choices at the minimum window size,
+        // then give every remaining pixel to the log.
+        var leftColumn = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.WindowBackground,
+        };
+        leftColumn.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        leftColumn.RowStyles.Add(new RowStyle(SizeType.Absolute, 330F));
+        leftColumn.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        mainContent.Controls.Add(leftColumn, 0, 0);
+
         // Languages remains a normal content card, not part of the window chrome.
         var languagesCard = new StalkerCardPanel
         {
@@ -326,7 +342,7 @@ public sealed class MainForm : Form
             AutoSize = false,
             BackColor = StalkerTheme.Panel,
             Padding = new Padding(12, 10, 12, 10),
-            Margin = new Padding(0, 0, 6, 0),
+            Margin = new Padding(0, 0, 6, 6),
             AccentEdge = true,
         };
         var languagesLayout = new TableLayoutPanel
@@ -368,7 +384,7 @@ public sealed class MainForm : Form
         languagesLayout.Controls.Add(languagesHeader, 0, 0);
         languagesLayout.Controls.Add(_buildLanguages, 0, 1);
         languagesCard.Controls.Add(languagesLayout);
-        mainContent.Controls.Add(languagesCard, 0, 0);
+        leftColumn.Controls.Add(languagesCard, 0, 0);
 
         // Workspace body: tabs now live in the global nav band above.
         var workspaceCard = new StalkerCardPanel
@@ -405,13 +421,13 @@ public sealed class MainForm : Form
         mainContent.Controls.Add(workspaceCard, 1, 0);
         SetWorkspace(_gameTab);
 
-        // LOG is still content, therefore it keeps the same bordered graphite card language.
+        // LOG lives under the language selector instead of consuming a full-width row.
         var logCard = new StalkerCardPanel
         {
             Dock = DockStyle.Fill,
             BackColor = StalkerTheme.PanelAlt,
             Padding = new Padding(10, 8, 10, 10),
-            Margin = new Padding(14, 0, 14, 10),
+            Margin = new Padding(0, 6, 6, 0),
             TechnicalMarks = false,
         };
         var logLayout = new TableLayoutPanel
@@ -438,7 +454,7 @@ public sealed class MainForm : Form
         logLayout.Controls.Add(_logLabel, 0, 0);
         logLayout.Controls.Add(_logBox, 0, 1);
         logCard.Controls.Add(logLayout);
-        root.Controls.Add(logCard, 0, 3);
+        leftColumn.Controls.Add(logCard, 0, 1);
 
         // TCD-style bottom chrome: one edge-to-edge footer band, not a card + StatusStrip.
         var footerBar = new StalkerFooterBar
@@ -504,7 +520,7 @@ public sealed class MainForm : Form
         footer.Controls.Add(_progress, 1, 0);
         footer.Controls.Add(openButtons, 2, 0);
         footerBar.Controls.Add(footer);
-        root.Controls.Add(footerBar, 0, 4);
+        root.Controls.Add(footerBar, 0, 3);
 
         UpdateMaximizeButtonGlyph();
     }
@@ -597,9 +613,18 @@ public sealed class MainForm : Form
             Padding = new Padding(10),
             Margin = new Padding(0),
         };
-        var actions = new FlowLayoutPanel
+        var actionsLayout = new TableLayoutPanel
         {
             Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 2,
+            Margin = new Padding(0),
+        };
+        actionsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        actionsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var actions = new FlowLayoutPanel
+        {
             AutoSize = true,
             FlowDirection = FlowDirection.LeftToRight,
             WrapContents = false,
@@ -614,7 +639,8 @@ public sealed class MainForm : Form
         actions.Controls.Add(_scanGameButton);
         actions.Controls.Add(_extractGameButton);
         actions.Controls.Add(_buildGameButton);
-        actionsCard.Controls.Add(actions);
+        actionsLayout.Controls.Add(actions, 1, 0);
+        actionsCard.Controls.Add(actionsLayout);
         layout.Controls.Add(actionsCard, 0, 1);
     }
 
