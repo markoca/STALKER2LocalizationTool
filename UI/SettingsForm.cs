@@ -24,7 +24,6 @@ public sealed class SettingsForm : UserControl
         DoubleBuffered = true;
 
         BuildUi();
-        StalkerTheme.Apply(this);
     }
 
     private void BuildUi()
