@@ -238,22 +238,6 @@ public static class PathUtil
             : $"_{priorities.Max() + 1}_P";
     }
 
-    public static bool IsSupportedModLocalizationContainer(string sourcePath)
-    {
-        var stem = Path.GetFileNameWithoutExtension(sourcePath);
-        return stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("_NC", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("-NewContent", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("Stalker2-Windows-NewContent", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("_N", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("A_P", StringComparison.OrdinalIgnoreCase)
-               || stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase);
-    }
-
     public static bool IsOverrideModLocalizationContainer(string sourcePath)
     {
         var stem = Path.GetFileNameWithoutExtension(sourcePath);
@@ -264,58 +248,6 @@ public static class PathUtil
                || stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)
                || stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)
                || stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase);
-    }
-
-    public static int GetModLocalizationContainerPriority(string sourcePath)
-    {
-        var stem = Path.GetFileNameWithoutExtension(sourcePath);
-        if (Regex.IsMatch(stem, @"(?i)(?:OverrideContent|_OC)_\d+_P$")) return 0;
-        if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)) return 0;
-        if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)) return 1;
-        if (stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase)) return 1;
-        if (stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase)) return 2;
-        if (stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)) return 3;
-        if (stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase)) return 4;
-        if (stem.EndsWith("_NC", StringComparison.OrdinalIgnoreCase)) return 10;
-        if (stem.EndsWith("-NewContent", StringComparison.OrdinalIgnoreCase)) return 11;
-        if (stem.EndsWith("Stalker2-Windows-NewContent", StringComparison.OrdinalIgnoreCase)) return 11;
-        if (stem.EndsWith("_N", StringComparison.OrdinalIgnoreCase)) return 12;
-        if (stem.EndsWith("A_P", StringComparison.OrdinalIgnoreCase)) return 13;
-        return int.MaxValue;
-    }
-
-    public static string GetModLocalizationContainerKind(string sourcePath)
-    {
-        var stem = Path.GetFileNameWithoutExtension(sourcePath);
-        if (Regex.IsMatch(stem, @"(?i)(?:OverrideContent|_OC)_\d+_P$")) return "OverrideContent (numbered patch)";
-        if (stem.EndsWith("_OC_50", StringComparison.OrdinalIgnoreCase)) return "OverrideContent (_OC_50)";
-        if (stem.EndsWith("-OverrideContent", StringComparison.OrdinalIgnoreCase)
-            || stem.EndsWith("Stalker2-Windows-OverrideContent", StringComparison.OrdinalIgnoreCase))
-            return "OverrideContent";
-        if (stem.EndsWith("_OC", StringComparison.OrdinalIgnoreCase)) return "OverrideContent (_OC)";
-        if (stem.EndsWith("_O", StringComparison.OrdinalIgnoreCase)) return "OverrideContent (_O)";
-        if (stem.EndsWith("B_P", StringComparison.OrdinalIgnoreCase)) return "paired B_P";
-        if (stem.EndsWith("_NC", StringComparison.OrdinalIgnoreCase)) return "NewContent (_NC)";
-        if (stem.EndsWith("-NewContent", StringComparison.OrdinalIgnoreCase)
-            || stem.EndsWith("Stalker2-Windows-NewContent", StringComparison.OrdinalIgnoreCase))
-            return "NewContent";
-        if (stem.EndsWith("_N", StringComparison.OrdinalIgnoreCase)) return "NewContent (_N)";
-        if (stem.EndsWith("A_P", StringComparison.OrdinalIgnoreCase)) return "paired A_P";
-        return "unsupported";
-    }
-
-    public static string GetModLocalizationSourceFamilyKey(string sourcePath)
-    {
-        var directory = Path.GetDirectoryName(sourcePath) ?? string.Empty;
-        var inferred = InferModName(directory.Length == 0 ? "." : directory, sourcePath);
-        return Path.Combine(directory, inferred);
-    }
-
-    public static string GetZenPackageIdentity(string zenChunkId)
-    {
-        // Full 24-hex ExportBundleData chunk ID is authoritative. Keeping this helper
-        // preserves call-site compatibility while deliberately avoiding prefix collapse.
-        return zenChunkId.Trim().ToLowerInvariant();
     }
 
     public static bool IsOverrideContentContainer(string sourceContainerRelativePath)
