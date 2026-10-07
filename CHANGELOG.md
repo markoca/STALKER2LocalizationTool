@@ -11,8 +11,8 @@
 - Optimized large archive MODS scanning by avoiding full archive SHA-256 reads and deferring `.pak` materialization until EXTRACT. Archive SCAN materializes the `.utoc` + `.ucas` pair required by `retoc list`.
 - Removed the full archive SHA-256 read from MODS discovery and collapsed loose/archive source discovery into a single filesystem traversal; scan logs now include discovery time, total scan time, cache hits and actual `retoc` scans.
 - Added bounded parallel container scanning with at most **2 concurrent `retoc list` operations**, while preserving deterministic per-mod aggregation and cancellation; per-container logs now report UTOC hash time, `retoc` time or cache hits.
-- Corrected the archive SCAN dependency after cold-cache testing showed that `retoc list` opens the adjacent `.ucas`; SCAN now materializes `.utoc` + `.ucas` and keeps only `.pak` lazy.
-- Cold archive discovery now logs the time required to materialize each scan payload (`.utoc` + `.ucas`), making archive decompression bottlenecks visible separately from `retoc` time.
+- Added an experimental archive SCAN fast path: keep the real `.utoc`, create a logical-size zero-backed `.ucas` placeholder, and run `retoc list` without decompressing the real UCAS when possible. If `retoc` rejects the placeholder, the app materializes that container's real `.ucas` and retries automatically; `.pak` remains lazy until EXTRACT.
+- Cold archive discovery now logs fast-payload setup time, while scan timing records whether sparse UCAS was accepted or whether a real-UCAS fallback was required.
 - Entering MODS performs only a one-shot pre-scan source-presence check and reports **MODS FOUND / READY TO SCAN** when appropriate.
 - Removed obsolete MODS scan snapshot persistence and related dead code.
 - Third-party helper-tool binaries are no longer tracked or distributed; users supply compatible tools under `tools/`.
