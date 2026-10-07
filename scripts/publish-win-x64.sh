@@ -15,7 +15,7 @@ mkdir -p "$PUBLISH_ROOT"
 STAGE="$(mktemp -d "$PUBLISH_ROOT/.win-x64-stage.XXXXXX")"
 PRESERVE="$(mktemp -d "$PUBLISH_ROOT/.win-x64-preserve.XXXXXX")"
 
-PRESERVED_NAMES=(user-paths.json Mods Cached Editable Output tools)
+PRESERVED_NAMES=(user-paths.json Mods Source Translations Output tools)
 
 restore_runtime_data() {
     mkdir -p "$OUT"
@@ -31,6 +31,28 @@ cleanup() {
     rm -rf "$STAGE" "$PRESERVE"
 }
 trap cleanup EXIT
+
+migrate_legacy_workspace_names() {
+    if [[ -e "$OUT/Cached" && -e "$OUT/Source" ]]; then
+        echo "ERROR: both legacy Cached and current Source exist in $OUT; refusing to merge automatically." >&2
+        exit 1
+    fi
+    if [[ -e "$OUT/Editable" && -e "$OUT/Translations" ]]; then
+        echo "ERROR: both legacy Editable and current Translations exist in $OUT; refusing to merge automatically." >&2
+        exit 1
+    fi
+
+    if [[ -e "$OUT/Cached" ]]; then
+        mv "$OUT/Cached" "$OUT/Source"
+        echo "Migrated workspace: Cached -> Source"
+    fi
+    if [[ -e "$OUT/Editable" ]]; then
+        mv "$OUT/Editable" "$OUT/Translations"
+        echo "Migrated workspace: Editable -> Translations"
+    fi
+}
+
+[[ -e "$OUT" ]] && migrate_legacy_workspace_names
 
 echo "Cross-publishing Localization Workbench (win-x64, self-contained)..."
 echo "Build host: $(uname -s) / $(uname -m)"
@@ -61,7 +83,7 @@ restore_runtime_data
 
 
 cp -a "$STAGE/." "$OUT/"
-mkdir -p "$OUT/Mods" "$OUT/Cached" "$OUT/Editable" "$OUT/Output" "$OUT/tools"
+mkdir -p "$OUT/Mods" "$OUT/Source" "$OUT/Translations" "$OUT/Output" "$OUT/tools"
 [[ -f "$ROOT/tools/README.txt" ]] && cp -f "$ROOT/tools/README.txt" "$OUT/tools/README.txt"
 
 for doc in README.md QUICK_USER_HANDBOOK.md CHANGELOG.md RC_CHECKLIST.md RELEASE_CANDIDATE.md; do
