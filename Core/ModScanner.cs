@@ -94,6 +94,16 @@ public sealed class ModScanner
         );
 
         using var scanGate = new SemaphoreSlim(MaxParallelContainerScans);
+        var archiveFallbackGates = groups
+            .Where(group => string.Equals(
+                group.SourceKind,
+                "archive",
+                StringComparison.OrdinalIgnoreCase))
+            .ToDictionary(
+                group => group,
+                _ => new SemaphoreSlim(1, 1)
+            );
+
         var scanTasks = jobs.Select(async job =>
         {
             await scanGate.WaitAsync(cancellationToken);
@@ -168,13 +178,72 @@ public sealed class ModScanner
                         $"Scanning {containerLabel}"
                     ));
 
+                    var usedSparsePlaceholder =
+                        string.Equals(
+                            group.SourceKind,
+                            "archive",
+                            StringComparison.OrdinalIgnoreCase)
+                        && ModSourceDiscovery
+                            .HasArchiveScanUcasPlaceholder(utoc);
+
+                    var sparseFallbackUsed = false;
                     var retocTimer = Stopwatch.StartNew();
-                    var scannedAliases = await _retoc.ListLocalizationAssetsAsync(
-                        utoc,
-                        _modsRoot,
-                        cancellationToken
-                    );
-                    retocTimer.Stop();
+                    List<LocalizationAlias> scannedAliases;
+
+                    try
+                    {
+                        scannedAliases = await _retoc
+                            .ListLocalizationAssetsAsync(
+                                utoc,
+                                _modsRoot,
+                                cancellationToken
+                            );
+                        retocTimer.Stop();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw;
+                    }
+                    catch (Exception firstError)
+                        when (usedSparsePlaceholder)
+                    {
+                        retocTimer.Stop();
+                        _log?.Invoke(
+                            $"Sparse UCAS fast path rejected for "
+                            + $"{group.ModName} :: {containerLabel}; "
+                            + $"retrying with real UCAS. "
+                            + firstError.Message
+                        );
+
+                        var fallbackGate = archiveFallbackGates[group];
+                        await fallbackGate.WaitAsync(cancellationToken);
+                        try
+                        {
+                            await ModSourceDiscovery
+                                .MaterializeArchiveScanUcasFallbackAsync(
+                                    _modsRoot,
+                                    materializationRoot,
+                                    group.SourceLabel,
+                                    group.Containers,
+                                    _log,
+                                    cancellationToken
+                                );
+                        }
+                        finally
+                        {
+                            fallbackGate.Release();
+                        }
+
+                        sparseFallbackUsed = true;
+                        retocTimer.Restart();
+                        scannedAliases = await _retoc
+                            .ListLocalizationAssetsAsync(
+                                utoc,
+                                _modsRoot,
+                                cancellationToken
+                            );
+                        retocTimer.Stop();
+                    }
 
                     SaveContainerScanCache(
                         scanCacheRoot,
@@ -185,10 +254,17 @@ public sealed class ModScanner
                         scannedAliases
                     );
 
+                    var sparseStatus = !usedSparsePlaceholder
+                        ? string.Empty
+                        : sparseFallbackUsed
+                            ? " | sparse-ucas=fallback"
+                            : " | sparse-ucas=accepted";
+
                     _log?.Invoke(
                         $"Scan timing: {group.ModName} :: {containerLabel} | "
                         + $"hash={hashTimer.Elapsed.TotalSeconds:N1}s | "
                         + $"retoc={retocTimer.Elapsed.TotalSeconds:N1}s"
+                        + sparseStatus
                     );
 
                     return new ContainerScanOutcome
