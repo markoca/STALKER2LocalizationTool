@@ -559,7 +559,25 @@ public static class ModSourceDiscovery
 
             // SCAN only needs the IoStore directory index. Large PAK/UCAS payloads
             // are materialized lazily by EXTRACT if localization is actually present.
-            ExtractIfNeeded(byNormalizedName[triplet.UtocMember], utocTarget);
+            var utocWasReady = FileMatchesSize(
+                utocTarget,
+                triplet.UtocSize
+            );
+            var utocTimer = Stopwatch.StartNew();
+            ExtractIfNeeded(
+                byNormalizedName[triplet.UtocMember],
+                utocTarget
+            );
+            utocTimer.Stop();
+
+            if (!utocWasReady)
+            {
+                log?.Invoke(
+                    $"Archive UTOC materialized: {archiveRelative} :: "
+                    + $"{triplet.Stem} in "
+                    + $"{utocTimer.Elapsed.TotalSeconds:N1}s."
+                );
+            }
 
             containers.Add(utocTarget);
             labels[utocTarget] = triplet.Stem;
