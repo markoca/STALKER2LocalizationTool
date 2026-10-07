@@ -22,6 +22,8 @@
 - MODS status messages now render as plain color-coded text instead of badge/button-like controls.
 - Settings typography now uses the same Segoe UI family as the main window, avoiding a separate Bahnschrift rendering dependency across Windows/Wine.
 - Fixed borderless-window dragging: the main and Settings custom title bars are draggable from their non-interactive child surfaces while caption buttons remain clickable.
+- Renamed the runtime workspace folders from **Cached / Editable** to gamer-facing **Source / Translations** across the application, build/extraction pipeline, Settings, documentation and publishers.
+- Added a one-time safe workspace-directory rename for existing installs; old folders are moved only when the new destination does not already exist, and publishers refuse ambiguous old/new folder conflicts rather than merging data.
 - Consolidated the current development baseline onto `main` and refreshed release-candidate documentation.
 
 ## 1.0.0-rc.7
