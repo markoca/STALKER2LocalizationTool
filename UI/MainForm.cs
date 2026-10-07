@@ -2058,7 +2058,7 @@ public sealed class MainForm : Form
         else
         {
             _statusText.Text = "READY TO SCAN MODS";
-            AppendLog("MODS cache deleted: scan state reset.");
+            AppendLog("MODS source data deleted: scan state reset.");
             AppendLog("=========== READY TO SCAN MODS ===========");
         }
     }
@@ -2197,13 +2197,13 @@ public sealed class MainForm : Form
         };
         FileSystemEventHandler changed = (_, e) =>
         {
-            if (!IsInternalWorkbenchCachePath(e.FullPath))
+            if (!IsInternalSourceCachePath(e.FullPath))
                 QueueWatcherScan();
         };
         RenamedEventHandler renamed = (_, e) =>
         {
-            if (!IsInternalWorkbenchCachePath(e.FullPath)
-                && !IsInternalWorkbenchCachePath(e.OldFullPath))
+            if (!IsInternalSourceCachePath(e.FullPath)
+                && !IsInternalSourceCachePath(e.OldFullPath))
             {
                 QueueWatcherScan();
             }
@@ -2215,7 +2215,7 @@ public sealed class MainForm : Form
         return watcher;
     }
 
-    private bool IsInternalWorkbenchCachePath(string path)
+    private bool IsInternalSourceCachePath(string path)
     {
         try
         {
