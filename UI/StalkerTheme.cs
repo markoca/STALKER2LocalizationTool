@@ -90,6 +90,11 @@ internal static class StalkerTheme
                 control.ForeColor = Text;
                 break;
 
+            case StalkerLogBox:
+                control.BackColor = TitleBar;
+                control.ForeColor = MutedText;
+                break;
+
             case StalkerCardPanel:
                 control.ForeColor = Text;
                 break;
@@ -1632,6 +1637,22 @@ internal sealed class StalkerProgressBar : Control
                 fillRect.Bottom - 1
             );
         }
+    }
+}
+
+/// <summary>
+/// Borderless read-only terminal surface for the application log.
+/// </summary>
+internal sealed class StalkerLogBox : TextBox
+{
+    public StalkerLogBox()
+    {
+        Multiline = true;
+        ReadOnly = true;
+        BorderStyle = BorderStyle.None;
+        BackColor = StalkerTheme.TitleBar;
+        ForeColor = StalkerTheme.MutedText;
+        Font = new Font("Consolas", 8.5F);
     }
 }
 
