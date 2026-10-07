@@ -16,7 +16,7 @@ public sealed class SettingsForm : Form
     private readonly StalkerWindowButton _maximizeButton = new();
     private readonly StalkerWindowButton _closeButton = new() { IsCloseButton = true };
 
-    public bool CacheDeleted { get; private set; }
+    public bool SourceDeleted { get; private set; }
 
     public SettingsForm(AppSettings settings, Localizer localizer)
     {
@@ -239,8 +239,8 @@ public sealed class SettingsForm : Form
 
         AddFolderRow(grid, "game", _l.T("ui.game_paks"), _settings.GamePaksFolder);
         AddFolderRow(grid, "mods", _l.T("ui.mods_folder"), _settings.ModsFolder);
-        AddResolvedPathRow(grid, _l.T("ui.cached_folder"), _settings.CachedFolder);
-        AddResolvedPathRow(grid, _l.T("ui.editable_folder"), _settings.EditableFolder);
+        AddResolvedPathRow(grid, _l.T("ui.source_folder"), _settings.SourceFolder);
+        AddResolvedPathRow(grid, _l.T("ui.translations_folder"), _settings.TranslationsFolder);
         AddResolvedPathRow(grid, _l.T("ui.output_folder"), _settings.OutputFolder);
 
         layout.Controls.Add(grid, 0, 1);
@@ -401,12 +401,12 @@ public sealed class SettingsForm : Form
         };
         ConfigureFooterButton(resetWorkspace, 180);
 
-        var deleteCache = new StalkerUtilityButton
+        var deleteSourceData = new StalkerUtilityButton
         {
-            Text = _l.T("ui.delete_cache"),
+            Text = _l.T("ui.delete_source_data"),
             DangerStyle = true,
         };
-        ConfigureFooterButton(deleteCache, 164);
+        ConfigureFooterButton(deleteSourceData, 164);
 
         var rightActions = new FlowLayoutPanel
         {
@@ -443,11 +443,11 @@ public sealed class SettingsForm : Form
             DialogResult = DialogResult.Cancel;
             Close();
         };
-        deleteCache.Click += (_, _) => DeleteCache();
+        deleteSourceData.Click += (_, _) => DeleteSourceData();
         resetWorkspace.Click += (_, _) => ResetWorkspacePaths();
 
         leftActions.Controls.Add(resetWorkspace);
-        leftActions.Controls.Add(deleteCache);
+        leftActions.Controls.Add(deleteSourceData);
 
         rightActions.Controls.Add(cancel);
         rightActions.Controls.Add(save);
@@ -635,15 +635,15 @@ public sealed class SettingsForm : Form
         grid.Controls.Add(browse, 2, row);
     }
 
-    private void DeleteCache()
+    private void DeleteSourceData()
     {
-        var cachedRoot = _settings.CachedFolder.Trim();
+        var sourceRoot = _settings.SourceFolder.Trim();
 
-        if (string.IsNullOrWhiteSpace(cachedRoot))
+        if (string.IsNullOrWhiteSpace(sourceRoot))
         {
             MessageBox.Show(
                 this,
-                _l.T("ui.cache_path_missing"),
+                _l.T("ui.source_path_missing"),
                 AppConstants.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
@@ -653,7 +653,7 @@ public sealed class SettingsForm : Form
 
         var confirmation = MessageBox.Show(
             this,
-            string.Format(_l.T("ui.delete_cache_confirm"), cachedRoot),
+            string.Format(_l.T("ui.delete_source_data_confirm"), sourceRoot),
             AppConstants.AppName,
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning,
@@ -667,10 +667,10 @@ public sealed class SettingsForm : Form
         {
             var removed = false;
 
-            if (Directory.Exists(cachedRoot))
+            if (Directory.Exists(sourceRoot))
             {
                 foreach (var directory in Directory.EnumerateDirectories(
-                             cachedRoot,
+                             sourceRoot,
                              "*",
                              SearchOption.TopDirectoryOnly)
                          .ToList())
@@ -680,7 +680,7 @@ public sealed class SettingsForm : Form
                 }
 
                 foreach (var file in Directory.EnumerateFiles(
-                             cachedRoot,
+                             sourceRoot,
                              "*",
                              SearchOption.TopDirectoryOnly)
                          .ToList())
@@ -691,16 +691,16 @@ public sealed class SettingsForm : Form
             }
             else
             {
-                Directory.CreateDirectory(cachedRoot);
+                Directory.CreateDirectory(sourceRoot);
             }
 
-            CacheDeleted = true;
+            SourceDeleted = true;
 
             MessageBox.Show(
                 this,
                 removed
-                    ? _l.T("ui.cache_deleted")
-                    : _l.T("ui.cache_empty"),
+                    ? _l.T("ui.source_deleted")
+                    : _l.T("ui.source_empty"),
                 AppConstants.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information
@@ -710,7 +710,7 @@ public sealed class SettingsForm : Form
         {
             MessageBox.Show(
                 this,
-                string.Format(_l.T("ui.cache_delete_failed"), ex.Message),
+                string.Format(_l.T("ui.source_delete_failed"), ex.Message),
                 AppConstants.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error
