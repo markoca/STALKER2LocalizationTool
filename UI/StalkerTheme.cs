@@ -86,6 +86,10 @@ internal static class StalkerTheme
                 control.ForeColor = Text;
                 break;
 
+            case StalkerPathField:
+                control.ForeColor = Text;
+                break;
+
             case StalkerCardPanel:
                 control.ForeColor = Text;
                 break;
@@ -821,6 +825,8 @@ internal sealed class StalkerUtilityButton : Button
     private bool _hovered;
     private bool _pressed;
 
+    public bool DangerStyle { get; set; }
+
     public StalkerUtilityButton()
     {
         FlatStyle = FlatStyle.Flat;
@@ -834,8 +840,15 @@ internal sealed class StalkerUtilityButton : Button
         SetStyle(
             ControlStyles.UserPaint
             | ControlStyles.AllPaintingInWmPaint
-            | ControlStyles.OptimizedDoubleBuffer,
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
             true);
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        UpdateRegion();
     }
 
     protected override void OnMouseEnter(EventArgs e)
@@ -855,7 +868,8 @@ internal sealed class StalkerUtilityButton : Button
 
     protected override void OnMouseDown(MouseEventArgs mevent)
     {
-        _pressed = true;
+        if (Enabled && mevent.Button == MouseButtons.Left)
+            _pressed = true;
         Invalidate();
         base.OnMouseDown(mevent);
     }
@@ -867,30 +881,93 @@ internal sealed class StalkerUtilityButton : Button
         base.OnMouseUp(mevent);
     }
 
+    protected override void OnEnabledChanged(EventArgs e)
+    {
+        Invalidate();
+        base.OnEnabledChanged(e);
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
-        var background = _pressed
-            ? StalkerTheme.PanelPressed
+        var rect = new Rectangle(
+            0,
+            0,
+            Math.Max(0, ClientSize.Width - 1),
+            Math.Max(0, ClientSize.Height - 1)
+        );
+        if (rect.Width <= 0 || rect.Height <= 0)
+            return;
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = StalkerTheme.CreateChamferPath(rect, 5);
+
+        var accent = DangerStyle
+            ? StalkerTheme.Danger
+            : StalkerTheme.Accent;
+
+        var background = !Enabled
+            ? StalkerTheme.TitleBar
+            : _pressed
+                ? StalkerTheme.PanelPressed
+                : _hovered
+                    ? StalkerTheme.PanelHover
+                    : StalkerTheme.TitleBar;
+
+        using (var fill = new SolidBrush(background))
+            e.Graphics.FillPath(fill, path);
+
+        var borderColor = !Enabled
+            ? StalkerTheme.BorderSoft
             : _hovered
-                ? StalkerTheme.PanelHover
-                : StalkerTheme.TitleBar;
+                ? StalkerTheme.Blend(accent, StalkerTheme.Border, 170)
+                : StalkerTheme.Border;
+        using (var border = new Pen(borderColor))
+            e.Graphics.DrawPath(border, path);
 
-        e.Graphics.Clear(background);
+        if (_hovered && Enabled)
+        {
+            using var rail = new SolidBrush(accent);
+            e.Graphics.FillRectangle(
+                rail,
+                rect.Left + 1,
+                rect.Top + 5,
+                2,
+                Math.Max(1, rect.Height - 10)
+            );
+        }
 
-        using var border = new Pen(_hovered ? StalkerTheme.AccentDark : StalkerTheme.Border);
-        e.Graphics.DrawRectangle(border, 0, 0, Width - 1, Height - 1);
+        var foreground = !Enabled
+            ? StalkerTheme.MutedText
+            : _hovered
+                ? accent
+                : StalkerTheme.Text;
 
         TextRenderer.DrawText(
             e.Graphics,
             Text,
             Font,
             ClientRectangle,
-            _hovered ? StalkerTheme.Accent : StalkerTheme.Text,
+            foreground,
             TextFormatFlags.HorizontalCenter
             | TextFormatFlags.VerticalCenter
             | TextFormatFlags.EndEllipsis
             | TextFormatFlags.NoPrefix
         );
+    }
+
+    private void UpdateRegion()
+    {
+        if (ClientSize.Width <= 1 || ClientSize.Height <= 1)
+            return;
+
+        using var path = StalkerTheme.CreateChamferPath(
+            new Rectangle(0, 0, ClientSize.Width, ClientSize.Height),
+            5
+        );
+        var next = new Region(path);
+        var old = Region;
+        Region = next;
+        old?.Dispose();
     }
 }
 
@@ -1555,6 +1632,107 @@ internal sealed class StalkerProgressBar : Control
 }
 
 /// <summary>
+/// Borderless text editor wrapped in the same chamfered industrial field chrome on Windows and Wine.
+/// </summary>
+internal sealed class StalkerPathField : Panel
+{
+    public TextBox Editor { get; }
+
+    public StalkerPathField(string text, bool readOnly)
+    {
+        BackColor = StalkerTheme.PanelAlt;
+        ForeColor = StalkerTheme.Text;
+        Padding = new Padding(9, 5, 9, 4);
+        Margin = new Padding(0);
+
+        Editor = new TextBox
+        {
+            Text = text,
+            ReadOnly = readOnly,
+            BorderStyle = BorderStyle.None,
+            BackColor = StalkerTheme.PanelAlt,
+            ForeColor = readOnly ? StalkerTheme.MutedText : StalkerTheme.Text,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(0),
+            TabStop = !readOnly,
+        };
+        Controls.Add(Editor);
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
+
+        Editor.Enter += (_, _) => Invalidate();
+        Editor.Leave += (_, _) => Invalidate();
+        Editor.TextChanged += (_, _) => Invalidate();
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        UpdateRegion();
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        e.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.Panel);
+        var rect = new Rectangle(
+            0,
+            0,
+            Math.Max(0, ClientSize.Width - 1),
+            Math.Max(0, ClientSize.Height - 1)
+        );
+        if (rect.Width <= 0 || rect.Height <= 0)
+            return;
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = StalkerTheme.CreateChamferPath(rect, 5);
+        using var fill = new SolidBrush(StalkerTheme.PanelAlt);
+        e.Graphics.FillPath(fill, path);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        var rect = new Rectangle(
+            0,
+            0,
+            Math.Max(0, ClientSize.Width - 1),
+            Math.Max(0, ClientSize.Height - 1)
+        );
+        if (rect.Width <= 0 || rect.Height <= 0)
+            return;
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = StalkerTheme.CreateChamferPath(rect, 5);
+        using var border = new Pen(
+            Editor.Focused
+                ? StalkerTheme.AccentDark
+                : StalkerTheme.Border
+        );
+        e.Graphics.DrawPath(border, path);
+    }
+
+    private void UpdateRegion()
+    {
+        if (ClientSize.Width <= 1 || ClientSize.Height <= 1)
+            return;
+
+        using var path = StalkerTheme.CreateChamferPath(
+            new Rectangle(0, 0, ClientSize.Width, ClientSize.Height),
+            5
+        );
+        var next = new Region(path);
+        var old = Region;
+        Region = next;
+        old?.Dispose();
+    }
+}
+
+/// <summary>
 /// Fully custom language selector. It intentionally avoids CheckedListBox because native / Wine
 /// multi-column painting can leave unthemed black gaps between cells.
 /// </summary>
@@ -1736,14 +1914,15 @@ internal sealed class StalkerLanguageCheckBox : CheckBox
     public StalkerLanguageCheckBox()
     {
         AutoSize = false;
-        Height = 24;
+        Height = 28;
         BackColor = StalkerTheme.PanelAlt;
         ForeColor = StalkerTheme.Text;
         Cursor = Cursors.Hand;
         SetStyle(
             ControlStyles.UserPaint
             | ControlStyles.AllPaintingInWmPaint
-            | ControlStyles.OptimizedDoubleBuffer,
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
             true);
     }
 
@@ -1773,47 +1952,90 @@ internal sealed class StalkerLanguageCheckBox : CheckBox
         base.OnEnabledChanged(e);
     }
 
-    protected override void OnPaint(PaintEventArgs pevent)
+    protected override void OnPaint(PaintEventArgs e)
     {
-        pevent.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.PanelAlt);
+        var parentBackground = Parent?.BackColor ?? StalkerTheme.PanelAlt;
+        e.Graphics.Clear(parentBackground);
+
+        var bounds = new Rectangle(
+            1,
+            1,
+            Math.Max(1, Width - 3),
+            Math.Max(1, Height - 3)
+        );
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        using var tilePath = StalkerTheme.CreateChamferPath(bounds, 4);
+        var tileColor = !Enabled
+            ? StalkerTheme.Panel
+            : Checked
+                ? StalkerTheme.Blend(StalkerTheme.Accent, StalkerTheme.PanelAlt, 22)
+                : _hovered
+                    ? StalkerTheme.PanelHover
+                    : StalkerTheme.PanelAlt;
+
+        using (var fill = new SolidBrush(tileColor))
+            e.Graphics.FillPath(fill, tilePath);
+
+        var tileBorder = Checked
+            ? StalkerTheme.AccentDark
+            : _hovered
+                ? StalkerTheme.Border
+                : StalkerTheme.BorderSoft;
+        using (var border = new Pen(tileBorder))
+            e.Graphics.DrawPath(border, tilePath);
+
+        if (Checked)
+        {
+            using var rail = new SolidBrush(StalkerTheme.Accent);
+            e.Graphics.FillRectangle(
+                rail,
+                bounds.Left + 1,
+                bounds.Top + 4,
+                2,
+                Math.Max(1, bounds.Height - 8)
+            );
+        }
 
         var box = new Rectangle(
-            6,
-            Math.Max(0, (Height - 14) / 2),
+            bounds.Left + 8,
+            Math.Max(bounds.Top, (Height - 14) / 2),
             14,
-            14);
+            14
+        );
 
-        var borderColor = Checked || _hovered
+        var boxBorder = Checked || _hovered
             ? StalkerTheme.Accent
             : StalkerTheme.Border;
-
-        using (var border = new Pen(borderColor))
-            pevent.Graphics.DrawRectangle(border, box);
+        using (var border = new Pen(boxBorder))
+            e.Graphics.DrawRectangle(border, box);
 
         if (Checked)
         {
             using var fill = new SolidBrush(StalkerTheme.Accent);
-            pevent.Graphics.FillRectangle(fill, Rectangle.Inflate(box, -3, -3));
+            e.Graphics.FillRectangle(fill, Rectangle.Inflate(box, -3, -3));
         }
 
         var textRect = new Rectangle(
             box.Right + 8,
             0,
             Math.Max(0, Width - box.Right - 12),
-            Height);
+            Height
+        );
 
         TextRenderer.DrawText(
-            pevent.Graphics,
+            e.Graphics,
             Text,
             Font,
             textRect,
             Enabled
-                ? (_hovered ? StalkerTheme.Accent : StalkerTheme.Text)
+                ? (Checked || _hovered ? StalkerTheme.Text : StalkerTheme.MutedText)
                 : StalkerTheme.MutedText,
             TextFormatFlags.Left
             | TextFormatFlags.VerticalCenter
             | TextFormatFlags.EndEllipsis
-            | TextFormatFlags.NoPrefix);
+            | TextFormatFlags.NoPrefix
+        );
     }
 }
 
@@ -1829,7 +2051,8 @@ internal sealed class StalkerToggleCheckBox : CheckBox
         SetStyle(
             ControlStyles.UserPaint
             | ControlStyles.AllPaintingInWmPaint
-            | ControlStyles.OptimizedDoubleBuffer,
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
             true);
         Cursor = Cursors.Hand;
         Height = 24;
@@ -1838,7 +2061,7 @@ internal sealed class StalkerToggleCheckBox : CheckBox
     public override Size GetPreferredSize(Size proposedSize)
     {
         var text = TextRenderer.MeasureText(Text, Font);
-        return new Size(42 + 9 + text.Width + 6, Math.Max(24, text.Height + 4));
+        return new Size(44 + 9 + text.Width + 6, Math.Max(24, text.Height + 4));
     }
 
     protected override void OnMouseEnter(EventArgs eventargs)
@@ -1867,47 +2090,63 @@ internal sealed class StalkerToggleCheckBox : CheckBox
         base.OnEnabledChanged(e);
     }
 
-    protected override void OnPaint(PaintEventArgs pevent)
+    protected override void OnPaint(PaintEventArgs e)
     {
-        pevent.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-        pevent.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.WindowBackground);
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        e.Graphics.Clear(Parent?.BackColor ?? StalkerTheme.WindowBackground);
 
-        var track = new Rectangle(0, Math.Max(0, (Height - 22) / 2), 42, 22);
-        using var path = RoundedRectangle(track, 11);
-        using var trackFill = new SolidBrush(Checked ? StalkerTheme.AccentDark : StalkerTheme.PanelAlt);
-        using var trackBorder = new Pen(_hovered || Checked ? StalkerTheme.Accent : StalkerTheme.Border);
-        pevent.Graphics.FillPath(trackFill, path);
-        pevent.Graphics.DrawPath(trackBorder, path);
+        var track = new Rectangle(
+            0,
+            Math.Max(0, (Height - 20) / 2),
+            44,
+            20
+        );
+        using var path = StalkerTheme.CreateChamferPath(track, 5);
 
-        var thumbX = Checked ? track.Right - 20 : track.Left + 3;
-        var thumb = new Rectangle(thumbX, track.Top + 3, 16, 16);
-        using var thumbFill = new SolidBrush(Checked ? StalkerTheme.Accent : StalkerTheme.MutedText);
-        pevent.Graphics.FillEllipse(thumbFill, thumb);
+        var trackFill = Checked
+            ? StalkerTheme.Blend(StalkerTheme.Accent, StalkerTheme.PanelAlt, 40)
+            : StalkerTheme.PanelAlt;
+        using (var fill = new SolidBrush(trackFill))
+            e.Graphics.FillPath(fill, path);
+
+        using (var border = new Pen(
+                   _hovered || Checked
+                       ? StalkerTheme.Accent
+                       : StalkerTheme.Border))
+        {
+            e.Graphics.DrawPath(border, path);
+        }
+
+        var thumb = Checked
+            ? new Rectangle(track.Right - 17, track.Top + 4, 12, 12)
+            : new Rectangle(track.Left + 5, track.Top + 4, 12, 12);
+
+        using (var thumbFill = new SolidBrush(
+                   Checked
+                       ? StalkerTheme.Accent
+                       : StalkerTheme.MutedText))
+        {
+            e.Graphics.FillRectangle(thumbFill, thumb);
+        }
 
         var textRect = new Rectangle(
             track.Right + 9,
             0,
             Math.Max(0, Width - track.Right - 9),
-            Height);
+            Height
+        );
 
         TextRenderer.DrawText(
-            pevent.Graphics,
+            e.Graphics,
             Text,
             Font,
             textRect,
             Enabled ? StalkerTheme.Text : StalkerTheme.MutedText,
-            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
-    }
-
-    private static GraphicsPath RoundedRectangle(Rectangle bounds, int radius)
-    {
-        var diameter = radius * 2;
-        var path = new GraphicsPath();
-        path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
-        path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);
-        path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
-        path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
-        path.CloseFigure();
-        return path;
+            TextFormatFlags.Left
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis
+            | TextFormatFlags.NoPrefix
+        );
     }
 }
+
