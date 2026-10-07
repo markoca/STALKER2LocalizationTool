@@ -699,6 +699,85 @@ public sealed class MainForm : Form
         layout.Controls.Add(actionCard, 0, 1);
     }
 
+    private void BuildSettingsTab()
+    {
+        _settingsView = new SettingsForm(_settings, _l, embedded: true)
+        {
+            TopLevel = false,
+            Dock = DockStyle.Fill,
+            FormBorderStyle = FormBorderStyle.None,
+        };
+
+        _settingsView.SettingsSaved += (_, _) => ApplyEmbeddedSettings();
+        _settingsView.SourceDataDeleted += (_, _) => MarkSourceDeleted();
+
+        _settingsTab.Controls.Add(_settingsView);
+        _settingsView.Show();
+    }
+
+    private void ApplyEmbeddedSettings()
+    {
+        _watchDebounce.Stop();
+        _suspendWatcherScan = true;
+
+        try
+        {
+            var gamePathChanged = !SameConfiguredPath(
+                _configuredGamePaksFolder,
+                _settings.GamePaksFolder
+            );
+            var modsPathChanged = !SameConfiguredPath(
+                _configuredModsFolder,
+                _settings.ModsFolder
+            );
+
+            if (gamePathChanged)
+            {
+                _game = null;
+                _gameScanSuccessful = false;
+            }
+
+            if (modsPathChanged)
+            {
+                _mods.Clear();
+                _modsScanSuccessful = false;
+                _modsReadyPromptShown = false;
+            }
+
+            if (gamePathChanged || modsPathChanged)
+                _builtVerifiedThisSession.Clear();
+
+            _configuredGamePaksFolder = _settings.GamePaksFolder;
+            _configuredModsFolder = _settings.ModsFolder;
+
+            ConfigureWatchers();
+            RefreshGrid();
+            UpdateButtons();
+
+            _statusText.Text = "SETTINGS SAVED";
+            AppendLog("Settings saved.");
+        }
+        finally
+        {
+            _watchDebounce.Stop();
+            _suspendWatcherScan = false;
+        }
+    }
+
+    private static bool SameConfiguredPath(string left, string right)
+    {
+        static string Normalize(string value) =>
+            value.Trim()
+                .TrimEnd('\\', '/')
+                .Replace('\\', '/');
+
+        return string.Equals(
+            Normalize(left),
+            Normalize(right),
+            StringComparison.OrdinalIgnoreCase
+        );
+    }
+
     private static void ConfigureActionButton(Button button, int width)
     {
         button.AutoSize = false;
