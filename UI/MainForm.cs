@@ -1738,34 +1738,17 @@ public sealed class MainForm : Form
         if (!Directory.Exists(sourceRoot))
             return false;
 
-        var sourceHasTranslationJson = BuildLanguageCatalog.All.Any(language =>
-            File.Exists(
-                Path.Combine(
-                    sourceRoot,
-                    language.Key + ".json"
-                )
-            )
-        );
-        if (!sourceHasTranslationJson)
-            return false;
-
         var translationsRoot = Path.Combine(
             _settings.TranslationsFolder,
             mod.ModId
         );
-        if (!Directory.Exists(translationsRoot))
-            return true;
 
-        var translationsHaveAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
-            File.Exists(
-                Path.Combine(
-                    translationsRoot,
-                    language.Key + ".json"
-                )
-            )
-        );
-
-        return !translationsHaveAnyLanguageJson;
+        return BuildLanguageCatalog.All.Any(language =>
+        {
+            var fileName = language.Key + ".json";
+            return File.Exists(Path.Combine(sourceRoot, fileName))
+                   && !File.Exists(Path.Combine(translationsRoot, fileName));
+        });
     }
 
     private void RefreshGameLocalizationOverview()
