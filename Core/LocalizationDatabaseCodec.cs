@@ -10,14 +10,13 @@ public static class LocalizationDatabaseCodec
             throw new InvalidDataException($"{sourceLabel}: localization payload is too small");
 
         var offset = 0;
-        var rootHeader = data.AsSpan(offset, 6).ToArray();
         offset += 6;
 
         var recordCount = ReadInt32(data, ref offset, sourceLabel + ": record count");
         if (recordCount < 0 || recordCount > 100000)
             throw new InvalidDataException($"{sourceLabel}: unreasonable localization record count {recordCount}");
 
-        var payload = new LocalizationPayload { RootHeader = rootHeader };
+        var payload = new LocalizationPayload();
 
         for (var recordIndex = 0; recordIndex < recordCount; recordIndex++)
         {
@@ -27,7 +26,6 @@ public static class LocalizationDatabaseCodec
                 throw new InvalidDataException($"{sourceLabel}: empty SID at record {recordIndex}");
 
             Ensure(data, offset, 10, $"{sourceLabel}: truncated record {recordIndex} ({sidResult.Value})");
-            var nestedHeader = data.AsSpan(offset, 6).ToArray();
             offset += 6;
 
             var translationCount = ReadInt32(data, ref offset, sourceLabel + ": translation count");
@@ -39,8 +37,6 @@ public static class LocalizationDatabaseCodec
             var record = new LocalizationRecord
             {
                 Sid = sidResult.Value,
-                SidEncoding = sidResult.Encoding,
-                NestedHeader = nestedHeader,
             };
 
             for (var i = 0; i < translationCount; i++)
@@ -62,7 +58,6 @@ public static class LocalizationDatabaseCodec
             payload.Records.Add(record);
         }
 
-        payload.Trailer = data.AsSpan(offset).ToArray();
         return payload;
     }
 
@@ -93,10 +88,7 @@ public static class LocalizationDatabaseCodec
             );
         }
 
-        var result = new PatchResult
-        {
-            RecordCount = recordCount,
-        };
+        var result = new PatchResult();
 
         MemoryStream? output = null;
 
@@ -228,8 +220,6 @@ public static class LocalizationDatabaseCodec
                     replacement,
                     StringComparison.Ordinal))
             {
-                result.AlreadyCorrectSids.Add(sidResult.Value);
-
                 if (output is not null)
                 {
                     output.Write(
