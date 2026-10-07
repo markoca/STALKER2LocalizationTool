@@ -155,8 +155,8 @@ public sealed class SettingsForm : Form
 
         _titleAccent.AutoSize = true;
         _titleAccent.Font = new Font(
-            "Bahnschrift SemiCondensed",
-            22F,
+            "Segoe UI",
+            19F,
             FontStyle.Bold
         );
         _titleAccent.Tag = StalkerTheme.SectionLabelTag;
@@ -164,9 +164,9 @@ public sealed class SettingsForm : Form
 
         _titleRest.AutoSize = true;
         _titleRest.Font = new Font(
-            "Bahnschrift SemiCondensed",
-            22F,
-            FontStyle.Bold
+            "Segoe UI Semibold",
+            18F,
+            FontStyle.Regular
         );
         _titleRest.Margin = new Padding(0);
 
@@ -403,6 +403,7 @@ public sealed class SettingsForm : Form
         var deleteCache = new StalkerUtilityButton
         {
             Text = _l.T("ui.delete_cache"),
+            DangerStyle = true,
         };
         ConfigureFooterButton(deleteCache, 164);
 
@@ -422,7 +423,7 @@ public sealed class SettingsForm : Form
         };
         ConfigureFooterButton(cancel, 104);
 
-        var save = new Button
+        var save = new StalkerActionButton
         {
             Text = _l.T("ui.save"),
             AutoSize = false,
@@ -431,6 +432,7 @@ public sealed class SettingsForm : Form
             Padding = new Padding(10, 5, 10, 5),
             Margin = new Padding(0),
             Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+            Primary = true,
             Tag = StalkerTheme.PrimaryButtonTag,
         };
 
@@ -523,14 +525,11 @@ public sealed class SettingsForm : Form
             Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
         };
 
-        var box = new TextBox
+        var field = new StalkerPathField(value, readOnly: true)
         {
-            Text = value,
             Dock = DockStyle.Fill,
-            Anchor = AnchorStyles.Left | AnchorStyles.Right,
-            Margin = new Padding(0, 5, 6, 5),
-            ReadOnly = true,
-            TabStop = false,
+            Height = 28,
+            Margin = new Padding(0, 4, 6, 4),
         };
 
         var auto = new Label
@@ -539,12 +538,12 @@ public sealed class SettingsForm : Form
             AutoSize = true,
             Anchor = AnchorStyles.Right,
             Margin = new Padding(4, 8, 0, 0),
-            Font = new Font("Segoe UI", 8F, FontStyle.Bold),
-            Tag = StalkerTheme.MutedLabelTag,
+            Font = new Font("Segoe UI", 7.5F, FontStyle.Bold),
+            ForeColor = StalkerTheme.AccentDark,
         };
 
         grid.Controls.Add(label, 0, row);
-        grid.Controls.Add(box, 1, row);
+        grid.Controls.Add(field, 1, row);
         grid.Controls.Add(auto, 2, row);
     }
 
@@ -579,16 +578,16 @@ public sealed class SettingsForm : Form
             Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
         };
 
-        var box = new TextBox
+        var field = new StalkerPathField(value, readOnly: false)
         {
-            Text = value,
             Dock = DockStyle.Fill,
-            Anchor = AnchorStyles.Left | AnchorStyles.Right,
-            Margin = new Padding(0, 5, 6, 5),
+            Height = 28,
+            Margin = new Padding(0, 4, 6, 4),
         };
+        var box = field.Editor;
         _boxes[key] = box;
 
-        var browse = new Button
+        var browse = new StalkerUtilityButton
         {
             Text = _l.T("ui.browse"),
             AutoSize = false,
@@ -631,7 +630,7 @@ public sealed class SettingsForm : Form
         };
 
         grid.Controls.Add(label, 0, row);
-        grid.Controls.Add(box, 1, row);
+        grid.Controls.Add(field, 1, row);
         grid.Controls.Add(browse, 2, row);
     }
 
