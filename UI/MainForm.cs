@@ -40,8 +40,6 @@ public sealed class MainForm : Form
     private readonly Label _gameLocalizationDetails = new();
     private readonly TableLayoutPanel _gameLocalizationResults = new();
     private string _gameLocalizationResultSignature = string.Empty;
-    private readonly Dictionary<string, (long Length, long LastWriteUtcTicks, int Sids)>
-        _gameJsonSidCountCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Button _openJsons = new StalkerUtilityButton();
     private readonly Button _openOutput = new StalkerUtilityButton();
     private readonly DataGridView _grid = new();
@@ -1685,7 +1683,7 @@ public sealed class MainForm : Form
                 return (
                     Language: language,
                     Path: path,
-                    Sids: GetGameJsonSidCount(path)
+                    FileName: Path.GetFileName(path)
                 );
             })
             .ToList();
@@ -1693,7 +1691,7 @@ public sealed class MainForm : Form
         var signature = string.Join(
             "|",
             results.Select(result =>
-                $"{result.Language.Key}:{result.Sids}")
+                $"{result.Language.Key}:{result.FileName}")
         );
 
         if (string.Equals(
@@ -1743,12 +1741,6 @@ public sealed class MainForm : Form
             for (var index = 0; index < results.Count; index++)
             {
                 var result = results[index];
-                var sidText = result.Sids >= 0
-                    ? result.Sids.ToString(
-                        "N0",
-                        System.Globalization.CultureInfo.InvariantCulture
-                    ) + " SIDs"
-                    : "SID count unavailable";
 
                 var item = new Label
                 {
@@ -1758,7 +1750,7 @@ public sealed class MainForm : Form
                     Text =
                         $"✓  {_l.LanguageName(result.Language)}"
                         + Environment.NewLine
-                        + $"    {sidText}",
+                        + $"    {result.FileName}",
                     TextAlign = ContentAlignment.MiddleLeft,
                     Font = new Font("Segoe UI", 8.25F),
                     ForeColor = StalkerTheme.Text,
@@ -1782,54 +1774,6 @@ public sealed class MainForm : Form
         finally
         {
             _gameLocalizationResults.ResumeLayout(true);
-        }
-    }
-
-    private int GetGameJsonSidCount(string path)
-    {
-        if (!File.Exists(path))
-        {
-            _gameJsonSidCountCache.Remove(path);
-            return -1;
-        }
-
-        try
-        {
-            var info = new FileInfo(path);
-            var length = info.Length;
-            var lastWriteUtcTicks = info.LastWriteTimeUtc.Ticks;
-
-            if (_gameJsonSidCountCache.TryGetValue(path, out var cached)
-                && cached.Length == length
-                && cached.LastWriteUtcTicks == lastWriteUtcTicks)
-            {
-                return cached.Sids;
-            }
-
-            using var stream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.ReadWrite | FileShare.Delete
-            );
-            using var document = JsonDocument.Parse(stream);
-
-            if (document.RootElement.ValueKind != JsonValueKind.Object)
-                return -1;
-
-            var sids = document.RootElement.EnumerateObject().Count();
-
-            _gameJsonSidCountCache[path] = (
-                length,
-                lastWriteUtcTicks,
-                sids
-            );
-            return sids;
-        }
-        catch
-        {
-            _gameJsonSidCountCache.Remove(path);
-            return -1;
         }
     }
 
