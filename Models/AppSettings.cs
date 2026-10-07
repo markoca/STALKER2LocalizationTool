@@ -70,14 +70,19 @@ public sealed class AppSettings
         string legacyPath,
         string destinationPath)
     {
-        if (!Directory.Exists(legacyPath)
-            || Directory.Exists(destinationPath))
-        {
+        if (!Directory.Exists(legacyPath))
             return;
-        }
 
         try
         {
+            if (Directory.Exists(destinationPath))
+            {
+                if (Directory.EnumerateFileSystemEntries(destinationPath).Any())
+                    return;
+
+                Directory.Delete(destinationPath);
+            }
+
             Directory.Move(legacyPath, destinationPath);
         }
         catch
