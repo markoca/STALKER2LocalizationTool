@@ -19,8 +19,6 @@ public sealed class Localizer
     {
         ["app.title"] = AppConstants.AppName,
         ["ui.build_language"] = "Build languages",
-        ["ui.mods"] = "MODS",
-        ["ui.translations"] = "TRANSLATIONS",
         ["ui.extract"] = "EXTRACT",
         ["ui.build_modular"] = "BUILD MODULAR",
         ["ui.build_all_in_one"] = "BUILD ALL-IN-ONE",
