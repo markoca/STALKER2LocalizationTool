@@ -1693,7 +1693,7 @@ public sealed class MainForm : Form
         var signature = string.Join(
             "|",
             results.Select(result =>
-                $"{result.Language.Key}:{result.Lines}")
+                $"{result.Language.Key}:{result.Sids}")
         );
 
         if (string.Equals(
