@@ -324,4 +324,33 @@ public static class LocalizationDatabaseCodec
     }
 
 
+    private static int ReadInt32(byte[] data, ref int offset, string label)
+    {
+        Ensure(data, offset, 4, label);
+        var value = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(offset, 4));
+        offset += 4;
+        return value;
+    }
+
+    private static void Ensure(byte[] data, int offset, int length, string label)
+    {
+        if (offset < 0 || length < 0 || offset > data.Length - length)
+            throw new InvalidDataException(label);
+    }
+
+    private static void WriteInt32(Stream output, int value)
+    {
+        Span<byte> bytes = stackalloc byte[4];
+        BinaryPrimitives.WriteInt32LittleEndian(bytes, value);
+        output.Write(bytes);
+    }
+
+    private static void WriteInt64(Stream output, long value)
+    {
+        Span<byte> bytes = stackalloc byte[8];
+        BinaryPrimitives.WriteInt64LittleEndian(bytes, value);
+        output.Write(bytes);
+    }
+
+
 }
