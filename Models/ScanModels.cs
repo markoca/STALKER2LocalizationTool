@@ -62,12 +62,4 @@ public sealed class ModScanResult
     [JsonIgnore]
     public bool HasLocalization => Assets.Count > 0 || LocresAssets.Count > 0;
 
-    [JsonIgnore]
-    public string LocalizationKind => (Assets.Count > 0, LocresAssets.Count > 0) switch
-    {
-        (true, true) => $"DB {Assets.Count} + LOCRES {LocresAssets.Count}",
-        (true, false) => $"DB {Assets.Count}",
-        (false, true) => $"LOCRES {LocresAssets.Count}",
-        _ => "—",
-    };
 }

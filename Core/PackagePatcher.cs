@@ -82,7 +82,7 @@ public static class PackagePatcher
             throw new InvalidDataException($"{label}: patched RawExport was not found exactly once in {uexpPath}");
     }
 
-    public static int IndexOf(
+    private static int IndexOf(
         byte[] haystack,
         byte[] needle,
         int startIndex)

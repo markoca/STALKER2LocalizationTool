@@ -134,27 +134,6 @@ public static class UAssetInspector
         };
     }
 
-    public static string DetectInternalPackagePath(
-        string jsonPath,
-        string virtualPath,
-        string sourceLabel)
-    {
-        using var stream = new FileStream(
-            jsonPath,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.Read,
-            1024 * 1024,
-            FileOptions.SequentialScan
-        );
-        using var doc = JsonDocument.Parse(stream);
-        return DetectInternalPackagePath(
-            doc.RootElement,
-            virtualPath,
-            sourceLabel
-        );
-    }
-
     private static string DetectInternalPackagePath(
         JsonElement root,
         string virtualPath,

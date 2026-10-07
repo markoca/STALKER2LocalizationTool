@@ -2,7 +2,7 @@ namespace LocalizationWorkbench.Core;
 
 public static class JsonUtil
 {
-    public static readonly JsonSerializerOptions Pretty = new()
+    private static readonly JsonSerializerOptions Pretty = new()
     {
         WriteIndented = true,
         PropertyNameCaseInsensitive = true,
