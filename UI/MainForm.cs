@@ -38,6 +38,8 @@ public sealed class MainForm : Form
     private readonly Label _gameLocalizationTitle = new();
     private readonly Label _gameLocalizationStatus = new();
     private readonly Label _gameLocalizationDetails = new();
+    private readonly TableLayoutPanel _gameLocalizationResults = new();
+    private string _gameLocalizationResultSignature = string.Empty;
     private readonly Button _openJsons = new StalkerUtilityButton();
     private readonly Button _openOutput = new StalkerUtilityButton();
     private readonly DataGridView _grid = new();
@@ -138,7 +140,7 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 6,
             Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
@@ -543,6 +545,7 @@ public sealed class MainForm : Form
         localizationLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         localizationLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         localizationLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        localizationLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         localizationLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
 
         _gameLocalizationTitle.AutoSize = true;
@@ -561,11 +564,25 @@ public sealed class MainForm : Form
         _gameLocalizationDetails.Anchor = AnchorStyles.None;
         _gameLocalizationDetails.Font = new Font("Segoe UI", 9F);
         _gameLocalizationDetails.Tag = StalkerTheme.MutedLabelTag;
-        _gameLocalizationDetails.Margin = new Padding(0);
+        _gameLocalizationDetails.Margin = new Padding(0, 0, 0, 10);
+
+        _gameLocalizationResults.Anchor = AnchorStyles.None;
+        _gameLocalizationResults.AutoSize = true;
+        _gameLocalizationResults.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _gameLocalizationResults.ColumnCount = 3;
+        _gameLocalizationResults.RowCount = 0;
+        _gameLocalizationResults.Margin = new Padding(0);
+        _gameLocalizationResults.Padding = new Padding(0);
+        _gameLocalizationResults.BackColor = StalkerTheme.PanelAlt;
+        _gameLocalizationResults.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.333F));
+        _gameLocalizationResults.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.333F));
+        _gameLocalizationResults.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.334F));
+        _gameLocalizationResults.Visible = false;
 
         localizationLayout.Controls.Add(_gameLocalizationTitle, 0, 1);
         localizationLayout.Controls.Add(_gameLocalizationStatus, 0, 2);
         localizationLayout.Controls.Add(_gameLocalizationDetails, 0, 3);
+        localizationLayout.Controls.Add(_gameLocalizationResults, 0, 4);
         localizationCard.Controls.Add(localizationLayout);
         layout.Controls.Add(localizationCard, 0, 0);
 
@@ -1070,7 +1087,6 @@ public sealed class MainForm : Form
             CompleteProgress(_l.T("ui.done"));
             AppendLog("=========== LOCALIZATION EXTRACTION DONE ===========");
             LogGameWorkflowReady();
-            MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
         {
@@ -1584,16 +1600,14 @@ public sealed class MainForm : Form
 
     private void RefreshGameLocalizationOverview()
     {
-        var supportedLanguages = BuildLanguageCatalog.All.Count;
-
         _gameLocalizationTitle.Text = "GAME LOCALIZATION";
 
         if (_game is null)
         {
             _gameLocalizationStatus.Text = "READY TO SCAN";
             _gameLocalizationStatus.ForeColor = StalkerTheme.Accent;
-            _gameLocalizationDetails.Text =
-                $"{supportedLanguages} supported languages  •  pakchunk0 localization source";
+            _gameLocalizationDetails.Text = string.Empty;
+            SetGameLocalizationResults(Array.Empty<BuildLanguage>());
             return;
         }
 
@@ -1605,6 +1619,7 @@ public sealed class MainForm : Form
                 _game.ScanError.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                     .FirstOrDefault()
                 ?? "Localization scan failed.";
+            SetGameLocalizationResults(Array.Empty<BuildLanguage>());
             return;
         }
 
@@ -1614,29 +1629,131 @@ public sealed class MainForm : Form
             _gameLocalizationStatus.ForeColor = StalkerTheme.Danger;
             _gameLocalizationDetails.Text =
                 "No supported GAME localization source was detected.";
+            SetGameLocalizationResults(Array.Empty<BuildLanguage>());
+            return;
+        }
+
+        var extractedLanguages = _game.NeedsExtraction
+            ? new List<BuildLanguage>()
+            : BuildLanguageCatalog.All
+                .Where(language => File.Exists(
+                    Path.Combine(
+                        _settings.EditableFolder,
+                        "Game",
+                        language.Key + ".json"
+                    )
+                ))
+                .ToList();
+
+        if (extractedLanguages.Count > 0)
+        {
+            _gameLocalizationStatus.Text = _game.UiStatus == ModUiStatus.BuiltVerified
+                ? "BUILT & VERIFIED"
+                : "READY TO BUILD";
+            _gameLocalizationStatus.ForeColor = _game.UiStatus == ModUiStatus.BuiltVerified
+                ? StalkerTheme.Success
+                : StalkerTheme.Accent;
+
+            _gameLocalizationDetails.Text =
+                $"{extractedLanguages.Count} editable JSON file"
+                + (extractedLanguages.Count == 1 ? string.Empty : "s");
+
+            SetGameLocalizationResults(extractedLanguages);
             return;
         }
 
         _gameLocalizationStatus.Text = "LOCALIZATION FOUND";
         _gameLocalizationStatus.ForeColor = StalkerTheme.Success;
+        _gameLocalizationDetails.Text = CanRestoreEditableFromCache(_game)
+            ? "Ready to restore editable JSONs"
+            : "Ready to extract";
+        SetGameLocalizationResults(Array.Empty<BuildLanguage>());
+    }
 
-        var state = _game.UiStatus switch
+    private void SetGameLocalizationResults(
+        IReadOnlyList<BuildLanguage> languages)
+    {
+        var signature = string.Join(
+            "|",
+            languages.Select(language => language.Key)
+        );
+
+        if (string.Equals(
+                signature,
+                _gameLocalizationResultSignature,
+                StringComparison.Ordinal))
         {
-            ModUiStatus.NeedsExtraction or ModUiStatus.MissingTranslation
-                => "Ready to extract",
-            ModUiStatus.Available or ModUiStatus.Extracted
-                => "Ready to build",
-            ModUiStatus.BuiltVerified
-                => "Built & verified",
-            ModUiStatus.NoLanguageSelected
-                => "Select a build language",
-            ModUiStatus.Error
-                => "Error",
-            _ => "Detected",
-        };
+            _gameLocalizationResults.Visible = languages.Count > 0;
+            return;
+        }
 
-        _gameLocalizationDetails.Text =
-            $"{supportedLanguages} supported languages  •  {_game.LocalizationKind}  •  {state}";
+        _gameLocalizationResultSignature = signature;
+
+        _gameLocalizationResults.SuspendLayout();
+        try
+        {
+            foreach (Control control in _gameLocalizationResults.Controls)
+                control.Dispose();
+
+            _gameLocalizationResults.Controls.Clear();
+            _gameLocalizationResults.RowStyles.Clear();
+
+            if (languages.Count == 0)
+            {
+                _gameLocalizationResults.RowCount = 0;
+                _gameLocalizationResults.Visible = false;
+                return;
+            }
+
+            const int columns = 3;
+            var rows = (int)Math.Ceiling(languages.Count / (double)columns);
+            _gameLocalizationResults.RowCount = rows;
+
+            for (var row = 0; row < rows; row++)
+                _gameLocalizationResults.RowStyles.Add(
+                    new RowStyle(SizeType.Absolute, 46)
+                );
+
+            for (var index = 0; index < languages.Count; index++)
+            {
+                var language = languages[index];
+                var item = new Label
+                {
+                    AutoSize = false,
+                    Dock = DockStyle.Fill,
+                    Height = 40,
+                    Text =
+                        $"✓  {_l.LanguageName(language)}"
+                        + Environment.NewLine
+                        + $"    {language.Key}.json",
+                    TextAlign = ContentAlignment.MiddleLeft,
+                    Font = new Font("Segoe UI", 8.25F),
+                    ForeColor = StalkerTheme.Text,
+                    BackColor = StalkerTheme.Panel,
+                    Padding = new Padding(8, 3, 8, 3),
+                    Margin = new Padding(3),
+                };
+
+                _toolTip.SetToolTip(
+                    item,
+                    Path.Combine(
+                        _settings.EditableFolder,
+                        "Game",
+                        language.Key + ".json"
+                    )
+                );
+
+                var column = index % columns;
+                var row = index / columns;
+                _gameLocalizationResults.Controls.Add(item, column, row);
+            }
+
+            _gameLocalizationResults.Visible = true;
+        }
+        finally
+        {
+            _gameLocalizationResults.ResumeLayout(true);
+        }
     }
 
     private void UpdateButtons()
