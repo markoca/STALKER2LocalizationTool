@@ -53,10 +53,10 @@ public static class ModSourceDiscovery
 
     private sealed class ArchiveDiscoveryCache
     {
-        public int Version { get; set; } = 1;
+        public int Version { get; set; } = 2;
         public long ArchiveLength { get; set; }
         public long ArchiveLastWriteUtcTicks { get; set; }
-        public string ArchiveSha256 { get; set; } = string.Empty;
+        public string ArchiveIdentity { get; set; } = string.Empty;
         public List<ArchiveTriplet> Triplets { get; set; } = new();
     }
 
@@ -121,18 +121,30 @@ public static class ModSourceDiscovery
 
         Directory.CreateDirectory(materializationRoot);
 
-        var looseUtocs = Directory
-            .EnumerateFiles(modsRoot, "*.utoc", SearchOption.AllDirectories)
-            .Where(path => !IsInsideIgnoredSourceDirectory(modsRoot, path))
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var looseUtocs = new List<string>();
+        var archivePaths = new List<string>();
 
-        var archivePaths = Directory
-            .EnumerateFiles(modsRoot, "*", SearchOption.AllDirectories)
-            .Where(path => !IsInsideIgnoredSourceDirectory(modsRoot, path))
-            .Where(IsSupportedArchive)
-            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        foreach (var path in Directory.EnumerateFiles(
+                     modsRoot,
+                     "*",
+                     SearchOption.AllDirectories))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (IsInsideIgnoredSourceDirectory(modsRoot, path))
+                continue;
+
+            var extension = Path.GetExtension(path);
+            if (extension.Equals(".utoc", StringComparison.OrdinalIgnoreCase))
+                looseUtocs.Add(path);
+            else if (ArchiveExtensions.Contains(
+                         extension,
+                         StringComparer.OrdinalIgnoreCase))
+                archivePaths.Add(path);
+        }
+
+        looseUtocs.Sort(StringComparer.OrdinalIgnoreCase);
+        archivePaths.Sort(StringComparer.OrdinalIgnoreCase);
 
         var discoveryTotal = Math.Max(1, looseUtocs.Count + archivePaths.Count);
         var discoveryCurrent = 0;
@@ -385,6 +397,10 @@ public static class ModSourceDiscovery
         var archiveRelative = Path.GetRelativePath(modsRoot, archivePath);
         var archiveDisplay = Path.GetFileNameWithoutExtension(archivePath);
         var archiveInfo = new FileInfo(archivePath);
+        var archiveIdentity = ArchiveIdentity(
+            archivePath,
+            archiveInfo
+        );
         var discoveryCachePath = ArchiveDiscoveryCachePath(
             materializationRoot,
             archivePath
@@ -488,10 +504,10 @@ public static class ModSourceDiscovery
                 discoveryCachePath,
                 new ArchiveDiscoveryCache
                 {
-                    Version = 1,
+                    Version = 2,
                     ArchiveLength = archiveInfo.Length,
                     ArchiveLastWriteUtcTicks = archiveInfo.LastWriteTimeUtc.Ticks,
-                    ArchiveSha256 = string.Empty,
+                    ArchiveIdentity = archiveIdentity,
                     Triplets = new List<ArchiveTriplet>(),
                 }
             );
@@ -502,16 +518,14 @@ public static class ModSourceDiscovery
             yield break;
         }
 
-        var archiveHash = Sha256File(archivePath);
-
         SaveArchiveDiscoveryCache(
             discoveryCachePath,
             new ArchiveDiscoveryCache
             {
-                Version = 1,
+                Version = 2,
                 ArchiveLength = archiveInfo.Length,
                 ArchiveLastWriteUtcTicks = archiveInfo.LastWriteTimeUtc.Ticks,
-                ArchiveSha256 = archiveHash,
+                ArchiveIdentity = archiveIdentity,
                 Triplets = triplets,
             }
         );
@@ -536,18 +550,16 @@ public static class ModSourceDiscovery
             var targetDir = MaterializedTripletDirectory(
                 materializationRoot,
                 archiveDisplay,
-                archiveHash,
+                archiveIdentity,
                 triplet
             );
             Directory.CreateDirectory(targetDir);
 
-            var pakTarget = Path.Combine(targetDir, triplet.Stem + ".pak");
             var utocTarget = Path.Combine(targetDir, triplet.Stem + ".utoc");
-            var ucasTarget = Path.Combine(targetDir, triplet.Stem + ".ucas");
 
-            ExtractIfNeeded(byNormalizedName[triplet.PakMember], pakTarget);
+            // SCAN only needs the IoStore directory index. Large PAK/UCAS payloads
+            // are materialized lazily by EXTRACT if localization is actually present.
             ExtractIfNeeded(byNormalizedName[triplet.UtocMember], utocTarget);
-            ExtractIfNeeded(byNormalizedName[triplet.UcasMember], ucasTarget);
 
             containers.Add(utocTarget);
             labels[utocTarget] = triplet.Stem;
@@ -582,7 +594,7 @@ public static class ModSourceDiscovery
         try
         {
             var cache = JsonUtil.Load<ArchiveDiscoveryCache>(cachePath);
-            if (cache.Version != 1
+            if (cache.Version != 2
                 || cache.ArchiveLength != archiveInfo.Length
                 || cache.ArchiveLastWriteUtcTicks != archiveInfo.LastWriteTimeUtc.Ticks)
             {
@@ -592,7 +604,7 @@ public static class ModSourceDiscovery
             if (cache.Triplets.Count == 0)
                 return cache;
 
-            return !string.IsNullOrWhiteSpace(cache.ArchiveSha256)
+            return !string.IsNullOrWhiteSpace(cache.ArchiveIdentity)
                 ? cache
                 : null;
         }
@@ -638,19 +650,13 @@ public static class ModSourceDiscovery
             var targetDir = MaterializedTripletDirectory(
                 materializationRoot,
                 archiveDisplay,
-                cache.ArchiveSha256,
+                cache.ArchiveIdentity,
                 triplet
             );
 
             if (!FileMatchesSize(
-                    Path.Combine(targetDir, triplet.Stem + ".pak"),
-                    triplet.PakSize)
-                || !FileMatchesSize(
                     Path.Combine(targetDir, triplet.Stem + ".utoc"),
-                    triplet.UtocSize)
-                || !FileMatchesSize(
-                    Path.Combine(targetDir, triplet.Stem + ".ucas"),
-                    triplet.UcasSize))
+                    triplet.UtocSize))
             {
                 return false;
             }
@@ -684,7 +690,7 @@ public static class ModSourceDiscovery
             var targetDir = MaterializedTripletDirectory(
                 materializationRoot,
                 archiveDisplay,
-                cache.ArchiveSha256,
+                cache.ArchiveIdentity,
                 triplet
             );
             var utocTarget = Path.Combine(
@@ -711,13 +717,13 @@ public static class ModSourceDiscovery
     private static string MaterializedTripletDirectory(
         string materializationRoot,
         string archiveDisplay,
-        string archiveHash,
+        string archiveIdentity,
         ArchiveTriplet triplet)
     {
         var memberIdentity = HashUtil.Sha256Text(triplet.UtocMember)[..12];
         return Path.Combine(
             materializationRoot,
-            PathUtil.MakeSafeName(archiveDisplay) + "_" + archiveHash[..12],
+            PathUtil.MakeSafeName(archiveDisplay) + "_" + archiveIdentity[..12],
             PathUtil.MakeSafeName(triplet.Stem) + "_" + memberIdentity
         );
     }
@@ -795,17 +801,17 @@ public static class ModSourceDiscovery
     private static string CombineArchivePath(string parent, string name) =>
         string.IsNullOrEmpty(parent) ? name : parent + "/" + name;
 
-    private static string Sha256File(string path)
+    private static string ArchiveIdentity(
+        string archivePath,
+        FileInfo archiveInfo)
     {
-        using var stream = new FileStream(
-            path,
-            FileMode.Open,
-            FileAccess.Read,
-            FileShare.ReadWrite,
-            1024 * 1024,
-            FileOptions.SequentialScan
+        return HashUtil.Sha256Text(
+            string.Join(
+                "|",
+                Path.GetFullPath(archivePath),
+                archiveInfo.Length,
+                archiveInfo.LastWriteTimeUtc.Ticks
+            )
         );
-        using var sha = SHA256.Create();
-        return Convert.ToHexString(sha.ComputeHash(stream)).ToLowerInvariant();
     }
 }
