@@ -282,14 +282,14 @@ internal static class StalkerTheme
         grid.EnableHeadersVisualStyles = false;
         grid.BackgroundColor = Panel;
         grid.BorderStyle = BorderStyle.FixedSingle;
-        grid.GridColor = Border;
+        grid.GridColor = BorderSoft;
         grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
-        grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single;
+        grid.ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.None;
         grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = TitleBar,
-            ForeColor = Text,
-            SelectionBackColor = TitleBar,
+            BackColor = PanelAlt,
+            ForeColor = Accent,
+            SelectionBackColor = PanelAlt,
             SelectionForeColor = Accent,
             Font = new Font(grid.Font, FontStyle.Bold),
             Alignment = DataGridViewContentAlignment.MiddleLeft,
@@ -1764,7 +1764,7 @@ internal sealed class StalkerLanguageSelector : Panel
     public override Size GetPreferredSize(Size proposedSize)
     {
         const int preferredColumnWidth = 220;
-        const int preferredRowHeight = 27;
+        const int preferredRowHeight = 31;
 
         var availableWidth = proposedSize.Width > 0
             ? Math.Max(1, proposedSize.Width - Padding.Horizontal)
@@ -1864,7 +1864,7 @@ internal sealed class StalkerLanguageSelector : Panel
             return;
 
         const int preferredColumnWidth = 220;
-        const int preferredRowHeight = 27;
+        const int preferredRowHeight = 31;
 
         var contentLeft = Padding.Left;
         var contentTop = Padding.Top;
