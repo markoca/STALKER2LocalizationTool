@@ -27,7 +27,10 @@ internal static class StalkerTheme
     public static readonly Color Accent = Color.FromArgb(0xF0, 0xC4, 0x19);
     public static readonly Color AccentHover = Color.FromArgb(0xFF, 0xD4, 0x38);
     public static readonly Color AccentDark = Color.FromArgb(0x80, 0x6B, 0x12);
+    public static readonly Color Success = Color.FromArgb(0x8E, 0xB0, 0x78);
+    public static readonly Color SuccessDark = Color.FromArgb(0x45, 0x5D, 0x3B);
     public static readonly Color Danger = Color.FromArgb(0xD7, 0x7A, 0x62);
+    public static readonly Color BorderSoft = Color.FromArgb(0x2C, 0x30, 0x2A);
 
     private static readonly Lazy<bool> WineRuntime = new(DetectWineRuntime);
     public static bool IsWine => WineRuntime.Value;
@@ -77,6 +80,10 @@ internal static class StalkerTheme
                 break;
 
             case StalkerUtilityButton:
+                control.ForeColor = Text;
+                break;
+
+            case StalkerActionButton:
                 control.ForeColor = Text;
                 break;
 
@@ -233,6 +240,13 @@ internal static class StalkerTheme
         bool primary)
     {
         button.Tag = primary ? PrimaryButtonTag : null;
+
+        if (button is StalkerActionButton actionButton)
+        {
+            actionButton.Primary = primary;
+            return;
+        }
+
         RefreshButtonStyle(button, owner);
     }
 
@@ -295,6 +309,48 @@ internal static class StalkerTheme
             Padding = new Padding(4, 2, 4, 2),
         };
         grid.RowTemplate.Height = Math.Max(grid.RowTemplate.Height, 28);
+    }
+
+    internal static GraphicsPath CreateChamferPath(Rectangle rectangle, int cut)
+    {
+        var path = new GraphicsPath();
+        if (rectangle.Width <= 0 || rectangle.Height <= 0)
+            return path;
+
+        var actualCut = Math.Max(
+            0,
+            Math.Min(
+                cut,
+                Math.Min(rectangle.Width, rectangle.Height) / 2
+            )
+        );
+
+        var left = rectangle.Left;
+        var top = rectangle.Top;
+        var right = rectangle.Right;
+        var bottom = rectangle.Bottom;
+
+        path.AddPolygon(new[]
+        {
+            new Point(left, top),
+            new Point(right - actualCut, top),
+            new Point(right, top + actualCut),
+            new Point(right, bottom),
+            new Point(left + actualCut, bottom),
+            new Point(left, bottom - actualCut),
+        });
+        path.CloseFigure();
+        return path;
+    }
+
+    internal static Color Blend(Color foreground, Color background, int foregroundAlpha)
+    {
+        var alpha = Math.Clamp(foregroundAlpha, 0, 255) / 255d;
+        return Color.FromArgb(
+            (int)Math.Round(foreground.R * alpha + background.R * (1d - alpha)),
+            (int)Math.Round(foreground.G * alpha + background.G * (1d - alpha)),
+            (int)Math.Round(foreground.B * alpha + background.B * (1d - alpha))
+        );
     }
 
     public static Icon? CreateWindowIcon()
@@ -974,6 +1030,8 @@ internal sealed class StalkerBrandMark : Control
 internal sealed class StalkerCardPanel : Panel
 {
     public bool AccentEdge { get; set; }
+    public bool TechnicalMarks { get; set; } = true;
+    public int ChamferSize { get; set; } = 8;
 
     public StalkerCardPanel()
     {
@@ -989,21 +1047,410 @@ internal sealed class StalkerCardPanel : Panel
             true);
     }
 
+    protected override void OnResize(EventArgs eventargs)
+    {
+        base.OnResize(eventargs);
+        UpdateRegion();
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        var rect = new Rectangle(
+            0,
+            0,
+            Math.Max(0, ClientSize.Width - 1),
+            Math.Max(0, ClientSize.Height - 1)
+        );
+        if (rect.Width <= 0 || rect.Height <= 0)
+            return;
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = StalkerTheme.CreateChamferPath(rect, ChamferSize);
+        using var fill = new SolidBrush(BackColor);
+        e.Graphics.FillPath(fill, path);
+    }
+
     protected override void OnPaint(PaintEventArgs e)
     {
         base.OnPaint(e);
 
-        var rect = ClientRectangle;
+        var rect = new Rectangle(
+            0,
+            0,
+            Math.Max(0, ClientSize.Width - 1),
+            Math.Max(0, ClientSize.Height - 1)
+        );
         if (rect.Width <= 0 || rect.Height <= 0)
             return;
 
-        using var border = new Pen(StalkerTheme.Border);
-        e.Graphics.DrawRectangle(border, 0, 0, rect.Width - 1, rect.Height - 1);
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = StalkerTheme.CreateChamferPath(rect, ChamferSize);
+        using (var border = new Pen(StalkerTheme.Border))
+            e.Graphics.DrawPath(border, path);
 
         if (AccentEdge)
         {
-            using var accent = new SolidBrush(StalkerTheme.Accent);
-            e.Graphics.FillRectangle(accent, 0, 0, 3, rect.Height);
+            using var accent = new Pen(StalkerTheme.Accent, 3F);
+            e.Graphics.DrawLine(
+                accent,
+                rect.Left + 1,
+                rect.Top + ChamferSize + 2,
+                rect.Left + 1,
+                rect.Bottom - ChamferSize - 2
+            );
+        }
+
+        if (!TechnicalMarks)
+            return;
+
+        using var technical = new Pen(StalkerTheme.BorderSoft);
+        var markLength = Math.Min(18, Math.Max(8, rect.Width / 12));
+        e.Graphics.DrawLine(
+            technical,
+            Math.Max(rect.Left, rect.Right - ChamferSize - markLength),
+            rect.Top + 3,
+            rect.Right - ChamferSize - 3,
+            rect.Top + 3
+        );
+        e.Graphics.DrawLine(
+            technical,
+            rect.Left + ChamferSize + 3,
+            rect.Bottom - 3,
+            Math.Min(rect.Right, rect.Left + ChamferSize + markLength),
+            rect.Bottom - 3
+        );
+    }
+
+    private void UpdateRegion()
+    {
+        if (ClientSize.Width <= 1 || ClientSize.Height <= 1)
+            return;
+
+        using var path = StalkerTheme.CreateChamferPath(
+            new Rectangle(0, 0, ClientSize.Width, ClientSize.Height),
+            ChamferSize
+        );
+        var next = new Region(path);
+        var old = Region;
+        Region = next;
+        old?.Dispose();
+    }
+}
+
+/// <summary>
+/// Owner-drawn industrial action button. The asymmetric chamfer makes workflow actions
+/// visually distinct from utility/chrome buttons while remaining deterministic on Windows/Wine.
+/// </summary>
+internal sealed class StalkerActionButton : Button
+{
+    private bool _primary;
+    private bool _hovered;
+    private bool _pressed;
+
+    public bool Primary
+    {
+        get => _primary;
+        set
+        {
+            if (_primary == value)
+                return;
+            _primary = value;
+            Invalidate();
+        }
+    }
+
+    public StalkerActionButton()
+    {
+        FlatStyle = FlatStyle.Flat;
+        FlatAppearance.BorderSize = 0;
+        UseVisualStyleBackColor = false;
+        BackColor = StalkerTheme.PanelAlt;
+        ForeColor = StalkerTheme.Text;
+        Cursor = Cursors.Hand;
+        TabStop = false;
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (ClientSize.Width <= 1 || ClientSize.Height <= 1)
+            return;
+
+        using var path = StalkerTheme.CreateChamferPath(
+            new Rectangle(0, 0, ClientSize.Width, ClientSize.Height),
+            7
+        );
+        var next = new Region(path);
+        var old = Region;
+        Region = next;
+        old?.Dispose();
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hovered = false;
+        _pressed = false;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs mevent)
+    {
+        if (Enabled && mevent.Button == MouseButtons.Left)
+            _pressed = true;
+        Invalidate();
+        base.OnMouseDown(mevent);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs mevent)
+    {
+        _pressed = false;
+        Invalidate();
+        base.OnMouseUp(mevent);
+    }
+
+    protected override void OnEnabledChanged(EventArgs e)
+    {
+        Invalidate();
+        base.OnEnabledChanged(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var rect = new Rectangle(
+            0,
+            0,
+            Math.Max(0, ClientSize.Width - 1),
+            Math.Max(0, ClientSize.Height - 1)
+        );
+        if (rect.Width <= 0 || rect.Height <= 0)
+            return;
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = StalkerTheme.CreateChamferPath(rect, 7);
+
+        var baseColor = !Enabled
+            ? StalkerTheme.Panel
+            : _pressed
+                ? (_primary ? StalkerTheme.AccentDark : StalkerTheme.PanelPressed)
+                : _hovered
+                    ? (_primary ? StalkerTheme.AccentHover : StalkerTheme.PanelHover)
+                    : (_primary ? StalkerTheme.Accent : StalkerTheme.PanelAlt);
+
+        using (var fill = new SolidBrush(baseColor))
+            e.Graphics.FillPath(fill, path);
+
+        var borderColor = !Enabled
+            ? StalkerTheme.BorderSoft
+            : _primary
+                ? StalkerTheme.AccentHover
+                : _hovered
+                    ? StalkerTheme.AccentDark
+                    : StalkerTheme.Border;
+        using (var border = new Pen(borderColor))
+            e.Graphics.DrawPath(border, path);
+
+        if (_primary && Enabled)
+        {
+            using var rail = new SolidBrush(
+                _pressed ? StalkerTheme.AccentHover : StalkerTheme.AccentDark
+            );
+            e.Graphics.FillRectangle(
+                rail,
+                rect.Left + 1,
+                rect.Top + 6,
+                3,
+                Math.Max(1, rect.Height - 12)
+            );
+        }
+
+        var foreground = !Enabled
+            ? StalkerTheme.MutedText
+            : _primary
+                ? Color.Black
+                : _hovered
+                    ? StalkerTheme.Accent
+                    : StalkerTheme.Text;
+
+        TextRenderer.DrawText(
+            e.Graphics,
+            Text,
+            Font,
+            ClientRectangle,
+            foreground,
+            TextFormatFlags.HorizontalCenter
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis
+            | TextFormatFlags.NoPrefix
+        );
+    }
+}
+
+internal enum StalkerWorkflowState
+{
+    Pending,
+    Active,
+    Complete,
+}
+
+/// <summary>
+/// Compact step-aware workflow rail used by GAME and MODS.
+/// </summary>
+internal sealed class StalkerWorkflowRail : Control
+{
+    private readonly string[] _labels;
+    private StalkerWorkflowState[] _states;
+
+    public StalkerWorkflowRail(params string[] labels)
+    {
+        _labels = labels.Length == 0 ? new[] { "SCAN", "EXTRACT", "BUILD" } : labels;
+        _states = Enumerable.Repeat(StalkerWorkflowState.Pending, _labels.Length).ToArray();
+        Height = 48;
+        MinimumSize = new Size(240, 48);
+        BackColor = StalkerTheme.PanelAlt;
+        ForeColor = StalkerTheme.Text;
+
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
+    }
+
+    public void SetStates(params StalkerWorkflowState[] states)
+    {
+        if (states.Length != _labels.Length)
+            throw new ArgumentException("Workflow state count must match the number of labels.", nameof(states));
+
+        if (_states.SequenceEqual(states))
+            return;
+
+        _states = states.ToArray();
+        Invalidate();
+    }
+
+    protected override void OnPaintBackground(PaintEventArgs e)
+    {
+        e.Graphics.Clear(Parent?.BackColor ?? BackColor);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        if (_labels.Length == 0 || ClientSize.Width <= 0 || ClientSize.Height <= 0)
+            return;
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+
+        var segmentWidth = ClientSize.Width / (double)_labels.Length;
+        var markerSize = 22;
+        var markerTop = 4;
+        var labelTop = markerTop + markerSize + 5;
+
+        for (var index = 0; index < _labels.Length; index++)
+        {
+            var centerX = (int)Math.Round(segmentWidth * (index + 0.5));
+            var markerRect = new Rectangle(
+                centerX - markerSize / 2,
+                markerTop,
+                markerSize,
+                markerSize
+            );
+
+            if (index < _labels.Length - 1)
+            {
+                var nextCenterX = (int)Math.Round(segmentWidth * (index + 1.5));
+                var connectorY = markerRect.Top + markerRect.Height / 2;
+                var connectorColor = _states[index] == StalkerWorkflowState.Complete
+                    ? StalkerTheme.SuccessDark
+                    : StalkerTheme.Border;
+                using var connector = new Pen(connectorColor, 2F);
+                e.Graphics.DrawLine(
+                    connector,
+                    markerRect.Right + 5,
+                    connectorY,
+                    nextCenterX - markerSize / 2 - 5,
+                    connectorY
+                );
+            }
+
+            var state = _states[index];
+            var fillColor = state switch
+            {
+                StalkerWorkflowState.Active => StalkerTheme.Accent,
+                StalkerWorkflowState.Complete => StalkerTheme.SuccessDark,
+                _ => StalkerTheme.Panel,
+            };
+            var borderColor = state switch
+            {
+                StalkerWorkflowState.Active => StalkerTheme.AccentHover,
+                StalkerWorkflowState.Complete => StalkerTheme.Success,
+                _ => StalkerTheme.Border,
+            };
+            var numberColor = state == StalkerWorkflowState.Active
+                ? Color.Black
+                : state == StalkerWorkflowState.Complete
+                    ? StalkerTheme.Success
+                    : StalkerTheme.MutedText;
+
+            using (var markerPath = StalkerTheme.CreateChamferPath(markerRect, 5))
+            {
+                using var fill = new SolidBrush(fillColor);
+                using var border = new Pen(borderColor);
+                e.Graphics.FillPath(fill, markerPath);
+                e.Graphics.DrawPath(border, markerPath);
+            }
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                (index + 1).ToString("00"),
+                new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                markerRect,
+                numberColor,
+                TextFormatFlags.HorizontalCenter
+                | TextFormatFlags.VerticalCenter
+                | TextFormatFlags.NoPadding
+            );
+
+            var labelRect = new Rectangle(
+                (int)Math.Round(segmentWidth * index),
+                labelTop,
+                Math.Max(1, (int)Math.Ceiling(segmentWidth)),
+                Math.Max(1, ClientSize.Height - labelTop)
+            );
+            var labelColor = state switch
+            {
+                StalkerWorkflowState.Active => StalkerTheme.Accent,
+                StalkerWorkflowState.Complete => StalkerTheme.Success,
+                _ => StalkerTheme.MutedText,
+            };
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                _labels[index],
+                new Font("Segoe UI", 8F, FontStyle.Bold),
+                labelRect,
+                labelColor,
+                TextFormatFlags.HorizontalCenter
+                | TextFormatFlags.Top
+                | TextFormatFlags.EndEllipsis
+                | TextFormatFlags.NoPrefix
+            );
         }
     }
 }
