@@ -77,8 +77,8 @@ BUILD
 Workflow:
 
 1. **SCAN GAME** scans the game localization source.
-2. **EXTRACT** creates all supported editable language JSON files.
-3. Edit JSONs in `Editable/Game`.
+2. **EXTRACT** creates all supported translation language JSON files.
+3. Edit JSONs in `Translations/Game`.
 4. Select one or more languages.
 5. **BUILD** creates the selected localization package(s).
 
@@ -88,7 +88,7 @@ Workflow:
 =========== FOUND GAME LOCALIZATION ===========
 ```
 
-**EXTRACT** creates the canonical rebuild cache under `Cached/Game` and seeds `Editable/Game`.
+**EXTRACT** creates the canonical rebuild cache under `Source/Game` and seeds `Translations/Game`.
 
 After successful extraction:
 
@@ -97,7 +97,7 @@ After successful extraction:
 =========== LOCALIZATION READY FOR BUILD ===========
 ```
 
-If `Editable/Game` is deleted while a valid `Cached/Game` still exists, the next scan reports **LOCALIZATION READY FOR EXTRACTION**. EXTRACT restores the missing editable files from Cached without re-reading the game source packages.
+If `Translations/Game` is deleted while a valid `Source/Game` still exists, the next scan reports **LOCALIZATION READY FOR EXTRACTION**. EXTRACT restores the missing editable files from Source without re-reading the game source packages.
 
 **BUILD** serializes the selected language with S2HOCMM and packages the verified `Game.locres` with repak.
 
@@ -129,11 +129,11 @@ The full MODS workflow is:
 3. Complete IoStore triplets are discovered and localization content is inspected.
 4. MODS localization uses supported OverrideContent-side containers only.
 5. New or changed mods are marked **Needs extraction**.
-6. **EXTRACT** writes canonical rebuild data under `Cached/<mod>` and seeds `Editable/<mod>`.
-7. Edit `Editable/<mod>/<language>.json`.
+6. **EXTRACT** writes canonical rebuild data under `Source/<mod>` and seeds `Translations/<mod>`.
+7. Edit `Translations/<mod>/<language>.json`.
 8. Build either **MODULAR** or **ALL-IN-ONE**.
 
-If editable translation files are removed while corresponding Cached data is still valid, EXTRACT restores only the missing Editable files and does not overwrite files that are still present.
+If translation files are removed while corresponding Source data is still valid, EXTRACT restores only the missing Translations files and does not overwrite files that are still present.
 
 Archive display names are normalized for the UI: Nexus download IDs are omitted and detected versions are shown as `vX.X` / `vX.X.X` where available.
 
@@ -144,8 +144,8 @@ Internal paths always follow the currently running executable:
 ```text
 Localization Workbench.exe
 
-Cached/
-Editable/
+Source/
+Translations/
 Output/
 tools/
 ```
@@ -174,19 +174,19 @@ Localization Workbench.exe
 user-paths.json
 
 Mods/
-Cached/
+Source/
 ├── Game/
 └── <mod>/
-Editable/
+Translations/
 ├── Game/
 └── <mod>/
 Output/
 tools/
 ```
 
-`Cached` is rebuild state and should not be edited manually.
+`Source` is rebuild state and should not be edited manually.
 
-`Editable` contains user-editable localization JSON files.
+`Translations` contains user-translation JSON files.
 
 ## Build verification
 
@@ -216,7 +216,7 @@ Both publish paths create a self-contained Windows x64 runtime under:
 publish/win-x64/
 ```
 
-Existing `user-paths.json`, `Mods`, `Cached`, `Editable`, `Output`, and locally supplied `tools` data are preserved across republish.
+Existing `user-paths.json`, `Mods`, `Source`, `Translations`, `Output`, and locally supplied `tools` data are preserved across republish.
 
 A clean distribution should not include helper-tool binaries. The release may contain only `tools/README.txt`; the user supplies the actual tools.
 
