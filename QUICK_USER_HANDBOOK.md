@@ -1,7 +1,7 @@
 # LOCALIZATION WORKBENCH
 ## VERSION 2 — QUICK USER HANDBOOK
 
-**v2.0.0-rc.1**
+**v2.0.0**
 
 **Extract. Edit. Build.**
 
@@ -213,13 +213,13 @@ SCAN GAME
 When game localization is found, the log reports:
 
 ```text
-=========== FOUND GAME LOCALIZATION ===========
+=== FOUND GAME LOCALIZATION ===
 ```
 
 If extraction is required:
 
 ```text
-=========== LOCALIZATION READY FOR EXTRACTION ===========
+=== LOCALIZATION READY FOR EXTRACTION ===
 ```
 
 ### STEP 2 — EXTRACT
@@ -253,8 +253,8 @@ Source\Game\
 After successful extraction, the log reports:
 
 ```text
-=========== LOCALIZATION EXTRACTION DONE ===========
-=========== LOCALIZATION READY FOR BUILD ===========
+=== LOCALIZATION EXTRACTION DONE ===
+=== LOCALIZATION READY FOR BUILD ===
 ```
 
 ### STEP 3 — EDIT JSON
@@ -352,8 +352,8 @@ Before the first scan in the current session, entering the MODS tab checks only 
 If mod sources are found, the log reports once:
 
 ```text
-=========== MODS FOUND ===========
-=========== READY TO SCAN ===========
+=== MODS FOUND ===
+=== READY TO SCAN ===
 ```
 
 Switching between GAME and MODS does not repeat these messages.
@@ -397,7 +397,7 @@ Needs extraction
 When extraction is required, the log reports:
 
 ```text
-=========== MODS READY FOR EXTRACTION ===========
+=== MODS READY FOR EXTRACTION ===
 ```
 
 ### STEP 3 — EXTRACT
@@ -435,7 +435,7 @@ Translations\SomeMod\
 When extraction is complete and localization is ready to build, the log reports:
 
 ```text
-=========== MODS READY FOR BUILD ===========
+=== MODS READY FOR BUILD ===
 ```
 
 ### STEP 4 — EDIT JSON

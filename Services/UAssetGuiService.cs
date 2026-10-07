@@ -56,7 +56,7 @@ public sealed class UAssetGuiService
             throw new InvalidOperationException(
                 "UAssetGUI failed before managed code could start. The configured UAssetGUI.exe cannot load its .NET application bundle; " +
                 "the extracted .uasset has not been parsed yet and is not implicated by this error. " +
-                $"Localization Workbench v{AppConstants.Version} is tested with UAssetGUI {AppConstants.UAssetGuiVersion}; " +
+                $"Localization Workbench v{AppConstants.ProductVersion} is tested with UAssetGUI {AppConstants.UAssetGuiVersion}; " +
                 "replace tools\\UAssetGUI.exe with a compatible known-good binary, then retry. " +
                 "On Linux/Wine, UAssetGUI v1.1.0 also requires the .NET 8 Desktop Runtime in the same Wine prefix.",
                 ex

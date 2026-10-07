@@ -1,4 +1,4 @@
-# Release candidate checklist
+# Localization Workbench v2.0.0 release checklist
 
 ## Publish
 
@@ -42,6 +42,10 @@
 
 ## Workspace and UI
 
+- [ ] A fresh EXTRACT creates only language JSON files under `Translations/<source>`; rebuild/cache files remain under `Source/<source>`.
+- [ ] Deleting any individual translation JSON enables EXTRACT recovery for the missing file without overwriting existing translation JSONs.
+- [ ] Workflow log section banners use exactly `=== TEXT ===` and log lines have no timestamp prefix.
+- [ ] The Workbench icon appears in the Windows/Wine taskbar while the custom top bar remains icon-free.
 - [ ] DELETE SOURCE DATA removes Source state and forces MODS to be scanned again.
 - [ ] After DELETE SOURCE DATA, the log reports that GAME and MODS source data were reset; GAME shows READY TO SCAN or READY FOR EXTRACTION as appropriate, while MODS shows READY TO SCAN MODS.
 - [ ] GAME / MODS workflow buttons remain step-aware.
@@ -57,4 +61,4 @@
 - [ ] Build-language selection tiles clearly distinguish unchecked, hover, checked and disabled states at 100%, 125% and 150% scaling.
 - [ ] GAME extracted-file result tiles render filenames without clipping and retain full-path tooltips.
 - [ ] LOG remains readable and scrollable with the borderless terminal treatment on Windows and Wine.
-- [ ] Settings path fields, Browse buttons, AUTO indicators, Auto Scan switch, Save/Cancel and Delete Source Data render consistently with the Industrial Zone theme.
+- [ ] Settings path fields, Browse buttons, AUTO indicators, Auto Refresh switch, Save/Cancel and Delete Source Data render consistently with the Industrial Zone theme.

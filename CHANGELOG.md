@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.0.0
+
+- Promoted the audited Version 2 baseline from release candidate to final `2.0.0`.
+- Preserved cancellation semantics through GAME scanning and archive discovery instead of converting cancellation into scan errors.
+- Made fresh `Translations` workspaces JSON-only; internal manifests/assets remain exclusively under `Source`.
+- Added per-file translation recovery: EXTRACT restores missing language JSONs without overwriting existing edits.
+- Standardized workflow log section decorators to `=== TEXT ===` and removed timestamp prefixes.
+- Added a dedicated Workbench application/taskbar icon, including explicit Wine window-icon propagation while keeping the custom title bar icon-free.
+- Renamed the misleading automatic-scan Settings wording to Auto Refresh semantics; watchers refresh workspace readiness only and never start MODS source scans.
+- Completed dead-code/API cleanup, lifecycle cleanup and final publish-script consistency checks.
+- Finalized Version 2 README, handbook, release notes and release checklist.
+
 ## 2.0.0-rc.1
 
 - Established the cleaned **Localization Workbench** Version 2 release-candidate baseline on `main`.

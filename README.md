@@ -1,12 +1,12 @@
 # Localization Workbench
 
-**Version:** `2.0.0-rc.1`
+**Version:** `2.0.0`
 
 Windows desktop workbench for extracting, editing and rebuilding S.T.A.L.K.E.R. 2 localization.
 
-This branch is the current **Version 2 Release Candidate 1** baseline. The project now uses `main` as the authoritative development branch.
+This branch is the final **Version 2** baseline. The project uses `main` as the authoritative release/development branch.
 
-## v2 RC1 highlights
+## v2 highlights
 
 - Unified **Localization Workbench** project/application identity.
 - English UI strings are embedded in the application; there are no loose locale files.
@@ -19,16 +19,16 @@ This branch is the current **Version 2 Release Candidate 1** baseline. The proje
 - Clear decorated workflow log states such as:
 
 ```text
-=========== GAME FOUND ===========
-=========== READY TO SCAN ===========
-=========== FOUND GAME LOCALIZATION ===========
-=========== LOCALIZATION READY FOR EXTRACTION ===========
-=========== LOCALIZATION EXTRACTION DONE ===========
-=========== LOCALIZATION READY FOR BUILD ===========
-=========== MODS FOUND ===========
-=========== SCANNING MODS ===========
-=========== MODS READY FOR EXTRACTION ===========
-=========== MODS READY FOR BUILD ===========
+=== GAME FOUND ===
+=== READY TO SCAN ===
+=== FOUND GAME LOCALIZATION ===
+=== LOCALIZATION READY FOR EXTRACTION ===
+=== LOCALIZATION EXTRACTION DONE ===
+=== LOCALIZATION READY FOR BUILD ===
+=== MODS FOUND ===
+=== SCANNING MODS ===
+=== MODS READY FOR EXTRACTION ===
+=== MODS READY FOR BUILD ===
 ```
 
 ## Supported target
@@ -85,7 +85,7 @@ Workflow:
 **SCAN GAME** inspects the supported game localization sources. A successful discovery reports:
 
 ```text
-=========== FOUND GAME LOCALIZATION ===========
+=== FOUND GAME LOCALIZATION ===
 ```
 
 **EXTRACT** creates canonical rebuild source data under `Source/Game` and seeds `Translations/Game`.
@@ -93,8 +93,8 @@ Workflow:
 After successful extraction:
 
 ```text
-=========== LOCALIZATION EXTRACTION DONE ===========
-=========== LOCALIZATION READY FOR BUILD ===========
+=== LOCALIZATION EXTRACTION DONE ===
+=== LOCALIZATION READY FOR BUILD ===
 ```
 
 If `Translations/Game` is deleted while a valid `Source/Game` still exists, the next scan reports **LOCALIZATION READY FOR EXTRACTION**. EXTRACT restores the missing translation files from Source without re-reading the game source packages.
@@ -116,8 +116,8 @@ MODS scanning is intentionally **manual-only**:
 Before the first MODS scan in the current session, entering the MODS tab performs only a lightweight source-presence check. If mod sources are present, these banners are shown once:
 
 ```text
-=========== MODS FOUND ===========
-=========== READY TO SCAN ===========
+=== MODS FOUND ===
+=== READY TO SCAN ===
 ```
 
 Switching between GAME and MODS does not repeat those pre-scan banners.
@@ -234,13 +234,10 @@ wine "publish/win-x64/Localization Workbench.exe"
 
 The Wine prefix used for UAssetGUI must provide the .NET 8 Desktop Runtime expected by that tool.
 
-## Release candidate validation
+## Release validation
 
-This baseline is **Localization Workbench v2.0.0-rc.1**.
+This baseline is **Localization Workbench v2.0.0**.
 
-Before promoting it to a final Version 2 release, run the complete regression pass in:
-
-- `RC_CHECKLIST.md`
-- `RELEASE_CANDIDATE.md`
+The final regression pass is documented in `RELEASE_CHECKLIST.md`, and the shipped Version 2 summary is in `RELEASE_NOTES.md`.
 
 For end-user instructions, see `QUICK_USER_HANDBOOK.md`.

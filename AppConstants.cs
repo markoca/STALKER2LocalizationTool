@@ -3,7 +3,9 @@ namespace LocalizationWorkbench;
 internal static class AppConstants
 {
     public const string AppName = "Localization Workbench";
-    public const string Version = "2.0.0-rc.1";
+    public static string ProductVersion =>
+        typeof(AppConstants).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+
     public const string EngineVersion = "VER_UE5_5";
     public const string RetocEngineVersion = "UE5_5";
     public const string UAssetGuiVersion = "v1.1.0";
