@@ -1361,6 +1361,8 @@ internal sealed class StalkerWorkflowRail : Control
         var markerSize = 22;
         var markerTop = 4;
         var labelTop = markerTop + markerSize + 5;
+        using var numberFont = new Font("Segoe UI", 7.5F, FontStyle.Bold);
+        using var labelFont = new Font("Segoe UI", 8F, FontStyle.Bold);
 
         for (var index = 0; index < _labels.Length; index++)
         {
@@ -1419,7 +1421,7 @@ internal sealed class StalkerWorkflowRail : Control
             TextRenderer.DrawText(
                 e.Graphics,
                 (index + 1).ToString("00"),
-                new Font("Segoe UI", 7.5F, FontStyle.Bold),
+                numberFont,
                 markerRect,
                 numberColor,
                 TextFormatFlags.HorizontalCenter
@@ -1443,7 +1445,7 @@ internal sealed class StalkerWorkflowRail : Control
             TextRenderer.DrawText(
                 e.Graphics,
                 _labels[index],
-                new Font("Segoe UI", 8F, FontStyle.Bold),
+                labelFont,
                 labelRect,
                 labelColor,
                 TextFormatFlags.HorizontalCenter
