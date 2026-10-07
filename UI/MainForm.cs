@@ -19,7 +19,7 @@ public sealed class MainForm : Form
     private readonly StalkerWindowButton _closeButton = new() { IsCloseButton = true };
     private readonly Label _buildLanguageLabel = new();
     private readonly StalkerLanguageSelector _buildLanguages = new();
-    private readonly Button _settingsButton = new StalkerUtilityButton();
+    private readonly StalkerNavButton _settingsButton = new();
     private readonly StalkerActionButton _scanModsButton = new();
     private readonly StalkerActionButton _extractButton = new();
     private readonly StalkerActionButton _buildModularButton = new();
@@ -27,11 +27,14 @@ public sealed class MainForm : Form
     private readonly Panel _workspaceHost = new();
     private readonly Panel _gameTab = new();
     private readonly Panel _modsTab = new();
+    private readonly Panel _settingsTab = new();
     private readonly StalkerNavButton _gameTabButton = new();
     private readonly StalkerNavButton _modsTabButton = new();
+    private SettingsForm? _settingsView;
     private Panel? _activeWorkspaceTab;
     private bool IsGameWorkspace => ReferenceEquals(_activeWorkspaceTab, _gameTab);
     private bool IsModsWorkspace => ReferenceEquals(_activeWorkspaceTab, _modsTab);
+    private bool IsSettingsWorkspace => ReferenceEquals(_activeWorkspaceTab, _settingsTab);
     private readonly StalkerActionButton _scanGameButton = new();
     private readonly StalkerActionButton _extractGameButton = new();
     private readonly StalkerActionButton _buildGameButton = new();
@@ -60,18 +63,21 @@ public sealed class MainForm : Form
     private bool _shownOnce;
     private bool _loadingLanguageChecks;
     private bool _suspendWatcherScan;
-    private bool _lastSettingsDeletedSource;
     private bool _modsScanInProgress;
     private bool _modsReadyPromptShown;
 
     private FileSystemWatcher? _translationsWatcher;
     private FileSystemWatcher? _sourceWatcher;
+    private string _configuredGamePaksFolder = string.Empty;
+    private string _configuredModsFolder = string.Empty;
     private readonly System.Windows.Forms.Timer _watchDebounce = new() { Interval = 900 };
 
     public MainForm(AppSettings settings, Localizer localizer)
     {
         _settings = settings;
         _l = localizer;
+        _configuredGamePaksFolder = _settings.GamePaksFolder;
+        _configuredModsFolder = _settings.ModsFolder;
 
         Text = AppConstants.AppName;
         StartPosition = FormStartPosition.CenterScreen;
