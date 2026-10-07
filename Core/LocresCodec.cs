@@ -20,15 +20,12 @@ public sealed class LocresDocument
 public sealed class LocresNamespace
 {
     public string Name { get; set; } = string.Empty;
-    public uint? StoredHash { get; set; }
     public List<LocresEntry> Entries { get; set; } = new();
 }
 
 public sealed class LocresEntry
 {
     public string Key { get; set; } = string.Empty;
-    public uint? StoredKeyHash { get; set; }
-    public uint SourceStringHash { get; set; }
     public string Value { get; set; } = string.Empty;
 }
 
@@ -95,32 +92,29 @@ public static class LocresCodec
         var namespaceCount = ReadReasonableCount(reader, stream, "namespace count", 1_000_000);
         for (var i = 0; i < namespaceCount; i++)
         {
-            uint? namespaceHash = null;
             if (document.Version >= LocresVersion.Optimized)
             {
                 EnsureRemaining(stream, 4, "LOCRES namespace hash");
-                namespaceHash = reader.ReadUInt32();
+                _ = reader.ReadUInt32();
             }
 
             var ns = new LocresNamespace
             {
                 Name = ReadUnrealString(reader, stream),
-                StoredHash = namespaceHash,
             };
 
             var keyCount = ReadReasonableCount(reader, stream, "namespace key count", 5_000_000);
             for (var j = 0; j < keyCount; j++)
             {
-                uint? keyHash = null;
                 if (document.Version >= LocresVersion.Optimized)
                 {
                     EnsureRemaining(stream, 4, "LOCRES key hash");
-                    keyHash = reader.ReadUInt32();
+                    _ = reader.ReadUInt32();
                 }
 
                 var key = ReadUnrealString(reader, stream);
                 EnsureRemaining(stream, 4, "LOCRES source-string hash");
-                var sourceHash = reader.ReadUInt32();
+                _ = reader.ReadUInt32();
 
                 string value;
                 if (document.Version >= LocresVersion.Compact)
@@ -139,8 +133,6 @@ public static class LocresCodec
                 ns.Entries.Add(new LocresEntry
                 {
                     Key = key,
-                    StoredKeyHash = keyHash,
-                    SourceStringHash = sourceHash,
                     Value = value,
                 });
             }

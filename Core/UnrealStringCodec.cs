@@ -168,15 +168,6 @@ public static class UnrealStringCodec
         stream.Write(bytes);
     }
 
-    public static byte[] WriteFString(
-        string? value,
-        FStringEncoding preferredEncoding)
-    {
-        using var stream = new MemoryStream();
-        WriteFString(stream, value, preferredEncoding);
-        return stream.ToArray();
-    }
-
     private static void Ensure(byte[] data, int offset, int length, string message)
     {
         if (offset < 0 || length < 0 || offset > data.Length - length)
