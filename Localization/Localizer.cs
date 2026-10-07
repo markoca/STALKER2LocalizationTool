@@ -21,7 +21,7 @@ public sealed class Localizer
         ["ui.build_language"] = "Build languages",
         ["ui.mods"] = "MODS",
         ["ui.editable_translations"] = "EDITABLE JSONS",
-        ["ui.extract"] = "EXTRACT NEW / CHANGED",
+        ["ui.extract"] = "EXTRACT",
         ["ui.build_modular"] = "BUILD MODULAR",
         ["ui.build_all_in_one"] = "BUILD ALL-IN-ONE",
         ["ui.tab_game"] = "GAME",
