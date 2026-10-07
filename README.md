@@ -77,7 +77,7 @@ BUILD
 Workflow:
 
 1. **SCAN GAME** scans the game localization source.
-2. **EXTRACT** creates all supported translation language JSON files.
+2. **EXTRACT** creates one translation JSON file for every supported language.
 3. Edit JSONs in `Translations/Game`.
 4. Select one or more languages.
 5. **BUILD** creates the selected localization package(s).
@@ -88,7 +88,7 @@ Workflow:
 =========== FOUND GAME LOCALIZATION ===========
 ```
 
-**EXTRACT** creates the canonical rebuild cache under `Source/Game` and seeds `Translations/Game`.
+**EXTRACT** creates canonical rebuild source data under `Source/Game` and seeds `Translations/Game`.
 
 After successful extraction:
 
@@ -97,7 +97,7 @@ After successful extraction:
 =========== LOCALIZATION READY FOR BUILD ===========
 ```
 
-If `Translations/Game` is deleted while a valid `Source/Game` still exists, the next scan reports **LOCALIZATION READY FOR EXTRACTION**. EXTRACT restores the missing editable files from Source without re-reading the game source packages.
+If `Translations/Game` is deleted while a valid `Source/Game` still exists, the next scan reports **LOCALIZATION READY FOR EXTRACTION**. EXTRACT restores the missing translation files from Source without re-reading the game source packages.
 
 **BUILD** serializes the selected language with S2HOCMM and packages the verified `Game.locres` with repak.
 
@@ -133,7 +133,7 @@ The full MODS workflow is:
 7. Edit `Translations/<mod>/<language>.json`.
 8. Build either **MODULAR** or **ALL-IN-ONE**.
 
-If translation files are removed while corresponding Source data is still valid, EXTRACT restores only the missing Translations files and does not overwrite files that are still present.
+If translation files are removed while corresponding Source data is still valid, EXTRACT restores only the missing translation files and does not overwrite files that are still present.
 
 Archive display names are normalized for the UI: Nexus download IDs are omitted and detected versions are shown as `vX.X` / `vX.X.X` where available.
 
@@ -186,7 +186,7 @@ tools/
 
 `Source` is rebuild state and should not be edited manually.
 
-`Translations` contains user-translation JSON files.
+`Translations` contains the JSON files you edit and build.
 
 ## Build verification
 
