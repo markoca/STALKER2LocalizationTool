@@ -23,8 +23,6 @@ public static class FileLinker
         if (TryLink(source, destination))
             return true;
 
-        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-
         await using var input = new FileStream(
             source,
             FileMode.Open,

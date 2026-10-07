@@ -59,7 +59,7 @@ public sealed class BuildService
 
     private async Task<ModBuildResult> BuildOneAsync(ModScanResult mod, int targetLanguageId, CancellationToken cancellationToken)
     {
-        var result = new ModBuildResult { ModId = mod.ModId, ModName = mod.ModName };
+        var result = new ModBuildResult { ModId = mod.ModId };
         var sourceRoot = Path.Combine(_settings.SourceFolder, mod.ModId);
         var manifest = LoadAndValidateManifest(mod, sourceRoot);
         var translations = LoadTranslations(mod);
@@ -104,14 +104,7 @@ public sealed class BuildService
         result.Built = result.OutputFiles.Count > 0;
         result.Verified = true;
         if (!result.Built)
-        {
-            result.Message = "No translation keys matched buildable localization entries for the selected language.";
             TryDeleteDirectory(outputModRoot);
-        }
-        else
-        {
-            result.Message = $"Built and verified {result.OutputFiles.Count} output file(s).";
-        }
 
         return result;
     }
@@ -307,10 +300,7 @@ public sealed class BuildService
         if (expectedPackages.Count == 0)
         {
             foreach (var result in results)
-            {
                 result.Verified = true;
-                result.Message ??= "No Translation values required LocalizationDatabase changes.";
-            }
             TryDeleteDirectory(outputRoot);
             return results;
         }
@@ -350,8 +340,7 @@ public sealed class BuildService
             result.Built = result.AssetsPatched > 0;
             if (result.Built)
             {
-                result.OutputUtoc = outputUtoc;
-                result.OutputFiles.AddRange(sharedFiles);
+                        result.OutputFiles.AddRange(sharedFiles);
                 result.Message = $"Included {result.AssetsPatched} verified localization package(s) in the All-in-One overlay.";
             }
             else
@@ -380,8 +369,6 @@ public sealed class BuildService
 
         var expectedPackages = new Dictionary<string, ExpectedDatabasePackage>(StringComparer.OrdinalIgnoreCase);
         var scriptObjectsCopied = false;
-        var matchedTotal = 0;
-        var changedTotal = 0;
         var assetsPatched = 0;
 
         foreach (var asset in manifest.Assets)
@@ -435,9 +422,6 @@ public sealed class BuildService
                 + $"changed={patch.ChangedSids.Count}"
             );
 
-            matchedTotal += patch.MatchedSids.Count;
-            changedTotal += patch.ChangedSids.Count;
-
             // Match the current launch.py baseline: only databases whose target
             // Serbian slot actually changes need a physical override package.
             if (patch.ChangedSids.Count == 0)
@@ -489,8 +473,6 @@ public sealed class BuildService
         }
 
         result.AssetsPatched = assetsPatched;
-        result.MatchedSids = matchedTotal;
-        result.ChangedSids = changedTotal;
 
         if (assetsPatched == 0)
         {
@@ -518,7 +500,6 @@ public sealed class BuildService
             cancellationToken
         );
 
-        result.OutputUtoc = outputUtoc;
         result.OutputFiles.Add(outputUtoc);
         result.OutputFiles.Add(Path.ChangeExtension(outputUtoc, ".ucas"));
         result.OutputFiles.Add(Path.ChangeExtension(outputUtoc, ".pak"));

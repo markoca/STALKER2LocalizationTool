@@ -28,8 +28,6 @@ public static class UAssetInspector
         }
 
         JsonElement? candidate = null;
-        var exportCount = exports.GetArrayLength();
-
         foreach (var export in exports.EnumerateArray())
         {
             if (export.ValueKind != JsonValueKind.Object)
@@ -129,7 +127,6 @@ public static class UAssetInspector
             Payload = payload,
             SerialSize = serialSize,
             SerialOffset = serialOffset,
-            ExportCount = exportCount,
             ImportsLocalizationDatabaseClass = importsClass,
             InternalPackagePath = internalPackagePath,
         };

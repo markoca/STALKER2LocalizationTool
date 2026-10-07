@@ -4,7 +4,7 @@ namespace LocalizationWorkbench.Models;
 
 public sealed class AppSettings
 {
-    public List<int> BuildLanguageIds { get; set; } = new() { 4 };
+    public List<int> BuildLanguageIds { get; set; } = new() { BuildLanguageCatalog.Default.Id };
 
     public string GamePaksFolder { get; set; } = string.Empty;
     public string ModsFolder { get; set; } = string.Empty;

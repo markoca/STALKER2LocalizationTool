@@ -26,6 +26,9 @@ public static class BuildLanguageCatalog
         new BuildLanguage(17, "ukrainian", "Ukrainian", "uk"),
     };
 
+    public static readonly BuildLanguage Default =
+        All.Single(x => string.Equals(x.Key, "english", StringComparison.Ordinal));
+
     public static BuildLanguage ById(int id) =>
-        All.FirstOrDefault(x => x.Id == id) ?? All.First(x => x.Id == 4);
+        All.FirstOrDefault(x => x.Id == id) ?? Default;
 }
