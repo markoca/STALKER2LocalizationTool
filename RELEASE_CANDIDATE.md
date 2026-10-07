@@ -59,7 +59,7 @@ tools/
 
 The publish process never sources or redistributes tool binaries from the repository.
 
-They do not contain legacy workspace or settings migration behavior.
+They perform only the one-time safe workspace rename from the previous folder names to `Source` / `Translations`; no older settings/workspace migration system is restored.
 
 ## Expected runtime
 
