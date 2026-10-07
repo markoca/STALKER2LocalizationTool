@@ -225,7 +225,7 @@ public sealed class BuildService
                 );
 
                 // Match current launch.py: an already-correct source needs no physical
-                // overlay asset. Only a real Serbian-slot change enters the output.
+                // overlay asset. Only a real selected-language change enters the output.
                 if (patch.ChangedSids.Count == 0)
                     continue;
 
@@ -400,7 +400,7 @@ public sealed class BuildService
             );
 
             // Match the current launch.py baseline: only databases whose target
-            // Serbian slot actually changes need a physical override package.
+            // selected language slot actually changes need a physical override package.
             if (patch.ChangedSids.Count == 0)
                 continue;
 
