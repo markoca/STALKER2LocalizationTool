@@ -23,6 +23,7 @@
 - MODS EXTRACT now completes without a success popup; completion remains visible through the grid status, workflow log and status bar.
 - Settings typography now uses the same Segoe UI family as the main window, avoiding a separate Bahnschrift rendering dependency across Windows/Wine.
 - Fixed borderless-window dragging: the main and Settings custom title bars are draggable from their non-interactive child surfaces while caption buttons remain clickable.
+- Main and Settings window title typography now uses matching **17 pt** sizes for `LOCALIZATION` and `WORKBENCH`, keeping emphasis through weight/color instead of mismatched scale.
 - Renamed the runtime workspace folders from **Cached / Editable** to gamer-facing **Source / Translations** across the application, build/extraction pipeline, Settings, documentation and publishers.
 - **DELETE SOURCE DATA** now reports that both GAME and MODS source data were reset; GAME and MODS tabs then show their correct next scan/extraction state.
 - Added a one-time safe workspace-directory rename for existing installs; old folders are moved only when the new destination does not already exist, and publishers refuse ambiguous old/new folder conflicts rather than merging data.
