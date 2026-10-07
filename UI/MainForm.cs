@@ -2037,7 +2037,7 @@ public sealed class MainForm : Form
         }
 
         // MODS scan results can contain materialized UTOC paths inside Source.
-        // DELETE CACHE removes those files, so keeping the old scan result would
+        // DELETE SOURCE DATA removes those files, so keeping the old scan result would
         // leave stale container paths and cause "UTOC not found" errors during
         // extraction. Drop MODS state completely and require a fresh SCAN MODS.
         _mods.Clear();
