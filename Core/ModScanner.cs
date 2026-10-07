@@ -178,49 +178,61 @@ public sealed class ModScanner
                         $"Scanning {containerLabel}"
                     ));
 
-                    var usedSparsePlaceholder =
-                        string.Equals(
-                            group.SourceKind,
-                            "archive",
-                            StringComparison.OrdinalIgnoreCase)
-                        && ModSourceDiscovery
-                            .HasArchiveScanUcasPlaceholder(utoc);
+                    var directTimer = Stopwatch.StartNew();
+                    var directSucceeded =
+                        UtocDirectoryIndexScanner.TryListLocalizationAssets(
+                            utoc,
+                            _modsRoot,
+                            out var scannedAliases,
+                            out var directFallbackReason
+                        );
+                    directTimer.Stop();
 
-                    var sparseFallbackUsed = false;
-                    var retocTimer = Stopwatch.StartNew();
-                    List<LocalizationAlias> scannedAliases;
-
-                    try
+                    if (directSucceeded)
                     {
-                        scannedAliases = await _retoc
-                            .ListLocalizationAssetsAsync(
-                                utoc,
-                                _modsRoot,
-                                cancellationToken
-                            );
-                        retocTimer.Stop();
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        throw;
-                    }
-                    catch (Exception firstError)
-                        when (usedSparsePlaceholder)
-                    {
-                        retocTimer.Stop();
-                        _log?.Invoke(
-                            $"Sparse UCAS fast path rejected for "
-                            + $"{group.ModName} :: {containerLabel}; "
-                            + $"retrying with real UCAS. "
-                            + firstError.Message
+                        SaveContainerScanCache(
+                            scanCacheRoot,
+                            group,
+                            utoc,
+                            containerLabel,
+                            utocHash,
+                            scannedAliases
                         );
 
+                        _log?.Invoke(
+                            $"Scan timing: {group.ModName} :: {containerLabel} | "
+                            + $"hash={hashTimer.Elapsed.TotalSeconds:N1}s | "
+                            + $"utoc-index={directTimer.Elapsed.TotalSeconds:N1}s | "
+                            + $"aliases={scannedAliases.Count}"
+                        );
+
+                        return new ContainerScanOutcome
+                        {
+                            Group = group,
+                            Order = job.Order,
+                            FingerprintLine = fingerprintLine,
+                            Aliases = scannedAliases,
+                            DirectIndexed = true,
+                        };
+                    }
+
+                    _log?.Invoke(
+                        $"Direct UTOC index fallback for "
+                        + $"{group.ModName} :: {containerLabel}: "
+                        + $"{directFallbackReason ?? "unsupported UTOC layout"}"
+                    );
+
+                    if (string.Equals(
+                            group.SourceKind,
+                            "archive",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
                         var fallbackGate = archiveFallbackGates[group];
                         await fallbackGate.WaitAsync(cancellationToken);
                         try
                         {
                             await ModSourceDiscovery
-                                .MaterializeArchiveScanUcasFallbackAsync(
+                                .EnsureArchiveScanUcasMaterializedAsync(
                                     _modsRoot,
                                     materializationRoot,
                                     group.SourceLabel,
@@ -233,17 +245,16 @@ public sealed class ModScanner
                         {
                             fallbackGate.Release();
                         }
-
-                        sparseFallbackUsed = true;
-                        retocTimer.Restart();
-                        scannedAliases = await _retoc
-                            .ListLocalizationAssetsAsync(
-                                utoc,
-                                _modsRoot,
-                                cancellationToken
-                            );
-                        retocTimer.Stop();
                     }
+
+                    var retocTimer = Stopwatch.StartNew();
+                    scannedAliases = await _retoc
+                        .ListLocalizationAssetsAsync(
+                            utoc,
+                            _modsRoot,
+                            cancellationToken
+                        );
+                    retocTimer.Stop();
 
                     SaveContainerScanCache(
                         scanCacheRoot,
@@ -254,17 +265,11 @@ public sealed class ModScanner
                         scannedAliases
                     );
 
-                    var sparseStatus = !usedSparsePlaceholder
-                        ? string.Empty
-                        : sparseFallbackUsed
-                            ? " | sparse-ucas=fallback"
-                            : " | sparse-ucas=accepted";
-
                     _log?.Invoke(
                         $"Scan timing: {group.ModName} :: {containerLabel} | "
                         + $"hash={hashTimer.Elapsed.TotalSeconds:N1}s | "
+                        + $"utoc-index=fallback | "
                         + $"retoc={retocTimer.Elapsed.TotalSeconds:N1}s"
-                        + sparseStatus
                     );
 
                     return new ContainerScanOutcome
@@ -274,10 +279,7 @@ public sealed class ModScanner
                         FingerprintLine = fingerprintLine,
                         Aliases = scannedAliases,
                         RetocScanned = true,
-                        SparseAccepted =
-                            usedSparsePlaceholder
-                            && !sparseFallbackUsed,
-                        SparseFallback = sparseFallbackUsed,
+                        DirectFallback = true,
                     };
                 }
                 catch (OperationCanceledException)
@@ -307,12 +309,11 @@ public sealed class ModScanner
 
         var scanOutcomes = await Task.WhenAll(scanTasks);
         var scanCacheHits = scanOutcomes.Count(outcome => outcome.CacheHit);
-        var retocScans = scanOutcomes.Count(outcome => outcome.RetocScanned);
-        var sparseAccepted = scanOutcomes.Count(
-            outcome => outcome.SparseAccepted
+        var directIndexed = scanOutcomes.Count(
+            outcome => outcome.DirectIndexed
         );
-        var sparseFallbacks = scanOutcomes.Count(
-            outcome => outcome.SparseFallback
+        var retocScans = scanOutcomes.Count(
+            outcome => outcome.RetocScanned
         );
 
         var completedGroups = 0;
@@ -410,9 +411,8 @@ public sealed class ModScanner
         _log?.Invoke(
             $"MODS scan completed in {scanTimer.Elapsed.TotalSeconds:N1}s; "
             + $"containers={totalSources}, cache-reused={scanCacheHits}, "
-            + $"retoc-scanned={retocScans}, "
-            + $"sparse-accepted={sparseAccepted}, "
-            + $"sparse-fallback={sparseFallbacks}."
+            + $"utoc-indexed={directIndexed}, "
+            + $"retoc-fallback={retocScans}."
         );
 
         return groups
@@ -435,9 +435,9 @@ public sealed class ModScanner
         public List<LocalizationAlias> Aliases { get; init; } = new();
         public string? Error { get; init; }
         public bool CacheHit { get; init; }
+        public bool DirectIndexed { get; init; }
         public bool RetocScanned { get; init; }
-        public bool SparseAccepted { get; init; }
-        public bool SparseFallback { get; init; }
+        public bool DirectFallback { get; init; }
     }
 
     private sealed class InlineProgress<T> : IProgress<T>
@@ -500,7 +500,7 @@ public sealed class ModScanner
 
     private sealed class ContainerScanCache
     {
-        public int Version { get; set; } = 1;
+        public int Version { get; set; } = 2;
         public string SourceKind { get; set; } = string.Empty;
         public string SourceLabel { get; set; } = string.Empty;
         public string ContainerLabel { get; set; } = string.Empty;
@@ -527,7 +527,7 @@ public sealed class ModScanner
         try
         {
             var cache = JsonUtil.Load<ContainerScanCache>(cachePath);
-            if (cache.Version != 1
+            if (cache.Version != 2
                 || !string.Equals(cache.SourceKind, group.SourceKind, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(cache.SourceLabel, group.SourceLabel, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(cache.ContainerLabel, containerLabel, StringComparison.OrdinalIgnoreCase)
@@ -578,7 +578,7 @@ public sealed class ModScanner
                 cachePath,
                 new ContainerScanCache
                 {
-                    Version = 1,
+                    Version = 2,
                     SourceKind = group.SourceKind,
                     SourceLabel = group.SourceLabel,
                     ContainerLabel = containerLabel,
