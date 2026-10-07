@@ -278,26 +278,13 @@ public sealed class MainForm : Form
         tabStrip.Controls.Add(_gameTabButton);
         tabStrip.Controls.Add(_modsTabButton);
 
-        ConfigureNavButton(_settingsButton, 102);
+        _settingsButton.Width = 150;
         _settingsButton.Margin = new Padding(0);
         _settingsButton.Dock = DockStyle.Right;
-        _settingsButton.Click += async (_, _) =>
-        {
-            if (ShowSettings() != DialogResult.OK)
-                return;
+        _settingsButton.Click += (_, _) => OpenSettingsTab();
 
-            if (_lastSettingsDeletedSource)
-                return;
-
-            if (IsGameWorkspace)
-                await ScanGameAsync();
-            else
-                ShowModsReadyToScan();
-        };
-
-        // Keep the navigation geometry deterministic: tabs are physically docked
-        // to the left edge and Settings directly to the right edge of navBar.
-        // No intermediate TableLayoutPanel can reserve extra width around Settings.
+        // Keep the navigation geometry deterministic: GAME/MODS stay on the left,
+        // while SETTINGS is a real workspace tab docked to the far right.
         navBar.Controls.Add(_settingsButton);
         navBar.Controls.Add(tabStrip);
         root.Controls.Add(navBar, 0, 1);
@@ -411,10 +398,16 @@ public sealed class MainForm : Form
         _modsTab.Margin = new Padding(0);
         _modsTab.Padding = new Padding(0);
         _modsTab.BackColor = StalkerTheme.Panel;
+        _settingsTab.Dock = DockStyle.Fill;
+        _settingsTab.Margin = new Padding(0);
+        _settingsTab.Padding = new Padding(0);
+        _settingsTab.BackColor = StalkerTheme.Panel;
 
         BuildGameTab();
         BuildModsTab();
+        BuildSettingsTab();
 
+        _workspaceHost.Controls.Add(_settingsTab);
         _workspaceHost.Controls.Add(_modsTab);
         _workspaceHost.Controls.Add(_gameTab);
         workspaceCard.Controls.Add(_workspaceHost);
