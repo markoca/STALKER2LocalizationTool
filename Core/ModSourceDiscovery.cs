@@ -555,40 +555,31 @@ public static class ModSourceDiscovery
             );
             Directory.CreateDirectory(targetDir);
 
-            var utocTarget = Path.Combine(targetDir, triplet.Stem + ".utoc");
-            var ucasTarget = Path.Combine(targetDir, triplet.Stem + ".ucas");
+            var utocTarget = Path.Combine(
+                targetDir,
+                triplet.Stem + ".utoc"
+            );
 
-            // Experimental fast path: retoc list needs an adjacent UCAS path, but
-            // may not need to read its payload while enumerating the UTOC directory
-            // index. Keep the real UTOC and create a logical-size zero-backed UCAS
-            // placeholder. ModScanner falls back to the real UCAS automatically if
-            // retoc rejects the placeholder.
+            // Direct MODS scanning reads the directory index from UTOC itself.
+            // UCAS and PAK stay compressed in the archive unless the direct reader
+            // cannot handle this container or EXTRACT later needs the payload.
             var utocWasReady = FileMatchesSize(
                 utocTarget,
                 triplet.UtocSize
             );
-            var placeholderWasReady = IsScanUcasPlaceholder(
-                ucasTarget,
-                triplet.UcasSize
-            );
-
-            var payloadTimer = Stopwatch.StartNew();
+            var utocTimer = Stopwatch.StartNew();
             ExtractIfNeeded(
                 byNormalizedName[triplet.UtocMember],
                 utocTarget
             );
-            var placeholderCreated = EnsureScanUcasPlaceholder(
-                ucasTarget,
-                triplet.UcasSize
-            );
-            payloadTimer.Stop();
+            utocTimer.Stop();
 
-            if (!utocWasReady || (!placeholderWasReady && placeholderCreated))
+            if (!utocWasReady)
             {
                 log?.Invoke(
-                    $"Archive scan fast payload ready: {archiveRelative} :: "
-                    + $"{triplet.Stem} (UTOC + sparse UCAS placeholder) in "
-                    + $"{payloadTimer.Elapsed.TotalSeconds:N1}s."
+                    $"Archive UTOC materialized: {archiveRelative} :: "
+                    + $"{triplet.Stem} in "
+                    + $"{utocTimer.Elapsed.TotalSeconds:N1}s."
                 );
             }
 
@@ -601,7 +592,7 @@ public static class ModSourceDiscovery
         log?.Invoke(
             $"Archive mod source: {archiveRelative} -> "
             + $"{retained.Count} IoStore container(s) [{displayName}] "
-            + "(UTOC + sparse UCAS scan fast path)"
+            + "(direct UTOC directory-index scan)"
         );
 
         yield return new SourceGroup
@@ -660,14 +651,7 @@ public static class ModSourceDiscovery
         }
     }
 
-    public static bool HasArchiveScanUcasPlaceholder(
-        string sourceUtoc)
-    {
-        var ucasPath = Path.ChangeExtension(sourceUtoc, ".ucas");
-        return File.Exists(ScanPlaceholderMarkerPath(ucasPath));
-    }
-
-    public static async Task<bool> MaterializeArchiveScanUcasFallbackAsync(
+    public static async Task<bool> EnsureArchiveScanUcasMaterializedAsync(
         string modsRoot,
         string materializationRoot,
         string archiveRelative,
@@ -721,8 +705,9 @@ public static class ModSourceDiscovery
                     dir,
                     triplet.Stem + ".ucas"
                 );
+
                 return requested.Contains(utocPath)
-                       && IsScanUcasPlaceholder(
+                       && !FileMatchesSize(
                            ucasPath,
                            triplet.UcasSize
                        );
@@ -736,8 +721,8 @@ public static class ModSourceDiscovery
 
         var timer = Stopwatch.StartNew();
         log?.Invoke(
-            $"Sparse UCAS fast path rejected; materializing real UCAS "
-            + $"for {Path.GetFileName(archivePath)} "
+            $"Direct UTOC scan fallback: materializing real UCAS for "
+            + $"{Path.GetFileName(archivePath)} "
             + $"({pending.Count} container(s))."
         );
 
@@ -787,7 +772,8 @@ public static class ModSourceDiscovery
                 cache.ArchiveIdentity,
                 triplet
             );
-            await ReplaceScanUcasPlaceholderAsync(
+
+            await ExtractIfNeededAsync(
                 ucasEntry,
                 Path.Combine(
                     dir,
@@ -799,7 +785,7 @@ public static class ModSourceDiscovery
 
         timer.Stop();
         log?.Invoke(
-            $"Real UCAS fallback ready in "
+            $"retoc fallback UCAS ready in "
             + $"{timer.Elapsed.TotalSeconds:N1}s: "
             + $"{Path.GetFileName(archivePath)}"
         );
@@ -894,9 +880,6 @@ public static class ModSourceDiscovery
                            triplet.UtocSize)
                        || !FileMatchesSize(
                            Path.Combine(dir, triplet.Stem + ".ucas"),
-                           triplet.UcasSize)
-                       || IsScanUcasPlaceholder(
-                           Path.Combine(dir, triplet.Stem + ".ucas"),
                            triplet.UcasSize);
             })
             .ToList();
@@ -977,28 +960,14 @@ public static class ModSourceDiscovery
                 ),
                 cancellationToken
             );
-            var ucasTarget = Path.Combine(
-                materializedDir,
-                triplet.Stem + ".ucas"
+            await ExtractIfNeededAsync(
+                ucasEntry,
+                Path.Combine(
+                    materializedDir,
+                    triplet.Stem + ".ucas"
+                ),
+                cancellationToken
             );
-            if (IsScanUcasPlaceholder(
-                    ucasTarget,
-                    triplet.UcasSize))
-            {
-                await ReplaceScanUcasPlaceholderAsync(
-                    ucasEntry,
-                    ucasTarget,
-                    cancellationToken
-                );
-            }
-            else
-            {
-                await ExtractIfNeededAsync(
-                    ucasEntry,
-                    ucasTarget,
-                    cancellationToken
-                );
-            }
         }
 
         timer.Stop();
@@ -1038,10 +1007,7 @@ public static class ModSourceDiscovery
 
             if (!FileMatchesSize(
                     Path.Combine(targetDir, triplet.Stem + ".utoc"),
-                    triplet.UtocSize)
-                || !FileMatchesSize(
-                    Path.Combine(targetDir, triplet.Stem + ".ucas"),
-                    triplet.UcasSize))
+                    triplet.UtocSize))
             {
                 return false;
             }
@@ -1111,110 +1077,6 @@ public static class ModSourceDiscovery
             PathUtil.MakeSafeName(archiveDisplay) + "_" + archiveIdentity[..12],
             PathUtil.MakeSafeName(triplet.Stem) + "_" + memberIdentity
         );
-    }
-
-    private static string ScanPlaceholderMarkerPath(
-        string ucasPath) =>
-        ucasPath + ".scan-placeholder";
-
-    private static bool IsScanUcasPlaceholder(
-        string ucasPath,
-        long expectedSize)
-    {
-        return FileMatchesSize(ucasPath, expectedSize)
-               && File.Exists(
-                   ScanPlaceholderMarkerPath(ucasPath)
-               );
-    }
-
-    private static bool EnsureScanUcasPlaceholder(
-        string ucasPath,
-        long expectedSize)
-    {
-        var markerPath = ScanPlaceholderMarkerPath(ucasPath);
-
-        // A real UCAS already materialized by EXTRACT or fallback is always better
-        // than the experimental placeholder. Never replace it merely for scanning.
-        if (FileMatchesSize(ucasPath, expectedSize)
-            && !File.Exists(markerPath))
-        {
-            return false;
-        }
-
-        if (IsScanUcasPlaceholder(
-                ucasPath,
-                expectedSize))
-        {
-            return false;
-        }
-
-        Directory.CreateDirectory(
-            Path.GetDirectoryName(ucasPath)!
-        );
-
-        TryDeleteFile(ucasPath);
-        TryDeleteFile(markerPath);
-
-        using (var stream = new FileStream(
-                   ucasPath,
-                   FileMode.CreateNew,
-                   FileAccess.Write,
-                   FileShare.Read,
-                   4096,
-                   FileOptions.None))
-        {
-            // On Wine/Linux this is backed by ftruncate and is normally sparse:
-            // the logical length matches the real UCAS without decompressing it.
-            stream.SetLength(expectedSize);
-        }
-
-        File.WriteAllText(
-            markerPath,
-            expectedSize.ToString()
-        );
-        return true;
-    }
-
-    private static async Task ReplaceScanUcasPlaceholderAsync(
-        IArchiveEntry entry,
-        string targetPath,
-        CancellationToken cancellationToken)
-    {
-        var markerPath = ScanPlaceholderMarkerPath(targetPath);
-        var tempPath = targetPath
-                       + ".real."
-                       + Guid.NewGuid().ToString("N");
-
-        try
-        {
-            await ExtractIfNeededAsync(
-                entry,
-                tempPath,
-                cancellationToken
-            );
-            File.Move(
-                tempPath,
-                targetPath,
-                overwrite: true
-            );
-            TryDeleteFile(markerPath);
-        }
-        finally
-        {
-            TryDeleteFile(tempPath);
-        }
-    }
-
-    private static void TryDeleteFile(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-                File.Delete(path);
-        }
-        catch
-        {
-        }
     }
 
     private static bool FileMatchesSize(string path, long expectedSize)
