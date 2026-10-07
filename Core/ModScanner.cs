@@ -5,6 +5,7 @@ namespace LocalizationWorkbench.Core;
 
 public sealed class ModScanner
 {
+    private const int MaxParallelContainerScans = 2;
     private readonly RetocService _retoc;
     private readonly string _modsRoot;
     private readonly string _sourceRoot;
@@ -76,48 +77,66 @@ public sealed class ModScanner
         );
 
         var totalSources = groups.Sum(group => group.Containers.Count);
-        var processed = 0;
-        var scanCacheHits = 0;
-        var retocScans = 0;
+        var startedSources = 0;
 
-        var completedGroups = 0;
+        var jobs = groups
+            .SelectMany(group => group.Containers.Select(
+                (utoc, order) => new ContainerScanJob
+                {
+                    Group = group,
+                    Utoc = utoc,
+                    Order = order,
+                }))
+            .ToList();
 
-        foreach (var group in groups)
+        _log?.Invoke(
+            $"MODS container scan parallelism: max={MaxParallelContainerScans}."
+        );
+
+        using var scanGate = new SemaphoreSlim(MaxParallelContainerScans);
+        var scanTasks = jobs.Select(async job =>
         {
-            var aliases = new List<LocalizationAlias>();
-            var errors = new List<string>();
-            var fingerprintLines = new List<string>();
-
-            foreach (var utoc in group.Containers)
+            await scanGate.WaitAsync(cancellationToken);
+            try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                processed++;
 
-                var containerLabel = group.ContainerLabelsByPath.TryGetValue(utoc, out var label)
+                var group = job.Group;
+                var utoc = job.Utoc;
+                var containerLabel = group.ContainerLabelsByPath.TryGetValue(
+                    utoc,
+                    out var label)
                     ? label
                     : Path.GetFileNameWithoutExtension(utoc);
 
-                var scanFraction = totalSources <= 0 ? 1.0 : processed / (double)totalSources;
+                var started = Interlocked.Increment(ref startedSources);
+                var scanFraction = totalSources <= 0
+                    ? 1.0
+                    : started / (double)totalSources;
                 var scanOverall = 25 + Math.Clamp(
                     (int)Math.Round(scanFraction * 55.0),
                     0,
                     55
                 );
 
+                progress?.Report((
+                    scanOverall,
+                    100,
+                    $"Checking {containerLabel}"
+                ));
+
                 try
                 {
-                    // Match the launch.py cache contract: UTOC is the authoritative
-                    // change detector for one IoStore container. It is tiny compared
-                    // with PAK/UCAS, so refreshes stay fast even for large mods.
-                    progress?.Report((
-                        scanOverall,
-                        100,
-                        $"Checking {containerLabel}"
-                    ));
+                    // UTOC remains the authoritative change detector. Hashing only
+                    // this small index avoids touching large PAK/UCAS payloads.
+                    var hashTimer = Stopwatch.StartNew();
+                    var utocHash = await HashUtil.Sha256FileAsync(
+                        utoc,
+                        cancellationToken
+                    );
+                    hashTimer.Stop();
 
-                    var utocHash = await HashUtil.Sha256FileAsync(utoc, cancellationToken);
-                    fingerprintLines.Add(containerLabel + "|" + utocHash);
-
+                    var fingerprintLine = containerLabel + "|" + utocHash;
                     var cachedAliases = TryLoadContainerScanCache(
                         scanCacheRoot,
                         group,
@@ -128,44 +147,105 @@ public sealed class ModScanner
 
                     if (cachedAliases is not null)
                     {
-                        aliases.AddRange(cachedAliases);
-                        scanCacheHits++;
-                        _log?.Invoke($"Scan cache reused: {group.ModName} :: {containerLabel}");
+                        _log?.Invoke(
+                            $"Scan timing: {group.ModName} :: {containerLabel} | "
+                            + $"hash={hashTimer.Elapsed.TotalSeconds:N1}s | cache=hit"
+                        );
+
+                        return new ContainerScanOutcome
+                        {
+                            Group = group,
+                            Order = job.Order,
+                            FingerprintLine = fingerprintLine,
+                            Aliases = cachedAliases,
+                            CacheHit = true,
+                        };
                     }
-                    else
+
+                    progress?.Report((
+                        scanOverall,
+                        100,
+                        $"Scanning {containerLabel}"
+                    ));
+
+                    var retocTimer = Stopwatch.StartNew();
+                    var scannedAliases = await _retoc.ListLocalizationAssetsAsync(
+                        utoc,
+                        _modsRoot,
+                        cancellationToken
+                    );
+                    retocTimer.Stop();
+
+                    SaveContainerScanCache(
+                        scanCacheRoot,
+                        group,
+                        utoc,
+                        containerLabel,
+                        utocHash,
+                        scannedAliases
+                    );
+
+                    _log?.Invoke(
+                        $"Scan timing: {group.ModName} :: {containerLabel} | "
+                        + $"hash={hashTimer.Elapsed.TotalSeconds:N1}s | "
+                        + $"retoc={retocTimer.Elapsed.TotalSeconds:N1}s"
+                    );
+
+                    return new ContainerScanOutcome
                     {
-                        retocScans++;
-                        progress?.Report((
-                            scanOverall,
-                            100,
-                            $"Scanning {containerLabel}"
-                        ));
-
-                        var scannedAliases = await _retoc.ListLocalizationAssetsAsync(
-                            utoc,
-                            _modsRoot,
-                            cancellationToken
-                        );
-                        aliases.AddRange(scannedAliases);
-
-                        SaveContainerScanCache(
-                            scanCacheRoot,
-                            group,
-                            utoc,
-                            containerLabel,
-                            utocHash,
-                            scannedAliases
-                        );
-                    }
+                        Group = group,
+                        Order = job.Order,
+                        FingerprintLine = fingerprintLine,
+                        Aliases = scannedAliases,
+                        RetocScanned = true,
+                    };
                 }
                 catch (Exception ex)
                 {
-                    errors.Add($"{containerLabel}: {ex.Message}");
                     _log?.Invoke(
-                        $"IoStore scan failed for {group.SourceLabel} :: {containerLabel}: {ex.Message}"
+                        $"IoStore scan failed for {group.SourceLabel} :: "
+                        + $"{containerLabel}: {ex.Message}"
                     );
+
+                    return new ContainerScanOutcome
+                    {
+                        Group = group,
+                        Order = job.Order,
+                        Error = $"{containerLabel}: {ex.Message}",
+                    };
                 }
             }
+            finally
+            {
+                scanGate.Release();
+            }
+        }).ToList();
+
+        var scanOutcomes = await Task.WhenAll(scanTasks);
+        var scanCacheHits = scanOutcomes.Count(outcome => outcome.CacheHit);
+        var retocScans = scanOutcomes.Count(outcome => outcome.RetocScanned);
+
+        var completedGroups = 0;
+
+        foreach (var group in groups)
+        {
+            var groupOutcomes = scanOutcomes
+                .Where(outcome => ReferenceEquals(outcome.Group, group))
+                .OrderBy(outcome => outcome.Order)
+                .ToList();
+
+            var aliases = groupOutcomes
+                .SelectMany(outcome => outcome.Aliases)
+                .ToList();
+            var errors = groupOutcomes
+                .Where(outcome => !string.IsNullOrWhiteSpace(outcome.Error))
+                .Select(outcome => outcome.Error!)
+                .ToList();
+            var fingerprintLines = groupOutcomes
+                .Where(outcome => !string.IsNullOrWhiteSpace(
+                    outcome.FingerprintLine))
+                .Select(outcome => outcome.FingerprintLine!)
+                .ToList();
 
             // Source identity is derived from the ordered UTOC hashes, just like the
             // launch pipeline. Do not hash large PAK/UCAS payloads on every refresh.
@@ -174,7 +254,10 @@ public sealed class ModScanner
                 : HashUtil.Sha256Text(
                     string.Join(
                         "\n",
-                        fingerprintLines.OrderBy(line => line, StringComparer.OrdinalIgnoreCase)
+                        fingerprintLines.OrderBy(
+                            line => line,
+                            StringComparer.OrdinalIgnoreCase
+                        )
                     )
                 );
 
@@ -194,13 +277,27 @@ public sealed class ModScanner
                 ? string.Join(Environment.NewLine, errors)
                 : null;
 
-            var manifestPath = Path.Combine(_sourceRoot, group.ModId, "manifest.json");
+            var manifestPath = Path.Combine(
+                _sourceRoot,
+                group.ModId,
+                "manifest.json"
+            );
             group.NeedsExtraction = group.HasLocalization
-                                    && !ManifestMatches(manifestPath, group.SourceFingerprint);
+                                    && !ManifestMatches(
+                                        manifestPath,
+                                        group.SourceFingerprint
+                                    );
             group.TranslationFile = _buildLanguages
-                .Select(language => TranslationScanner.FindTranslationFile(_translationsRoot, group, language))
+                .Select(language => TranslationScanner.FindTranslationFile(
+                    _translationsRoot,
+                    group,
+                    language
+                ))
                 .FirstOrDefault(path => !string.IsNullOrWhiteSpace(path));
-            group.UiStatus = ResolveStatus(group, _buildLanguages.Count);
+            group.UiStatus = ResolveStatus(
+                group,
+                _buildLanguages.Count
+            );
 
             completedGroups++;
             var finalizeFraction = groups.Count == 0
@@ -229,6 +326,24 @@ public sealed class ModScanner
         return groups
             .OrderBy(x => x.ModName, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
+    }
+
+    private sealed class ContainerScanJob
+    {
+        public ModScanResult Group { get; init; } = new();
+        public string Utoc { get; init; } = string.Empty;
+        public int Order { get; init; }
+    }
+
+    private sealed class ContainerScanOutcome
+    {
+        public ModScanResult Group { get; init; } = new();
+        public int Order { get; init; }
+        public string? FingerprintLine { get; init; }
+        public List<LocalizationAlias> Aliases { get; init; } = new();
+        public string? Error { get; init; }
+        public bool CacheHit { get; init; }
+        public bool RetocScanned { get; init; }
     }
 
     private sealed class InlineProgress<T> : IProgress<T>
