@@ -156,7 +156,7 @@ public sealed class SettingsForm : Form
         _titleAccent.AutoSize = true;
         _titleAccent.Font = new Font(
             "Segoe UI",
-            19F,
+            17F,
             FontStyle.Bold
         );
         _titleAccent.Tag = StalkerTheme.SectionLabelTag;
@@ -165,7 +165,7 @@ public sealed class SettingsForm : Form
         _titleRest.AutoSize = true;
         _titleRest.Font = new Font(
             "Segoe UI Semibold",
-            18F,
+            17F,
             FontStyle.Regular
         );
         _titleRest.Margin = new Padding(0);
