@@ -101,12 +101,7 @@ public static class LocalizationDatabaseCodec
 
             foreach (var translation in record.Translations)
             {
-                Span<byte> idBytes = stackalloc byte[8];
-                BinaryPrimitives.WriteInt64LittleEndian(
-                    idBytes,
-                    translation.LanguageId
-                );
-                stream.Write(idBytes);
+                WriteInt64(stream, translation.LanguageId);
                 UnrealStringCodec.WriteFString(
                     stream,
                     translation.Value,
@@ -335,12 +330,7 @@ public static class LocalizationDatabaseCodec
                     )
                 );
 
-                Span<byte> languageBytes = stackalloc byte[8];
-                BinaryPrimitives.WriteInt64LittleEndian(
-                    languageBytes,
-                    targetLanguageId
-                );
-                output.Write(languageBytes);
+                WriteInt64(output, targetLanguageId);
                 UnrealStringCodec.WriteFString(
                     output,
                     replacement,
@@ -474,6 +464,13 @@ public static class LocalizationDatabaseCodec
     {
         Span<byte> bytes = stackalloc byte[4];
         BinaryPrimitives.WriteInt32LittleEndian(bytes, value);
+        stream.Write(bytes);
+    }
+
+    private static void WriteInt64(Stream stream, long value)
+    {
+        Span<byte> bytes = stackalloc byte[8];
+        BinaryPrimitives.WriteInt64LittleEndian(bytes, value);
         stream.Write(bytes);
     }
 
