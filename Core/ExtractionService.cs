@@ -33,13 +33,22 @@ public sealed class ExtractionService
         IProgress<(int Current, int Total, string Message)>? progress = null,
         CancellationToken cancellationToken = default)
     {
-        var list = mods
-            .Where(mod =>
-                mod.HasLocalization
-                && (mod.NeedsExtraction
-                    || mod.UiStatus == ModUiStatus.MissingTranslation
-                    || CanRestoreTranslationsFromSource(mod)))
+        var eligible = mods
+            .Where(mod => mod.HasLocalization
+                && string.IsNullOrWhiteSpace(mod.ScanError))
             .ToList();
+
+        // Process only new or changed mods whenever source extraction is pending.
+        // Translation-file recovery is a separate, fallback-only phase.
+        var pending = eligible
+            .Where(mod => mod.NeedsExtraction)
+            .ToList();
+        var list = pending.Count > 0
+            ? pending
+            : eligible.Where(mod =>
+                mod.UiStatus == ModUiStatus.MissingTranslation
+                || CanRestoreTranslationsFromSource(mod))
+                .ToList();
 
         // Only a real source extraction needs retoc/UAssetGUI/repak.
         // MissingTranslation is a Translations-recovery case and can be restored
