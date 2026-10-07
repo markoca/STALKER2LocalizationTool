@@ -628,6 +628,168 @@ public static class ModSourceDiscovery
         }
     }
 
+    public static async Task EnsureArchiveContainerMaterializedAsync(
+        string modsRoot,
+        string materializationRoot,
+        string archiveRelative,
+        string sourceUtoc,
+        Action<string>? log = null,
+        CancellationToken cancellationToken = default)
+    {
+        var archivePath = Path.GetFullPath(
+            Path.Combine(modsRoot, archiveRelative)
+        );
+        if (!File.Exists(archivePath))
+        {
+            throw new FileNotFoundException(
+                $"Archive source not found: {archivePath}",
+                archivePath
+            );
+        }
+
+        var archiveInfo = new FileInfo(archivePath);
+        var cachePath = ArchiveDiscoveryCachePath(
+            materializationRoot,
+            archivePath
+        );
+        var cache = TryLoadArchiveDiscoveryCache(
+            cachePath,
+            archiveInfo
+        );
+        if (cache is null)
+        {
+            throw new InvalidDataException(
+                $"Archive discovery data is stale or missing for "
+                + $"{Path.GetFileName(archivePath)}. Scan MODS again."
+            );
+        }
+
+        var archiveDisplay = Path.GetFileNameWithoutExtension(archivePath);
+        var sourceUtocFull = Path.GetFullPath(sourceUtoc);
+
+        var triplet = cache.Triplets.FirstOrDefault(candidate =>
+        {
+            var targetDir = MaterializedTripletDirectory(
+                materializationRoot,
+                archiveDisplay,
+                cache.ArchiveIdentity,
+                candidate
+            );
+            var expectedUtoc = Path.GetFullPath(
+                Path.Combine(
+                    targetDir,
+                    candidate.Stem + ".utoc"
+                )
+            );
+            return string.Equals(
+                expectedUtoc,
+                sourceUtocFull,
+                StringComparison.OrdinalIgnoreCase
+            );
+        });
+
+        if (triplet is null)
+        {
+            throw new InvalidDataException(
+                $"Could not resolve archive container for extraction: "
+                + $"{sourceUtoc}"
+            );
+        }
+
+        var materializedDir = MaterializedTripletDirectory(
+            materializationRoot,
+            archiveDisplay,
+            cache.ArchiveIdentity,
+            triplet
+        );
+        var pakTarget = Path.Combine(
+            materializedDir,
+            triplet.Stem + ".pak"
+        );
+        var utocTarget = Path.Combine(
+            materializedDir,
+            triplet.Stem + ".utoc"
+        );
+        var ucasTarget = Path.Combine(
+            materializedDir,
+            triplet.Stem + ".ucas"
+        );
+
+        if (FileMatchesSize(pakTarget, triplet.PakSize)
+            && FileMatchesSize(utocTarget, triplet.UtocSize)
+            && FileMatchesSize(ucasTarget, triplet.UcasSize))
+        {
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var timer = Stopwatch.StartNew();
+        log?.Invoke(
+            $"Materializing archive payload for extraction: "
+            + $"{Path.GetFileName(archivePath)} :: {triplet.Stem}"
+        );
+
+        using var archive = ArchiveFactory.OpenArchive(archivePath);
+        var entries = archive.Entries
+            .Where(entry =>
+                !entry.IsDirectory
+                && !string.IsNullOrWhiteSpace(entry.Key))
+            .GroupBy(
+                entry => NormalizeArchivePath(entry.Key!),
+                StringComparer.OrdinalIgnoreCase
+            )
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    if (group.Count() != 1)
+                    {
+                        throw new InvalidDataException(
+                            $"Archive contains duplicate normalized member path: "
+                            + group.Key
+                        );
+                    }
+
+                    return group.Single();
+                },
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        if (!entries.TryGetValue(triplet.PakMember, out var pakEntry)
+            || !entries.TryGetValue(triplet.UtocMember, out var utocEntry)
+            || !entries.TryGetValue(triplet.UcasMember, out var ucasEntry))
+        {
+            throw new InvalidDataException(
+                $"Archive container changed after scan: {triplet.Stem}. "
+                + "Scan MODS again."
+            );
+        }
+
+        Directory.CreateDirectory(materializedDir);
+        await ExtractIfNeededAsync(
+            pakEntry,
+            pakTarget,
+            cancellationToken
+        );
+        await ExtractIfNeededAsync(
+            utocEntry,
+            utocTarget,
+            cancellationToken
+        );
+        await ExtractIfNeededAsync(
+            ucasEntry,
+            ucasTarget,
+            cancellationToken
+        );
+
+        timer.Stop();
+        log?.Invoke(
+            $"Archive extraction payload ready in "
+            + $"{timer.Elapsed.TotalSeconds:N1}s: {triplet.Stem}"
+        );
+    }
+
     private static string ArchiveDiscoveryCachePath(
         string materializationRoot,
         string archivePath)
@@ -645,7 +807,8 @@ public static class ModSourceDiscovery
         string archiveDisplay,
         ArchiveDiscoveryCache cache)
     {
-        foreach (var triplet in cache.Triplets)
+        foreach (var triplet in cache.Triplets.Where(
+                     item => !PathUtil.IsNewContentContainer(item.Stem)))
         {
             var targetDir = MaterializedTripletDirectory(
                 materializationRoot,
@@ -758,6 +921,32 @@ public static class ModSourceDiscovery
             FileOptions.SequentialScan
         );
         input.CopyTo(output);
+    }
+
+    private static async Task ExtractIfNeededAsync(
+        IArchiveEntry entry,
+        string targetPath,
+        CancellationToken cancellationToken)
+    {
+        var target = new FileInfo(targetPath);
+        if (target.Exists && target.Length == entry.Size)
+            return;
+
+        Directory.CreateDirectory(target.DirectoryName!);
+        await using var input = entry.OpenEntryStream();
+        await using var output = new FileStream(
+            targetPath,
+            FileMode.Create,
+            FileAccess.Write,
+            FileShare.None,
+            1024 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan
+        );
+        await input.CopyToAsync(
+            output,
+            1024 * 1024,
+            cancellationToken
+        );
     }
 
     private static string ContainerSignature(SourceGroup group)
