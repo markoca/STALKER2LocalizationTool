@@ -13,7 +13,7 @@ Localization Workbench Version 2 is the finalized Windows x64 release baseline f
 - JSON translation workspaces separated from internal rebuild state.
 - Modular and All-in-One MODS builds with round-trip verification.
 - GAME `Game.locres` generation through S2HOCMM with final repak verification.
-- Self-contained Windows x64 publishing.
+- .NET 10 LTS (`net10.0-windows`) application target with self-contained Windows x64 publishing.
 - User-supplied third-party helper tools only; helper binaries are not distributed by this project.
 
 ## Final audit hardening

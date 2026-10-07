@@ -2,6 +2,7 @@
 
 ## 2.0.0
 
+- Migrated the Version 2 application target from .NET 8 to .NET 10 LTS (`net10.0-windows`) before the final release tag.
 - Promoted the audited Version 2 baseline from release candidate to final `2.0.0`.
 - Preserved cancellation semantics through GAME scanning and archive discovery instead of converting cancellation into scan errors.
 - Made fresh `Translations` workspaces JSON-only; internal manifests/assets remain exclusively under `Source`.

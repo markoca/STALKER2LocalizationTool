@@ -33,9 +33,9 @@ This branch is the final **Version 2** baseline. The project uses `main` as the 
 
 ## Supported target
 
-The application targets **Windows x64** (`net8.0-windows`).
+The application targets **Windows x64** on **.NET 10 LTS** (`net10.0-windows`).
 
-Linux is supported as a development host for cross-publishing and Wine testing, not as a native application target.
+Linux is supported as a development host for cross-publishing and Wine testing, not as a native application target. The development host requires a .NET 10 SDK.
 
 Localization Workbench does **not** distribute helper-tool binaries.
 
