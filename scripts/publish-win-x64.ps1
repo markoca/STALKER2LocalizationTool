@@ -21,14 +21,22 @@ function Move-LegacyWorkspaceDirectory {
     $Legacy = Join-Path $Out $LegacyName
     $Current = Join-Path $Out $CurrentName
 
-    if ((Test-Path $Legacy) -and (Test-Path $Current)) {
-        throw "Both legacy $LegacyName and current $CurrentName exist in $Out; refusing to merge automatically."
+    if (-not (Test-Path $Legacy)) {
+        return
     }
 
-    if (Test-Path $Legacy) {
-        Move-Item $Legacy $Current
-        Write-Host "Migrated workspace: $LegacyName -> $CurrentName"
+    if (Test-Path $Current) {
+        $CurrentItems = @(Get-ChildItem -LiteralPath $Current -Force)
+        if ((Test-Path $Current -PathType Container) -and $CurrentItems.Count -eq 0) {
+            Remove-Item $Current -Force
+        }
+        else {
+            throw "Both legacy $LegacyName and populated current $CurrentName exist in $Out; refusing to merge automatically."
+        }
     }
+
+    Move-Item $Legacy $Current
+    Write-Host "Migrated workspace: $LegacyName -> $CurrentName"
 }
 
 if (Test-Path $Out) {
