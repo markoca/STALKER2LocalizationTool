@@ -14,11 +14,11 @@
 - GAME action buttons were simplified to **SCAN GAME**, **EXTRACT**, and **BUILD**; the v2 quick user handbook was added and aligned with the current workflow.
 - MODS extraction button was simplified from **EXTRACT NEW / CHANGED** to **EXTRACT**.
 - Added the first **Industrial Zone** visual pass: chamfered cards/action buttons, a compact GAME localization overview, refined surface hierarchy, and color-coded MODS status text.
-- GAME EXTRACT now reports its result directly in the central panel: the generic post-extraction popup was removed and the panel lists the actual editable language JSON files created under `Editable/Game`.
-- Each extracted GAME language result shows its actual editable JSON filename, keeping the post-extraction list concise and directly tied to `Editable/Game`.
+- GAME EXTRACT now reports its result directly in the central panel: the generic post-extraction popup was removed and the panel lists the actual translation JSON files created under `Translations/Game`.
+- Each extracted GAME language result shows its actual translation JSON filename, keeping the post-extraction list concise and directly tied to `Translations/Game`.
 - The pre-scan GAME overview was simplified to **READY TO SCAN** without redundant supported-language or `pakchunk0` source text.
 - The new main-window styling remains owner-drawn WinForms to preserve deterministic Windows/Wine rendering without adding a UI framework dependency.
-- Extended the **Industrial Zone** styling to the remaining UI: language-selection tiles, GAME extraction result tiles, borderless terminal log, chamfered utility buttons, industrial Settings path fields, Auto Scan switch, primary Save action, and destructive Delete Cache treatment.
+- Extended the **Industrial Zone** styling to the remaining UI: language-selection tiles, GAME extraction result tiles, borderless terminal log, chamfered utility buttons, industrial Settings path fields, Auto Scan switch, primary Save action, and destructive Delete Source Data treatment.
 - MODS status messages now render as plain color-coded text instead of badge/button-like controls.
 - Settings typography now uses the same Segoe UI family as the main window, avoiding a separate Bahnschrift rendering dependency across Windows/Wine.
 - Fixed borderless-window dragging: the main and Settings custom title bars are draggable from their non-interactive child surfaces while caption buttons remain clickable.
