@@ -1650,10 +1650,8 @@ public sealed class MainForm : Form
         {
             _gameLocalizationStatus.Text = _game.UiStatus == ModUiStatus.BuiltVerified
                 ? "BUILT & VERIFIED"
-                : "READY TO BUILD";
-            _gameLocalizationStatus.ForeColor = _game.UiStatus == ModUiStatus.BuiltVerified
-                ? StalkerTheme.Success
-                : StalkerTheme.Accent;
+                : "EXTRACTED";
+            _gameLocalizationStatus.ForeColor = StalkerTheme.Success;
 
             _gameLocalizationDetails.Text =
                 $"{extractedLanguages.Count} editable JSON file"
