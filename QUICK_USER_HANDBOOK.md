@@ -232,7 +232,7 @@ EXTRACT
 
 Localization Workbench extracts all 18 supported game languages.
 
-Translations JSON files are created under:
+Translation JSON files are created under:
 
 ```text
 Translations\Game\
@@ -416,7 +416,7 @@ Internal rebuild data is stored under:
 Source\<ModName>\
 ```
 
-Translations localization is stored under:
+Translation JSON files are stored under:
 
 ```text
 Translations\<ModName>\
@@ -539,20 +539,20 @@ When a mod is updated:
 3. Click **SCAN MODS**.
 4. The updated localization should be detected as **Needs extraction**.
 5. Click **EXTRACT**.
-6. Review your existing Translations JSON against the updated localization data.
+6. Review your existing translation JSON against the updated localization data.
 7. Build the localization again.
 
 > **IMPORTANT**
 >
-> Your existing Translations JSON files are not automatically overwritten.
+> Your existing translation JSON files are not automatically overwritten.
 
 Localization Workbench keeps your translation work separate from newly extracted rebuild data.
 
 ---
 
-## 5. CACHED VS EDITABLE VS OUTPUT
+## 5. SOURCE VS TRANSLATIONS VS OUTPUT
 
-### CACHED
+### SOURCE
 
 Location:
 
@@ -562,9 +562,9 @@ Source\
 
 Contains internal extracted data required for comparison and safe rebuilding.
 
-**DO NOT EDIT CACHED FILES.**
+**DO NOT EDIT SOURCE FILES.**
 
-### EDITABLE
+### TRANSLATIONS
 
 Location:
 
@@ -720,17 +720,17 @@ when you want the current Mods folder to be scanned.
 
 ---
 
-## 9. DELETE CACHE
+## 9. DELETE SOURCE DATA
 
 The Settings window contains:
 
 ```text
-DELETE CACHE
+DELETE SOURCE DATA
 ```
 
 This removes internal source extraction data.
 
-It does **not** delete your Translations translation files.
+It does **not** delete your translation files under Translations.
 
 It does **not** delete your Output files.
 
