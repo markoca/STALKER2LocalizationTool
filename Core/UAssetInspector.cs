@@ -155,7 +155,7 @@ public static class UAssetInspector
                 {
                     var value = element.GetString();
                     if (!string.IsNullOrWhiteSpace(value)
-                        && value.StartsWith("/", StringComparison.Ordinal)
+                        && value.StartsWith('/')
                         && value.EndsWith(suffix, StringComparison.Ordinal))
                     {
                         candidates.Add(value);

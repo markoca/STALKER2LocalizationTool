@@ -86,7 +86,7 @@ public sealed class SettingsForm : UserControl
         root.Controls.Add(BuildFooter(), 0, 1);
     }
 
-    private Control BuildPathsCard()
+    private StalkerCardPanel BuildPathsCard()
     {
         var card = CreateSectionCard(accentEdge: true);
         var layout = CreateSectionLayout(_l.T("ui.paths"));
@@ -103,7 +103,7 @@ public sealed class SettingsForm : UserControl
         return card;
     }
 
-    private Control BuildToolsCard()
+    private StalkerCardPanel BuildToolsCard()
     {
         var card = CreateSectionCard(accentEdge: false);
         var layout = CreateSectionLayout(_l.T("ui.tools"));
@@ -153,7 +153,7 @@ public sealed class SettingsForm : UserControl
         return layout;
     }
 
-    private Control BuildAutoScanCard()
+    private StalkerCardPanel BuildAutoScanCard()
     {
         var card = new StalkerCardPanel
         {
@@ -214,7 +214,7 @@ public sealed class SettingsForm : UserControl
         return card;
     }
 
-    private Control BuildFooter()
+    private StalkerFooterBar BuildFooter()
     {
         var footerBar = new StalkerFooterBar
         {
@@ -357,7 +357,7 @@ public sealed class SettingsForm : UserControl
     {
         AddEditableFolderRow(grid, key, labelText, value);
     }
-    private void AddResolvedPathRow(
+    private static void AddResolvedPathRow(
         TableLayoutPanel grid,
         string labelText,
         string value)
@@ -471,7 +471,7 @@ public sealed class SettingsForm : UserControl
 
         var confirmation = MessageBox.Show(
             this,
-            string.Format(_l.T("ui.delete_source_confirm"), sourceRoot),
+            string.Format(CultureInfo.InvariantCulture, _l.T("ui.delete_source_confirm"), sourceRoot),
             AppConstants.AppName,
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning,
@@ -528,7 +528,7 @@ public sealed class SettingsForm : UserControl
         {
             MessageBox.Show(
                 this,
-                string.Format(_l.T("ui.source_delete_failed"), ex.Message),
+                string.Format(CultureInfo.InvariantCulture, _l.T("ui.source_delete_failed"), ex.Message),
                 AppConstants.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Error

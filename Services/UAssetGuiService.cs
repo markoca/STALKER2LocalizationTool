@@ -7,7 +7,7 @@ public sealed class UAssetGuiService
     private readonly string _uassetGuiPath;
     private readonly string _mappingsPath;
     private readonly Action<string>? _log;
-    private readonly SemaphoreSlim _prepareLock = new(1, 1);
+    private static readonly SemaphoreSlim PrepareLock = new(1, 1);
     private bool _prepared;
 
     public UAssetGuiService(string uassetGuiPath, string mappingsPath, Action<string>? log = null)
@@ -77,7 +77,7 @@ public sealed class UAssetGuiService
         if (_prepared)
             return;
 
-        await _prepareLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await PrepareLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (_prepared)
@@ -115,7 +115,7 @@ public sealed class UAssetGuiService
         }
         finally
         {
-            _prepareLock.Release();
+            PrepareLock.Release();
         }
     }
 

@@ -4,6 +4,19 @@ namespace LocalizationWorkbench.Services;
 
 public sealed class S2HocmmService
 {
+    private static readonly string[] PackArguments =
+    [
+        "-Pack",
+        "--input", "input",
+        "--repak", "repak.exe",
+    ];
+
+    private static readonly string[] DumpArguments =
+    [
+        "-Dump",
+        "--locrespath", "verify_input",
+    ];
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -60,20 +73,15 @@ public sealed class S2HocmmService
         _log?.Invoke($"S2HOCMM LOCRES input: {inputJson} ({flatTranslations.Count} keys)");
         var result = await ProcessRunner.RunAsync(
             _s2HocmmPath,
-            new[]
-            {
-                "-Pack",
-                "--input", "input",
-                "--repak", "repak.exe",
-            },
+            PackArguments,
             _log,
-            cancellationToken,
             workingDirectory: workDirectory,
             throwOnNonZero: false,
             environment: new Dictionary<string, string?>
             {
                 ["DOTNET_USENLS"] = "1",
-            }
+            },
+            cancellationToken: cancellationToken
         );
 
         var generatedLocres = Path.Combine(
@@ -132,14 +140,14 @@ public sealed class S2HocmmService
 
         await ProcessRunner.RunAsync(
             _s2HocmmPath,
-            new[] { "-Dump", "--locrespath", "verify_input" },
+            DumpArguments,
             _log,
-            cancellationToken,
             workingDirectory: workDirectory,
             environment: new Dictionary<string, string?>
             {
                 ["DOTNET_USENLS"] = "1",
-            }
+            },
+            cancellationToken: cancellationToken
         );
 
         var verifyJson = Path.Combine(workDirectory, "ToMerge", "0_BaseGame", culture + ".json");

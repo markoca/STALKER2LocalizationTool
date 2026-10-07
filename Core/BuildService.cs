@@ -133,7 +133,7 @@ public sealed class BuildService
     }
 
     private async Task<List<ModBuildResult>> BuildAllInOneAsync(
-        IReadOnlyList<ModScanResult> available,
+        List<ModScanResult> available,
         int targetLanguageId,
         IProgress<(int Current, int Total, string Message)>? progress,
         CancellationToken cancellationToken)
@@ -508,7 +508,7 @@ public sealed class BuildService
 
     private async Task BuildBaseGameLocresFromTranslationsAsync(
         ExtractedManifest manifest,
-        IReadOnlyDictionary<string, string> translations,
+        Dictionary<string, string> translations,
         BuildLanguage language,
         string outputModRoot,
         string workRoot,
@@ -620,7 +620,7 @@ public sealed class BuildService
     }
 
     private static void VerifyS2HocmmLocres(
-        IReadOnlyDictionary<string, string> expected,
+        SortedDictionary<string, string> expected,
         string generatedLocres,
         string label)
     {

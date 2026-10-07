@@ -515,7 +515,7 @@ public sealed class ExtractionService
                 {
                     var internalCandidates = parsedAliases
                         .Select(item => item.InternalPackagePath)
-                        .Where(path => !string.IsNullOrWhiteSpace(path) && path.StartsWith("/", StringComparison.Ordinal))
+                        .Where(path => !string.IsNullOrWhiteSpace(path) && path.StartsWith('/'))
                         .Distinct(StringComparer.Ordinal)
                         .ToList();
                     if (internalCandidates.Count != 1)
@@ -644,7 +644,7 @@ public sealed class ExtractionService
             var unpackedLocres = Path.Combine(unpackRoot, PathUtil.NormalizePakPath(source.InternalPath));
             RequireFile(unpackedLocres, source.InternalPath);
 
-            var assetFolderRelative = Path.Combine("assets", "locres", index.ToString("000"));
+            var assetFolderRelative = Path.Combine("assets", "locres", index.ToString("000", CultureInfo.InvariantCulture));
             var assetFolder = Path.Combine(stagingRoot, assetFolderRelative);
             Directory.CreateDirectory(assetFolder);
             var storedLocres = Path.Combine(assetFolder, "source.locres");

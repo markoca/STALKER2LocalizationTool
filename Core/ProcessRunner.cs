@@ -13,13 +13,13 @@ public static class ProcessRunner
         string executable,
         IEnumerable<string> arguments,
         Action<string>? log = null,
-        CancellationToken cancellationToken = default,
         string? workingDirectory = null,
         bool throwOnNonZero = true,
         IReadOnlyDictionary<string, string?>? environment = null,
         Action<string>? outputLine = null,
         bool captureStandardOutput = true,
-        ProcessPriorityClass? priorityClass = null)
+        ProcessPriorityClass? priorityClass = null,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(executable) || !File.Exists(executable))
             throw new FileNotFoundException($"Executable not found: {executable}", executable);

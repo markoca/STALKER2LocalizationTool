@@ -167,7 +167,7 @@ public sealed class RetocService
                 AppConstants.RetocEngineVersion,
             },
             _log,
-            cancellationToken
+            cancellationToken: cancellationToken
         );
     }
 }

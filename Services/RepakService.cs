@@ -5,6 +5,8 @@ namespace LocalizationWorkbench.Services;
 
 public sealed class RepakService
 {
+    private static readonly string[] LineSeparators = ["\r\n", "\n"];
+
     private static readonly Regex LocresRegex = new(
         @"(?<path>(?:Stalker2/)?Content/Localization/Game/(?<culture>[^/\\]+)/Game\.locres)$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase
@@ -28,13 +30,13 @@ public sealed class RepakService
             _repakPath,
             new[] { "list", pakPath },
             null,
-            cancellationToken
+            cancellationToken: cancellationToken
         );
 
         var output = new List<LocresSource>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var raw in result.StandardOutput.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries))
+        foreach (var raw in result.StandardOutput.Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries))
         {
             var line = raw.Replace('\\', '/').Trim();
             var match = LocresRegex.Match(line);
@@ -73,7 +75,7 @@ public sealed class RepakService
             arguments.Add("--include");
             arguments.Add(path.Replace('\\', '/'));
         }
-        await ProcessRunner.RunAsync(_repakPath, arguments, _log, cancellationToken);
+        await ProcessRunner.RunAsync(_repakPath, arguments, _log, cancellationToken: cancellationToken);
     }
 
     public async Task PackLocalizationAsync(string inputDirectory, string outputPak, CancellationToken cancellationToken = default)
@@ -93,7 +95,7 @@ public sealed class RepakService
                 outputPak,
             },
             _log,
-            cancellationToken
+            cancellationToken: cancellationToken
         );
 
         // repak defaults to ../../../, which is the mount point used by the
@@ -104,7 +106,7 @@ public sealed class RepakService
             _repakPath,
             new[] { "info", outputPak },
             null,
-            cancellationToken
+            cancellationToken: cancellationToken
         );
 
         var mountMatch = Regex.Match(
@@ -147,11 +149,11 @@ public sealed class RepakService
             _repakPath,
             new[] { "list", pakPath },
             null,
-            cancellationToken
+            cancellationToken: cancellationToken
         );
 
         return result.StandardOutput
-            .Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Split(LineSeparators, StringSplitOptions.RemoveEmptyEntries)
             .Select(x => x.Replace('\\', '/').Trim())
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .ToList();

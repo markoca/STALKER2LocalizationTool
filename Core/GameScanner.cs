@@ -10,7 +10,7 @@ public sealed class GameScanner
     private readonly string _gamePaksRoot;
     private readonly string _sourceRoot;
     private readonly string _translationsRoot;
-    private readonly IReadOnlyList<BuildLanguage> _buildLanguages;
+    private readonly List<BuildLanguage> _buildLanguages;
     private readonly Action<string>? _log;
 
     public GameScanner(

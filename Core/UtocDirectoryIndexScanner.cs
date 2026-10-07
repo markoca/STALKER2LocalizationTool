@@ -225,7 +225,7 @@ public static class UtocDirectoryIndexScanner
 
     private static List<LocalizationAlias> ParseDirectoryIndex(
         byte[] buffer,
-        IReadOnlyList<byte[]> chunkIds,
+        byte[][] chunkIds,
         string utocPath,
         string modsRoot)
     {
@@ -459,7 +459,7 @@ public static class UtocDirectoryIndexScanner
     }
 
     private static string GetString(
-        IReadOnlyList<string> strings,
+        string[] strings,
         uint index,
         string label)
     {
@@ -555,9 +555,7 @@ public static class UtocDirectoryIndexScanner
         if (string.IsNullOrEmpty(mountPoint))
             return relativePath;
 
-        return mountPoint.EndsWith(
-                "/",
-                StringComparison.Ordinal)
+        return mountPoint.EndsWith('/')
             ? mountPoint + relativePath
             : mountPoint + "/" + relativePath;
     }

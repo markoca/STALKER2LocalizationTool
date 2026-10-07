@@ -10,7 +10,7 @@ public sealed class ModScanner
     private readonly string _modsRoot;
     private readonly string _sourceRoot;
     private readonly string _translationsRoot;
-    private readonly IReadOnlyList<BuildLanguage> _buildLanguages;
+    private readonly List<BuildLanguage> _buildLanguages;
     private readonly Action<string>? _log;
 
     public ModScanner(

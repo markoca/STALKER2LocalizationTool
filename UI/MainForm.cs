@@ -14,6 +14,7 @@ public sealed class MainForm : Form
     private const int IconSmall2 = 2;
     private const int GclpHicon = -14;
     private const int GclpHiconSm = -34;
+    private static readonly char[] LineBreakSeparators = ['\r', '\n'];
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "SendMessageW")]
     private static extern IntPtr SendMessage(
@@ -1314,9 +1315,9 @@ public sealed class MainForm : Form
             summary.AppendLine();
             summary.AppendLine("GAME");
             foreach (var name in builtLanguageNames)
-                summary.AppendLine($"  {name}: {_l.T("status.built_verified")}");
+                summary.AppendLine(CultureInfo.InvariantCulture, $"  {name}: {_l.T("status.built_verified")}");
             summary.AppendLine();
-            summary.AppendLine(string.Format(_l.T("ui.build_summary_output"), _settings.OutputFolder));
+            summary.AppendLine(string.Format(CultureInfo.InvariantCulture, _l.T("ui.build_summary_output"), _settings.OutputFolder));
             CompleteProgress(_l.T("ui.done"));
             MessageBox.Show(this, summary.ToString().TrimEnd(), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -1514,7 +1515,7 @@ public sealed class MainForm : Form
             summary.AppendLine();
             summary.AppendLine(mode == BuildMode.AllInOne ? "MODS / All-in-One" : "MODS / Modular");
             foreach (var item in languageSummaries)
-                summary.AppendLine($"  {item.Language}: {item.Built} built, {item.Skipped} skipped");
+                summary.AppendLine(CultureInfo.InvariantCulture, $"  {item.Language}: {item.Built} built, {item.Skipped} skipped");
             summary.AppendLine();
             summary.AppendLine(string.Format(_l.T("ui.build_summary_output"), _settings.OutputFolder));
             CompleteProgress(_l.T("ui.done"));
@@ -1592,7 +1593,7 @@ public sealed class MainForm : Form
                 @"_(\d+)_P$",
                 RegexOptions.IgnoreCase))
             .Where(match => match.Success)
-            .Select(match => int.Parse(match.Groups[1].Value))
+            .Select(match => int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture))
             .DefaultIfEmpty(-1)
             .Max();
 
@@ -1769,7 +1770,7 @@ public sealed class MainForm : Form
             _gameLocalizationStatus.Text = "SCAN ERROR";
             _gameLocalizationStatus.ForeColor = StalkerTheme.Danger;
             _gameLocalizationDetails.Text =
-                _game.ScanError.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                _game.ScanError.Split(LineBreakSeparators, StringSplitOptions.RemoveEmptyEntries)
                     .FirstOrDefault()
                 ?? "Localization scan failed.";
             SetGameLocalizationResults(Array.Empty<BuildLanguage>());
@@ -2023,7 +2024,7 @@ public sealed class MainForm : Form
         RefreshGameLocalizationOverview();
     }
 
-    private IProgress<(int Current, int Total, string Message)> CreateUiProgress(
+    private SynchronousUiProgress CreateUiProgress(
         Action<(int Current, int Total, string Message)> handler)
     {
         return new SynchronousUiProgress(this, handler);
