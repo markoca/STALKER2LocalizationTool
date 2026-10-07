@@ -161,34 +161,17 @@ public sealed class ExtractionService
         if (!Directory.Exists(sourceRoot))
             return false;
 
-        var sourceHasTranslationJson = BuildLanguageCatalog.All.Any(language =>
-            File.Exists(
-                Path.Combine(
-                    sourceRoot,
-                    language.Key + ".json"
-                )
-            )
-        );
-        if (!sourceHasTranslationJson)
-            return false;
-
         var translationsRoot = Path.Combine(
             _settings.TranslationsFolder,
             mod.ModId
         );
-        if (!Directory.Exists(translationsRoot))
-            return true;
 
-        var translationsHaveAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
-            File.Exists(
-                Path.Combine(
-                    translationsRoot,
-                    language.Key + ".json"
-                )
-            )
-        );
-
-        return !translationsHaveAnyLanguageJson;
+        return BuildLanguageCatalog.All.Any(language =>
+        {
+            var fileName = language.Key + ".json";
+            return File.Exists(Path.Combine(sourceRoot, fileName))
+                   && !File.Exists(Path.Combine(translationsRoot, fileName));
+        });
     }
 
     private void RestoreMissingTranslationsWorkspace(ModScanResult mod)
@@ -211,51 +194,21 @@ public sealed class ExtractionService
         Directory.CreateDirectory(translationsRoot);
 
         var restored = 0;
-
-        foreach (var directory in Directory.EnumerateDirectories(
-                     sourceRoot,
-                     "*",
-                     SearchOption.AllDirectories))
+        foreach (var language in BuildLanguageCatalog.All)
         {
-            var relative = Path.GetRelativePath(
-                sourceRoot,
-                directory
-            );
-            Directory.CreateDirectory(
-                Path.Combine(translationsRoot, relative)
-            );
-        }
+            var fileName = language.Key + ".json";
+            var sourceFile = Path.Combine(sourceRoot, fileName);
+            var destinationFile = Path.Combine(translationsRoot, fileName);
 
-        foreach (var sourceFile in Directory.EnumerateFiles(
-                     sourceRoot,
-                     "*",
-                     SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(
-                sourceRoot,
-                sourceFile
-            );
-            var destinationFile = Path.Combine(
-                translationsRoot,
-                relative
-            );
-
-            if (File.Exists(destinationFile))
+            if (!File.Exists(sourceFile) || File.Exists(destinationFile))
                 continue;
 
-            Directory.CreateDirectory(
-                Path.GetDirectoryName(destinationFile)!
-            );
-            File.Copy(
-                sourceFile,
-                destinationFile,
-                overwrite: false
-            );
+            File.Copy(sourceFile, destinationFile, overwrite: false);
             restored++;
         }
 
         _log?.Invoke(
-            $"Restored {restored} missing Translations file(s) from Source -> "
+            $"Restored {restored} missing translation JSON file(s) from Source -> "
             + translationsRoot
         );
     }
@@ -265,7 +218,7 @@ public sealed class ExtractionService
         var translationsRoot = Path.Combine(_settings.TranslationsFolder, modId);
         if (Directory.Exists(translationsRoot))
         {
-            _log?.Invoke($"Translations workspace already exists; leaving it unchanged -> {translationsRoot}");
+            _log?.Invoke($"Translations workspace already exists; leaving existing JSONs unchanged -> {translationsRoot}");
             return;
         }
 
@@ -277,32 +230,27 @@ public sealed class ExtractionService
 
         try
         {
-            CopyDirectory(sourceRoot, stagingRoot);
+            Directory.CreateDirectory(stagingRoot);
+
+            foreach (var language in BuildLanguageCatalog.All)
+            {
+                var fileName = language.Key + ".json";
+                var sourceFile = Path.Combine(sourceRoot, fileName);
+                RequireFile(sourceFile, $"extracted {language.EnglishName} translation JSON");
+                File.Copy(
+                    sourceFile,
+                    Path.Combine(stagingRoot, fileName),
+                    overwrite: false
+                );
+            }
+
             Directory.Move(stagingRoot, translationsRoot);
-            _log?.Invoke($"Created Translations 1:1 copy -> {translationsRoot}");
+            _log?.Invoke($"Created Translations JSON workspace -> {translationsRoot}");
         }
         catch
         {
             TryDeleteDirectory(stagingRoot);
             throw;
-        }
-    }
-
-    private static void CopyDirectory(string sourceRoot, string destinationRoot)
-    {
-        Directory.CreateDirectory(destinationRoot);
-        foreach (var directory in Directory.EnumerateDirectories(sourceRoot, "*", SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(sourceRoot, directory);
-            Directory.CreateDirectory(Path.Combine(destinationRoot, relative));
-        }
-
-        foreach (var sourceFile in Directory.EnumerateFiles(sourceRoot, "*", SearchOption.AllDirectories))
-        {
-            var relative = Path.GetRelativePath(sourceRoot, sourceFile);
-            var destinationFile = Path.Combine(destinationRoot, relative);
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
-            File.Copy(sourceFile, destinationFile, overwrite: false);
         }
     }
 
