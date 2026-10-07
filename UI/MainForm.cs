@@ -1648,9 +1648,7 @@ public sealed class MainForm : Form
 
         if (extractedLanguages.Count > 0)
         {
-            _gameLocalizationStatus.Text = _game.UiStatus == ModUiStatus.BuiltVerified
-                ? "BUILT & VERIFIED"
-                : "EXTRACTED";
+            _gameLocalizationStatus.Text = "EXTRACTED";
             _gameLocalizationStatus.ForeColor = StalkerTheme.Success;
 
             _gameLocalizationDetails.Text =
