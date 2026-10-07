@@ -27,7 +27,7 @@ public sealed class BuildService
         _log = log;
     }
 
-    public async Task<List<ModBuildResult>> BuildAllEditableAsync(
+    public async Task<List<ModBuildResult>> BuildAllTranslationsAsync(
         IEnumerable<ModScanResult> mods,
         int targetLanguageId,
         BuildMode mode,
@@ -37,7 +37,7 @@ public sealed class BuildService
         var available = mods
             .Where(x =>
                 (x.UiStatus is ModUiStatus.Available or ModUiStatus.Extracted)
-                && !string.IsNullOrWhiteSpace(x.EditableTranslationFile))
+                && !string.IsNullOrWhiteSpace(x.TranslationFile))
             .ToList();
         ValidatePrerequisites(available, mode);
 
@@ -60,13 +60,13 @@ public sealed class BuildService
     private async Task<ModBuildResult> BuildOneAsync(ModScanResult mod, int targetLanguageId, CancellationToken cancellationToken)
     {
         var result = new ModBuildResult { ModId = mod.ModId, ModName = mod.ModName };
-        var cachedRoot = Path.Combine(_settings.CachedFolder, mod.ModId);
-        var manifest = LoadAndValidateManifest(mod, cachedRoot);
+        var sourceRoot = Path.Combine(_settings.SourceFolder, mod.ModId);
+        var manifest = LoadAndValidateManifest(mod, sourceRoot);
         var translations = LoadTranslations(mod);
 
         var language = BuildLanguageCatalog.ById(targetLanguageId);
         _log?.Invoke(
-            $"{mod.ModName} / {language.EnglishName}: Editable JSON {mod.EditableTranslationFile} " +
+            $"{mod.ModName} / {language.EnglishName}: Translation JSON {mod.TranslationFile} " +
             $"({translations.Count} entries)"
         );
         var outputModRoot = Path.Combine(
@@ -82,7 +82,7 @@ public sealed class BuildService
         Directory.CreateDirectory(workRoot);
 
         if (manifest.Assets.Count > 0)
-            await BuildDatabaseOverlayAsync(manifest, translations, language, cachedRoot, outputModRoot, workRoot, result, cancellationToken);
+            await BuildDatabaseOverlayAsync(manifest, translations, language, sourceRoot, outputModRoot, workRoot, result, cancellationToken);
 
         if (string.Equals(manifest.ModId, "Game", StringComparison.OrdinalIgnoreCase)
             && manifest.LocresAssets.Count > 0)
@@ -91,7 +91,7 @@ public sealed class BuildService
                 manifest,
                 translations,
                 language,
-                cachedRoot,
+                sourceRoot,
                 outputModRoot,
                 workRoot,
                 result,
@@ -116,25 +116,25 @@ public sealed class BuildService
         return result;
     }
 
-    private static ExtractedManifest LoadAndValidateManifest(ModScanResult mod, string cachedRoot)
+    private static ExtractedManifest LoadAndValidateManifest(ModScanResult mod, string sourceRoot)
     {
-        var manifestPath = Path.Combine(cachedRoot, "manifest.json");
+        var manifestPath = Path.Combine(sourceRoot, "manifest.json");
         if (!File.Exists(manifestPath))
-            throw new FileNotFoundException($"Cached manifest not found for {mod.ModName}", manifestPath);
+            throw new FileNotFoundException($"Source manifest not found for {mod.ModName}", manifestPath);
 
         var manifest = JsonUtil.Load<ExtractedManifest>(manifestPath);
         if (manifest.SchemaVersion != AppConstants.ManifestSchemaVersion)
-            throw new InvalidDataException($"{mod.ModName}: cached files use an older workspace format. Extract again first.");
+            throw new InvalidDataException($"{mod.ModName}: source files use an older workspace format. Extract again first.");
         if (!string.Equals(manifest.SourceFingerprint, mod.SourceFingerprint, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException($"{mod.ModName}: cached files are from an older source version. Extract again first.");
+            throw new InvalidDataException($"{mod.ModName}: source files are from an older source version. Extract again first.");
         return manifest;
     }
 
     private static Dictionary<string, string> LoadTranslations(ModScanResult mod)
     {
-        var translationPath = mod.EditableTranslationFile
+        var translationPath = mod.TranslationFile
                               ?? throw new FileNotFoundException($"Editable language JSON not found for {mod.ModName}");
-        var translations = EditableScanner.LoadFlatTranslations(translationPath);
+        var translations = TranslationScanner.LoadFlatTranslations(translationPath);
         if (translations.Count == 0)
             throw new InvalidDataException($"{mod.ModName}: language JSON is empty: {translationPath}");
         return translations;
@@ -177,8 +177,8 @@ public sealed class BuildService
             var result = new ModBuildResult { ModId = mod.ModId, ModName = mod.ModName };
             results.Add(result);
 
-            var cachedRoot = Path.Combine(_settings.CachedFolder, mod.ModId);
-            var manifest = LoadAndValidateManifest(mod, cachedRoot);
+            var sourceRoot = Path.Combine(_settings.SourceFolder, mod.ModId);
+            var manifest = LoadAndValidateManifest(mod, sourceRoot);
             sourceContainerLabels.AddRange(manifest.SourceContainerLabels);
             var translations = LoadTranslations(mod);
 
@@ -187,10 +187,10 @@ public sealed class BuildService
                 cancellationToken.ThrowIfCancellationRequested();
                 ValidateAssetIdentityMetadata(asset, mod.ModName);
 
-                var sourceUasset = Path.Combine(cachedRoot, asset.UassetFile);
-                var sourceUexp = Path.Combine(cachedRoot, asset.UexpFile);
-                var sourceJson = Path.Combine(cachedRoot, asset.AssetJsonFile);
-                var scriptObjects = Path.Combine(cachedRoot, asset.ScriptObjectsFile);
+                var sourceUasset = Path.Combine(sourceRoot, asset.UassetFile);
+                var sourceUexp = Path.Combine(sourceRoot, asset.UexpFile);
+                var sourceJson = Path.Combine(sourceRoot, asset.AssetJsonFile);
+                var scriptObjects = Path.Combine(sourceRoot, asset.ScriptObjectsFile);
 
                 RequireFile(sourceUasset, "pristine extracted .uasset");
                 RequireFile(sourceUexp, "pristine extracted .uexp");
@@ -200,7 +200,7 @@ public sealed class BuildService
                 var assetTimer = Stopwatch.StartNew();
                 _log?.Invoke(
                     $"{mod.ModName} / {asset.DatabaseName}: "
-                    + "reading cached LocalizationDatabase for All-in-One..."
+                    + "reading source LocalizationDatabase for All-in-One..."
                 );
 
                 var export = UAssetInspector.ReadLocalizationExport(
@@ -210,7 +210,7 @@ public sealed class BuildService
 
                 _log?.Invoke(
                     $"{mod.ModName} / {asset.DatabaseName}: "
-                    + $"cached database loaded in "
+                    + $"source database loaded in "
                     + $"{assetTimer.Elapsed.TotalSeconds:N1}s; "
                     + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB"
                 );
@@ -309,7 +309,7 @@ public sealed class BuildService
             foreach (var result in results)
             {
                 result.Verified = true;
-                result.Message ??= "No Editable translation values required LocalizationDatabase changes.";
+                result.Message ??= "No Translation values required LocalizationDatabase changes.";
             }
             TryDeleteDirectory(outputRoot);
             return results;
@@ -356,7 +356,7 @@ public sealed class BuildService
             }
             else
             {
-                result.Message ??= "No Editable translation values required LocalizationDatabase changes; not included.";
+                result.Message ??= "No Translation values required LocalizationDatabase changes; not included.";
             }
         }
 
@@ -369,7 +369,7 @@ public sealed class BuildService
         ExtractedManifest manifest,
         Dictionary<string, string> translations,
         BuildLanguage language,
-        string cachedRoot,
+        string sourceRoot,
         string outputModRoot,
         string workRoot,
         ModBuildResult result,
@@ -389,10 +389,10 @@ public sealed class BuildService
             cancellationToken.ThrowIfCancellationRequested();
             ValidateAssetIdentityMetadata(asset, manifest.ModName);
 
-            var sourceUasset = Path.Combine(cachedRoot, asset.UassetFile);
-            var sourceUexp = Path.Combine(cachedRoot, asset.UexpFile);
-            var sourceJson = Path.Combine(cachedRoot, asset.AssetJsonFile);
-            var scriptObjects = Path.Combine(cachedRoot, asset.ScriptObjectsFile);
+            var sourceUasset = Path.Combine(sourceRoot, asset.UassetFile);
+            var sourceUexp = Path.Combine(sourceRoot, asset.UexpFile);
+            var sourceJson = Path.Combine(sourceRoot, asset.AssetJsonFile);
+            var scriptObjects = Path.Combine(sourceRoot, asset.ScriptObjectsFile);
 
             RequireFile(sourceUasset, "pristine extracted .uasset");
             RequireFile(sourceUexp, "pristine extracted .uexp");
@@ -402,7 +402,7 @@ public sealed class BuildService
             var assetTimer = Stopwatch.StartNew();
             _log?.Invoke(
                 $"{manifest.ModName} / {asset.DatabaseName}: "
-                + "reading cached LocalizationDatabase..."
+                + "reading source LocalizationDatabase..."
             );
 
             var export = UAssetInspector.ReadLocalizationExport(
@@ -413,7 +413,7 @@ public sealed class BuildService
             var inspectElapsed = assetTimer.Elapsed;
             _log?.Invoke(
                 $"{manifest.ModName} / {asset.DatabaseName}: "
-                + $"cached database loaded in "
+                + $"source database loaded in "
                 + $"{inspectElapsed.TotalSeconds:N1}s; "
                 + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB"
             );
@@ -494,7 +494,7 @@ public sealed class BuildService
 
         if (assetsPatched == 0)
         {
-            _log?.Invoke($"{manifest.ModName}: no Editable values required LocalizationDatabase changes; database output skipped.");
+            _log?.Invoke($"{manifest.ModName}: no Translation values required LocalizationDatabase changes; database output skipped.");
             return;
         }
 
@@ -529,7 +529,7 @@ public sealed class BuildService
         ExtractedManifest manifest,
         Dictionary<string, string> translations,
         BuildLanguage language,
-        string cachedRoot,
+        string sourceRoot,
         string outputModRoot,
         string workRoot,
         ModBuildResult result,
@@ -540,7 +540,7 @@ public sealed class BuildService
         if (!string.Equals(manifest.ModId, "Game", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("LOCRES build was requested for a non-GAME source.");
 
-        await BuildBaseGameLocresFromEditableAsync(
+        await BuildBaseGameLocresFromTranslationsAsync(
             manifest,
             translations,
             language,
@@ -551,7 +551,7 @@ public sealed class BuildService
         );
     }
 
-    private async Task BuildBaseGameLocresFromEditableAsync(
+    private async Task BuildBaseGameLocresFromTranslationsAsync(
         ExtractedManifest manifest,
         IReadOnlyDictionary<string, string> translations,
         BuildLanguage language,
@@ -568,7 +568,7 @@ public sealed class BuildService
             cancellationToken.ThrowIfCancellationRequested();
 
             // launch.py's normalize_s2hocmm_input() intentionally omits empty/null
-            // values. EditableScanner already normalizes null/non-string JSON values to
+            // values. TranslationScanner already normalizes null/non-string JSON values to
             // strings, so only the empty-string filter is needed here.
             if (string.IsNullOrEmpty(pair.Value))
             {
@@ -581,12 +581,12 @@ public sealed class BuildService
 
         if (flatLocres.Count == 0)
             throw new InvalidDataException(
-                $"{manifest.ModName}: Editable/Game/{language.Key}.json has no non-empty localization values."
+                $"{manifest.ModName}: Translations/Game/{language.Key}.json has no non-empty localization values."
             );
 
         _log?.Invoke(
-            $"{manifest.ModName}: authoritative Editable LOCRES -> {language.LocresCulture}.json; " +
-            $"editable={translations.Count}, non-empty={flatLocres.Count}, empty-skipped={emptyEntries}"
+            $"{manifest.ModName}: authoritative translation LOCRES -> {language.LocresCulture}.json; " +
+            $"translations={translations.Count}, non-empty={flatLocres.Count}, empty-skipped={emptyEntries}"
         );
 
         var locresWork = Path.Combine(workRoot, "locres");
@@ -662,7 +662,7 @@ public sealed class BuildService
         result.OutputFiles.Add(outputPak);
         result.OutputFiles.Add(outputLocres);
         _log?.Invoke(
-            $"LOCRES built from authoritative Editable JSON via S2HOCMM: entries={flatLocres.Count}"
+            $"LOCRES built from authoritative Translation JSON via S2HOCMM: entries={flatLocres.Count}"
         );
         _log?.Invoke($"LOCRES built & verified: {outputPak}");
     }
@@ -706,12 +706,12 @@ public sealed class BuildService
     {
         if (string.IsNullOrWhiteSpace(asset.ZenChunkId)
             || !Regex.IsMatch(asset.ZenChunkId, @"\A[0-9A-Fa-f]{24}\z"))
-            throw new InvalidDataException($"{label}: invalid cached Zen chunk ID: {asset.ZenChunkId}");
+            throw new InvalidDataException($"{label}: invalid source Zen chunk ID: {asset.ZenChunkId}");
 
         if (string.IsNullOrWhiteSpace(asset.InternalPackagePath)
             || string.IsNullOrWhiteSpace(asset.SourcePackageIdentityPath)
             || string.IsNullOrWhiteSpace(asset.DirectoryAliasPackagePath))
-            throw new InvalidDataException($"{label}: cached package-identity metadata is incomplete. Extract again with workspace schema {AppConstants.ManifestSchemaVersion}.");
+            throw new InvalidDataException($"{label}: source package-identity metadata is incomplete. Extract again with workspace schema {AppConstants.ManifestSchemaVersion}.");
 
         if (!string.Equals(asset.InternalPackagePath, asset.SourcePackageIdentityPath, StringComparison.Ordinal))
         {
@@ -726,8 +726,8 @@ public sealed class BuildService
         if (!string.Equals(derivedAlias, asset.DirectoryAliasPackagePath, StringComparison.Ordinal))
         {
             throw new InvalidDataException(
-                $"{label}: cached directory alias does not match virtual path for {asset.VirtualPath}:" +
-                Environment.NewLine + $"  cached : {asset.DirectoryAliasPackagePath}" +
+                $"{label}: source directory alias does not match virtual path for {asset.VirtualPath}:" +
+                Environment.NewLine + $"  source : {asset.DirectoryAliasPackagePath}" +
                 Environment.NewLine + $"  derived: {derivedAlias}"
             );
         }
