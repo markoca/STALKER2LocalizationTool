@@ -7,6 +7,7 @@ public sealed class SettingsForm : Form
 {
     private readonly AppSettings _settings;
     private readonly Localizer _l;
+    private readonly bool _embedded;
     private readonly Dictionary<string, TextBox> _boxes = new();
     private readonly StalkerToggleCheckBox _autoScan = new();
 
@@ -17,28 +18,32 @@ public sealed class SettingsForm : Form
     private readonly StalkerWindowButton _closeButton = new() { IsCloseButton = true };
 
     public bool SourceDeleted { get; private set; }
+    public event EventHandler? SettingsSaved;
+    public event EventHandler? SourceDataDeleted;
 
-    public SettingsForm(AppSettings settings, Localizer localizer)
+    public SettingsForm(AppSettings settings, Localizer localizer, bool embedded = false)
     {
         _settings = settings;
         _l = localizer;
+        _embedded = embedded;
 
         Text = _l.T("ui.settings") + " - " + AppConstants.AppName;
         StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = new Size(920, 700);
-        Size = new Size(980, 800);
+        MinimumSize = _embedded ? Size.Empty : new Size(920, 700);
+        Size = _embedded ? new Size(860, 620) : new Size(980, 800);
         Font = new Font("Segoe UI", 9F);
         FormBorderStyle = FormBorderStyle.None;
         ShowIcon = false;
-        Padding = new Padding(1);
-        BackColor = StalkerTheme.Border;
+        Padding = _embedded ? new Padding(0) : new Padding(1);
+        BackColor = _embedded ? StalkerTheme.WindowBackground : StalkerTheme.Border;
         DoubleBuffered = true;
 
         BuildUi();
         ApplyWindowTitle();
         StalkerTheme.Apply(this);
 
-        Resize += (_, _) => UpdateMaximizeButtonGlyph();
+        if (!_embedded)
+            Resize += (_, _) => UpdateMaximizeButtonGlyph();
     }
 
     private void BuildUi()
@@ -52,12 +57,17 @@ public sealed class SettingsForm : Form
             Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
-        root.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // title chrome
+        root.RowStyles.Add(
+            _embedded
+                ? new RowStyle(SizeType.Absolute, 0)
+                : new RowStyle(SizeType.AutoSize)
+        );                                                       // title chrome
         root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // settings content
         root.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // footer chrome
         Controls.Add(root);
 
-        root.Controls.Add(BuildTitleBar(), 0, 0);
+        if (!_embedded)
+            root.Controls.Add(BuildTitleBar(), 0, 0);
 
         var content = new TableLayoutPanel
         {
@@ -437,12 +447,8 @@ public sealed class SettingsForm : Form
             Tag = StalkerTheme.PrimaryButtonTag,
         };
 
-        save.Click += (_, _) => SaveAndClose();
-        cancel.Click += (_, _) =>
-        {
-            DialogResult = DialogResult.Cancel;
-            Close();
-        };
+        save.Click += (_, _) => SaveSettings();
+        cancel.Click += (_, _) => CancelChanges();
         deleteSourceData.Click += (_, _) => DeleteSourceData();
         resetWorkspace.Click += (_, _) => ResetWorkspacePaths();
 
@@ -695,6 +701,7 @@ public sealed class SettingsForm : Form
             }
 
             SourceDeleted = true;
+            SourceDataDeleted?.Invoke(this, EventArgs.Empty);
 
             MessageBox.Show(
                 this,
@@ -738,6 +745,9 @@ public sealed class SettingsForm : Form
         const int HtBottomRight = 17;
 
         base.WndProc(ref m);
+
+        if (_embedded)
+            return;
 
         if (m.Msg != WmNcHitTest || (int)m.Result != HtClient)
             return;
@@ -809,7 +819,29 @@ public sealed class SettingsForm : Form
         }
     }
 
-    private void SaveAndClose()
+    public void ReloadFromSettings()
+    {
+        if (_boxes.TryGetValue("game", out var game))
+            game.Text = _settings.GamePaksFolder;
+        if (_boxes.TryGetValue("mods", out var mods))
+            mods.Text = _settings.ModsFolder;
+
+        _autoScan.Checked = _settings.AutoScan;
+    }
+
+    private void CancelChanges()
+    {
+        if (_embedded)
+        {
+            ReloadFromSettings();
+            return;
+        }
+
+        DialogResult = DialogResult.Cancel;
+        Close();
+    }
+
+    private void SaveSettings()
     {
         // External locations and UI preferences are session-only. Internal workspace
         // and tool paths are always derived from the currently running executable.
@@ -822,6 +854,13 @@ public sealed class SettingsForm : Form
             try { Directory.CreateDirectory(_settings.ModsFolder); } catch { }
         }
 
+        if (_embedded)
+        {
+            SettingsSaved?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
         DialogResult = DialogResult.OK;
         Close();
-    }}
+    }
+}
