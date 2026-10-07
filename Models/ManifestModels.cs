@@ -5,18 +5,10 @@ public sealed class ExtractedManifest
     public int SchemaVersion { get; set; } = AppConstants.ManifestSchemaVersion;
     public string ModId { get; set; } = string.Empty;
     public string ModName { get; set; } = string.Empty;
-    public DateTime ExtractedAtUtc { get; set; }
     public string SourceFingerprint { get; set; } = string.Empty;
     public List<string> SourceContainerLabels { get; set; } = new();
-    public List<SourceFileFingerprint> SourceFiles { get; set; } = new();
     public List<ExtractedAssetManifest> Assets { get; set; } = new();
     public List<ExtractedLocresManifest> LocresAssets { get; set; } = new();
-}
-
-public sealed class SourceFileFingerprint
-{
-    public string RelativePath { get; set; } = string.Empty;
-    public string Sha256 { get; set; } = string.Empty;
 }
 
 public sealed class ExtractedAssetManifest
@@ -39,12 +31,9 @@ public sealed class ExtractedAssetManifest
 
 public sealed class ExtractedLocresManifest
 {
-    public string SourcePakRelativePath { get; set; } = string.Empty;
     public string InternalPath { get; set; } = string.Empty;
     public string CultureCode { get; set; } = string.Empty;
-    public string SourceLocresFile { get; set; } = string.Empty;
     public int SidCount { get; set; }
-    public int LocresVersion { get; set; }
 }
 
 public sealed class AliasManifest
