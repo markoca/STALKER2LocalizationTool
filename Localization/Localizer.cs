@@ -62,7 +62,7 @@ public sealed class Localizer
         ["ui.mappings"] = "Mappings.usmap",
         ["ui.repak"] = "repak.exe",
         ["ui.s2hocmm"] = "S2HOCMM.exe",
-        ["ui.auto_scan"] = "Scan automatically when folders change",
+        ["ui.auto_scan"] = "Refresh workspace automatically",
         ["ui.no_translations"] = "No translation JSONs were found.",
         ["ui.no_extract"] = "There is no new or changed localization to extract.",
         ["ui.no_languages_selected"] = "Select at least one build language.",

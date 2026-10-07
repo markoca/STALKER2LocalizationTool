@@ -2590,7 +2590,10 @@ public sealed class MainForm : Form
     protected override void Dispose(bool disposing)
     {
         if (disposing)
+        {
+            _toolTip.Dispose();
             _windowIcon?.Dispose();
+        }
 
         base.Dispose(disposing);
     }

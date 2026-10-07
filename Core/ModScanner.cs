@@ -306,7 +306,17 @@ public sealed class ModScanner
             }
         }).ToList();
 
-        var scanOutcomes = await Task.WhenAll(scanTasks);
+        ContainerScanOutcome[] scanOutcomes;
+        try
+        {
+            scanOutcomes = await Task.WhenAll(scanTasks);
+        }
+        finally
+        {
+            foreach (var gate in archiveFallbackGates.Values)
+                gate.Dispose();
+        }
+
         var scanCacheHits = scanOutcomes.Count(outcome => outcome.CacheHit);
         var directIndexed = scanOutcomes.Count(
             outcome => outcome.DirectIndexed

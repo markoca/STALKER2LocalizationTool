@@ -192,7 +192,7 @@ public sealed class SettingsForm : UserControl
 
         var hint = new Label
         {
-            Text = "Automatically refresh GAME / MODS when watched workspace files change.",
+            Text = "Refresh GAME / MODS readiness when Source or Translations files change.",
             AutoSize = true,
             Font = new Font("Segoe UI", 8.5F),
             Tag = StalkerTheme.MutedLabelTag,
