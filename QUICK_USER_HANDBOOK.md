@@ -11,7 +11,7 @@ Use the **GAME** workflow for original S.T.A.L.K.E.R. 2 localization and the **M
 >
 > Localization Workbench is **not** an automatic translator.
 >
-> It extracts localization into editable JSON files, lets you edit the text, and builds game-ready localization packages from your changes.
+> It extracts localization into translation JSON files, lets you edit the text, and builds game-ready localization packages from your changes.
 
 ---
 
@@ -195,7 +195,7 @@ SCAN GAME
     ->
 EXTRACT
     ->
-Edit JSONs in Editable\Game\
+Edit JSONs in Translations\Game\
     ->
 Select language(s)
     ->
@@ -232,22 +232,22 @@ EXTRACT
 
 Localization Workbench extracts all 18 supported game languages.
 
-Editable JSON files are created under:
+Translations JSON files are created under:
 
 ```text
-Editable\Game\
+Translations\Game\
 ```
 
 Example:
 
 ```text
-Editable\Game\serbian.json
+Translations\Game\serbian.json
 ```
 
 Internal rebuild data is stored separately under:
 
 ```text
-Cached\Game\
+Source\Game\
 ```
 
 After successful extraction, the log reports:
@@ -413,19 +413,19 @@ Only localization that requires extraction is processed.
 Internal rebuild data is stored under:
 
 ```text
-Cached\<ModName>\
+Source\<ModName>\
 ```
 
-Editable localization is stored under:
+Translations localization is stored under:
 
 ```text
-Editable\<ModName>\
+Translations\<ModName>\
 ```
 
 Example:
 
 ```text
-Editable\SomeMod\
+Translations\SomeMod\
     english.json
     serbian.json
     ukrainian.json
@@ -454,7 +454,7 @@ Edit the desired language JSON.
 >
 > Do **not** change **KEYS**.
 
-Your files under `Editable` are your working translation files.
+Your files under `Translations` are your working translation files.
 
 ### STEP 5 — BUILD
 
@@ -539,14 +539,14 @@ When a mod is updated:
 3. Click **SCAN MODS**.
 4. The updated localization should be detected as **Needs extraction**.
 5. Click **EXTRACT**.
-6. Review your existing Editable JSON against the updated localization data.
+6. Review your existing Translations JSON against the updated localization data.
 7. Build the localization again.
 
 > **IMPORTANT**
 >
-> Your existing Editable JSON files are not automatically overwritten.
+> Your existing Translations JSON files are not automatically overwritten.
 
-Localization Workbench keeps your editable translation work separate from newly extracted rebuild data.
+Localization Workbench keeps your translation work separate from newly extracted rebuild data.
 
 ---
 
@@ -557,7 +557,7 @@ Localization Workbench keeps your editable translation work separate from newly 
 Location:
 
 ```text
-Cached\
+Source\
 ```
 
 Contains internal extracted data required for comparison and safe rebuilding.
@@ -569,7 +569,7 @@ Contains internal extracted data required for comparison and safe rebuilding.
 Location:
 
 ```text
-Editable\
+Translations\
 ```
 
 Contains the JSON files you are expected to edit.
@@ -577,13 +577,13 @@ Contains the JSON files you are expected to edit.
 GAME localization:
 
 ```text
-Editable\Game\
+Translations\Game\
 ```
 
 MOD localization:
 
 ```text
-Editable\<ModName>\
+Translations\<ModName>\
 ```
 
 **EDIT YOUR TRANSLATIONS HERE.**
@@ -647,7 +647,7 @@ SCAN GAME
     ->
 EXTRACT
     ->
-Edit JSON files in Editable\Game\
+Edit JSON files in Translations\Game\
     ->
 Select language(s)
     ->
@@ -670,7 +670,7 @@ SCAN MODS
     ->
 EXTRACT
     ->
-Edit JSON files in Editable\<ModName>\
+Edit JSON files in Translations\<ModName>\
     ->
 Select language(s)
     ->
@@ -696,15 +696,15 @@ MODS handles supported mod LocalizationDatabase / IoStore localization.
 
 MODS uses supported OverrideContent localization sources only.
 
-Do not edit Cached.
+Do not edit Source.
 
-Edit translation files only under Editable.
+Edit translation files only under Translations.
 
 Do not change localization keys.
 
 Change localization values only.
 
-Do not copy files from Cached or Editable into the game.
+Do not copy files from Source or Translations into the game.
 
 Install only finished packages from Output.
 
@@ -728,13 +728,13 @@ The Settings window contains:
 DELETE CACHE
 ```
 
-This removes internal cached extraction data.
+This removes internal source extraction data.
 
-It does **not** delete your Editable translation files.
+It does **not** delete your Translations translation files.
 
 It does **not** delete your Output files.
 
-After deleting Cached data, extraction will be required again.
+After deleting Source data, extraction will be required again.
 
 For MODS, a fresh:
 
@@ -754,8 +754,8 @@ Localization Workbench automatically uses folders beside the EXE:
 
 ```text
 Mods\
-Cached\
-Editable\
+Source\
+Translations\
 Output\
 tools\
 ```
