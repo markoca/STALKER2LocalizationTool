@@ -628,14 +628,17 @@ public static class ModSourceDiscovery
         }
     }
 
-    public static async Task EnsureArchiveContainerMaterializedAsync(
+    public static async Task EnsureArchiveContainersMaterializedAsync(
         string modsRoot,
         string materializationRoot,
         string archiveRelative,
-        string sourceUtoc,
+        IReadOnlyCollection<string> sourceUtocs,
         Action<string>? log = null,
         CancellationToken cancellationToken = default)
     {
+        if (sourceUtocs.Count == 0)
+            return;
+
         var archivePath = Path.GetFullPath(
             Path.Combine(modsRoot, archiveRelative)
         );
@@ -665,69 +668,68 @@ public static class ModSourceDiscovery
         }
 
         var archiveDisplay = Path.GetFileNameWithoutExtension(archivePath);
-        var sourceUtocFull = Path.GetFullPath(sourceUtoc);
+        var requestedUtocs = sourceUtocs
+            .Select(Path.GetFullPath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var triplet = cache.Triplets.FirstOrDefault(candidate =>
-        {
-            var targetDir = MaterializedTripletDirectory(
-                materializationRoot,
-                archiveDisplay,
-                cache.ArchiveIdentity,
-                candidate
-            );
-            var expectedUtoc = Path.GetFullPath(
-                Path.Combine(
-                    targetDir,
-                    candidate.Stem + ".utoc"
-                )
-            );
-            return string.Equals(
-                expectedUtoc,
-                sourceUtocFull,
-                StringComparison.OrdinalIgnoreCase
-            );
-        });
+        var selectedTriplets = cache.Triplets
+            .Where(candidate =>
+            {
+                var targetDir = MaterializedTripletDirectory(
+                    materializationRoot,
+                    archiveDisplay,
+                    cache.ArchiveIdentity,
+                    candidate
+                );
+                var expectedUtoc = Path.GetFullPath(
+                    Path.Combine(
+                        targetDir,
+                        candidate.Stem + ".utoc"
+                    )
+                );
+                return requestedUtocs.Contains(expectedUtoc);
+            })
+            .ToList();
 
-        if (triplet is null)
+        if (selectedTriplets.Count != requestedUtocs.Count)
         {
             throw new InvalidDataException(
-                $"Could not resolve archive container for extraction: "
-                + $"{sourceUtoc}"
+                $"Could not resolve every archive container for extraction "
+                + $"from {Path.GetFileName(archivePath)}. Scan MODS again."
             );
         }
 
-        var materializedDir = MaterializedTripletDirectory(
-            materializationRoot,
-            archiveDisplay,
-            cache.ArchiveIdentity,
-            triplet
-        );
-        var pakTarget = Path.Combine(
-            materializedDir,
-            triplet.Stem + ".pak"
-        );
-        var utocTarget = Path.Combine(
-            materializedDir,
-            triplet.Stem + ".utoc"
-        );
-        var ucasTarget = Path.Combine(
-            materializedDir,
-            triplet.Stem + ".ucas"
-        );
+        var pending = selectedTriplets
+            .Where(triplet =>
+            {
+                var dir = MaterializedTripletDirectory(
+                    materializationRoot,
+                    archiveDisplay,
+                    cache.ArchiveIdentity,
+                    triplet
+                );
+                return !FileMatchesSize(
+                           Path.Combine(dir, triplet.Stem + ".pak"),
+                           triplet.PakSize)
+                       || !FileMatchesSize(
+                           Path.Combine(dir, triplet.Stem + ".utoc"),
+                           triplet.UtocSize)
+                       || !FileMatchesSize(
+                           Path.Combine(dir, triplet.Stem + ".ucas"),
+                           triplet.UcasSize);
+            })
+            .ToList();
 
-        if (FileMatchesSize(pakTarget, triplet.PakSize)
-            && FileMatchesSize(utocTarget, triplet.UtocSize)
-            && FileMatchesSize(ucasTarget, triplet.UcasSize))
-        {
+        if (pending.Count == 0)
             return;
-        }
 
         cancellationToken.ThrowIfCancellationRequested();
 
         var timer = Stopwatch.StartNew();
         log?.Invoke(
-            $"Materializing archive payload for extraction: "
-            + $"{Path.GetFileName(archivePath)} :: {triplet.Stem}"
+            $"Materializing archive payloads for extraction: "
+            + $"{Path.GetFileName(archivePath)} "
+            + $"({pending.Count} container(s))"
         );
 
         using var archive = ArchiveFactory.OpenArchive(archivePath);
@@ -756,37 +758,59 @@ public static class ModSourceDiscovery
                 StringComparer.OrdinalIgnoreCase
             );
 
-        if (!entries.TryGetValue(triplet.PakMember, out var pakEntry)
-            || !entries.TryGetValue(triplet.UtocMember, out var utocEntry)
-            || !entries.TryGetValue(triplet.UcasMember, out var ucasEntry))
+        foreach (var triplet in pending)
         {
-            throw new InvalidDataException(
-                $"Archive container changed after scan: {triplet.Stem}. "
-                + "Scan MODS again."
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!entries.TryGetValue(triplet.PakMember, out var pakEntry)
+                || !entries.TryGetValue(triplet.UtocMember, out var utocEntry)
+                || !entries.TryGetValue(triplet.UcasMember, out var ucasEntry))
+            {
+                throw new InvalidDataException(
+                    $"Archive container changed after scan: {triplet.Stem}. "
+                    + "Scan MODS again."
+                );
+            }
+
+            var materializedDir = MaterializedTripletDirectory(
+                materializationRoot,
+                archiveDisplay,
+                cache.ArchiveIdentity,
+                triplet
+            );
+            Directory.CreateDirectory(materializedDir);
+
+            await ExtractIfNeededAsync(
+                pakEntry,
+                Path.Combine(
+                    materializedDir,
+                    triplet.Stem + ".pak"
+                ),
+                cancellationToken
+            );
+            await ExtractIfNeededAsync(
+                utocEntry,
+                Path.Combine(
+                    materializedDir,
+                    triplet.Stem + ".utoc"
+                ),
+                cancellationToken
+            );
+            await ExtractIfNeededAsync(
+                ucasEntry,
+                Path.Combine(
+                    materializedDir,
+                    triplet.Stem + ".ucas"
+                ),
+                cancellationToken
             );
         }
 
-        Directory.CreateDirectory(materializedDir);
-        await ExtractIfNeededAsync(
-            pakEntry,
-            pakTarget,
-            cancellationToken
-        );
-        await ExtractIfNeededAsync(
-            utocEntry,
-            utocTarget,
-            cancellationToken
-        );
-        await ExtractIfNeededAsync(
-            ucasEntry,
-            ucasTarget,
-            cancellationToken
-        );
-
         timer.Stop();
         log?.Invoke(
-            $"Archive extraction payload ready in "
-            + $"{timer.Elapsed.TotalSeconds:N1}s: {triplet.Stem}"
+            $"Archive extraction payloads ready in "
+            + $"{timer.Elapsed.TotalSeconds:N1}s: "
+            + $"{Path.GetFileName(archivePath)}"
         );
     }
 
