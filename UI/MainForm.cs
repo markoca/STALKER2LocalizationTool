@@ -781,7 +781,7 @@ public sealed class MainForm : Form
         _grid.RowTemplate.Height = 34;
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Mod", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 52 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Localization", Width = 155 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn
+        var statusColumn = new DataGridViewTextBoxColumn
         {
             Name = "Status",
             Width = 180,
@@ -789,13 +789,20 @@ public sealed class MainForm : Form
             {
                 Alignment = DataGridViewContentAlignment.MiddleLeft,
             },
-        });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Details", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 48 });
+        };
+        var detailsColumn = new DataGridViewTextBoxColumn
+        {
+            Name = "Details",
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+            FillWeight = 48,
+        };
+        _grid.Columns.Add(statusColumn);
+        _grid.Columns.Add(detailsColumn);
         _grid.CellFormatting += (_, e) =>
         {
             if (e.RowIndex < 0
                 || e.RowIndex >= _mods.Count
-                || e.ColumnIndex != _grid.Columns["Status"].Index)
+                || e.ColumnIndex != statusColumn.Index)
             {
                 return;
             }
@@ -808,9 +815,9 @@ public sealed class MainForm : Form
         {
             if (e.RowIndex < 0 || e.RowIndex >= _mods.Count) return;
             var mod = _mods[e.RowIndex];
-            if (e.ColumnIndex == _grid.Columns["Status"].Index)
+            if (e.ColumnIndex == statusColumn.Index)
                 e.ToolTipText = StatusHelp(mod.UiStatus);
-            else if (e.ColumnIndex == _grid.Columns["Details"].Index)
+            else if (e.ColumnIndex == detailsColumn.Index)
                 e.ToolTipText = !string.IsNullOrWhiteSpace(mod.ScanError)
                     ? mod.ScanError
                     : BuildModDetailsTooltip(mod);
