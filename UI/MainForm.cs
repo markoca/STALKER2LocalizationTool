@@ -40,6 +40,8 @@ public sealed class MainForm : Form
     private readonly Label _gameLocalizationDetails = new();
     private readonly TableLayoutPanel _gameLocalizationResults = new();
     private string _gameLocalizationResultSignature = string.Empty;
+    private readonly Dictionary<string, (long Length, long LastWriteUtcTicks, int Lines)>
+        _gameJsonLineCountCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Button _openJsons = new StalkerUtilityButton();
     private readonly Button _openOutput = new StalkerUtilityButton();
     private readonly DataGridView _grid = new();
@@ -1672,9 +1674,26 @@ public sealed class MainForm : Form
     private void SetGameLocalizationResults(
         IReadOnlyList<BuildLanguage> languages)
     {
+        var results = languages
+            .Select(language =>
+            {
+                var path = Path.Combine(
+                    _settings.EditableFolder,
+                    "Game",
+                    language.Key + ".json"
+                );
+                return (
+                    Language: language,
+                    Path: path,
+                    Lines: GetGameJsonLineCount(path)
+                );
+            })
+            .ToList();
+
         var signature = string.Join(
             "|",
-            languages.Select(language => language.Key)
+            results.Select(result =>
+                $"{result.Language.Key}:{result.Lines}")
         );
 
         if (string.Equals(
@@ -1682,7 +1701,7 @@ public sealed class MainForm : Form
                 _gameLocalizationResultSignature,
                 StringComparison.Ordinal))
         {
-            _gameLocalizationResults.Visible = languages.Count > 0;
+            _gameLocalizationResults.Visible = results.Count > 0;
             return;
         }
 
@@ -1702,7 +1721,7 @@ public sealed class MainForm : Form
             _gameLocalizationResults.Controls.Clear();
             _gameLocalizationResults.RowStyles.Clear();
 
-            if (languages.Count == 0)
+            if (results.Count == 0)
             {
                 _gameLocalizationResults.RowCount = 0;
                 _gameLocalizationResults.Height = 0;
@@ -1711,27 +1730,32 @@ public sealed class MainForm : Form
             }
 
             const int columns = 3;
-            var rows = (int)Math.Ceiling(languages.Count / (double)columns);
+            const int rowHeight = 50;
+            var rows = (int)Math.Ceiling(results.Count / (double)columns);
             _gameLocalizationResults.RowCount = rows;
-            _gameLocalizationResults.Height = rows * 46;
+            _gameLocalizationResults.Height = rows * rowHeight;
 
             for (var row = 0; row < rows; row++)
                 _gameLocalizationResults.RowStyles.Add(
-                    new RowStyle(SizeType.Absolute, 46)
+                    new RowStyle(SizeType.Absolute, rowHeight)
                 );
 
-            for (var index = 0; index < languages.Count; index++)
+            for (var index = 0; index < results.Count; index++)
             {
-                var language = languages[index];
+                var result = results[index];
+                var lineText = result.Lines >= 0
+                    ? $"{result.Lines:N0} JSON lines"
+                    : "Line count unavailable";
+
                 var item = new Label
                 {
                     AutoSize = false,
                     Dock = DockStyle.Fill,
-                    Height = 40,
+                    Height = rowHeight - 6,
                     Text =
-                        $"✓  {_l.LanguageName(language)}"
+                        $"✓  {_l.LanguageName(result.Language)}"
                         + Environment.NewLine
-                        + $"    {language.Key}.json",
+                        + $"    {lineText}",
                     TextAlign = ContentAlignment.MiddleLeft,
                     Font = new Font("Segoe UI", 8.25F),
                     ForeColor = StalkerTheme.Text,
@@ -1742,11 +1766,7 @@ public sealed class MainForm : Form
 
                 _toolTip.SetToolTip(
                     item,
-                    Path.Combine(
-                        _settings.EditableFolder,
-                        "Game",
-                        language.Key + ".json"
-                    )
+                    result.Path
                 );
 
                 var column = index % columns;
@@ -1759,6 +1779,48 @@ public sealed class MainForm : Form
         finally
         {
             _gameLocalizationResults.ResumeLayout(true);
+        }
+    }
+
+    private int GetGameJsonLineCount(string path)
+    {
+        if (!File.Exists(path))
+        {
+            _gameJsonLineCountCache.Remove(path);
+            return -1;
+        }
+
+        try
+        {
+            var info = new FileInfo(path);
+            var length = info.Length;
+            var lastWriteUtcTicks = info.LastWriteTimeUtc.Ticks;
+
+            if (_gameJsonLineCountCache.TryGetValue(path, out var cached)
+                && cached.Length == length
+                && cached.LastWriteUtcTicks == lastWriteUtcTicks)
+            {
+                return cached.Lines;
+            }
+
+            var lines = 0;
+            using (var reader = new StreamReader(path, Encoding.UTF8, true))
+            {
+                while (reader.ReadLine() is not null)
+                    lines++;
+            }
+
+            _gameJsonLineCountCache[path] = (
+                length,
+                lastWriteUtcTicks,
+                lines
+            );
+            return lines;
+        }
+        catch
+        {
+            _gameJsonLineCountCache.Remove(path);
+            return -1;
         }
     }
 
