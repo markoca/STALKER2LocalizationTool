@@ -41,17 +41,17 @@ public sealed class ExtractionService
                 mod.HasLocalization
                 && (mod.NeedsExtraction
                     || mod.UiStatus == ModUiStatus.MissingTranslation
-                    || CanRestoreEditableFromCache(mod)))
+                    || CanRestoreTranslationsFromSource(mod)))
             .ToList();
 
         // Only a real source extraction needs retoc/UAssetGUI/repak.
-        // MissingTranslation is an Editable-recovery case and can be restored
-        // directly from the already-current Cached workspace.
+        // MissingTranslation is a Translations-recovery case and can be restored
+        // directly from the already-current Source workspace.
         ValidatePrerequisites(
             list.Where(x => x.NeedsExtraction).ToList()
         );
 
-        Directory.CreateDirectory(_settings.CachedFolder);
+        Directory.CreateDirectory(_settings.SourceFolder);
 
         for (var index = 0; index < list.Count; index++)
         {
@@ -60,7 +60,7 @@ public sealed class ExtractionService
 
             if (!mod.NeedsExtraction
                 && (mod.UiStatus == ModUiStatus.MissingTranslation
-                    || CanRestoreEditableFromCache(mod)))
+                    || CanRestoreTranslationsFromSource(mod)))
             {
                 progress?.Report((
                     index,
@@ -68,9 +68,9 @@ public sealed class ExtractionService
                     $"Restoring {mod.ModName}"
                 ));
                 _log?.Invoke(
-                    $"=== Restoring Editable files for {mod.ModName} ==="
+                    $"=== Restoring Translations files for {mod.ModName} ==="
                 );
-                RestoreMissingEditableWorkspace(mod);
+                RestoreMissingTranslationsWorkspace(mod);
                 progress?.Report((
                     index + 1,
                     list.Count,
@@ -89,7 +89,7 @@ public sealed class ExtractionService
     private async Task ExtractOneModAsync(ModScanResult mod, CancellationToken cancellationToken)
     {
         var stagingRoot = Path.Combine(
-            _settings.CachedFolder,
+            _settings.SourceFolder,
             $".{mod.ModId}.staging.{Guid.NewGuid():N}"
         );
         Directory.CreateDirectory(stagingRoot);
@@ -156,18 +156,18 @@ public sealed class ExtractionService
                 );
             }
 
-            var finalRoot = Path.Combine(_settings.CachedFolder, mod.ModId);
+            var finalRoot = Path.Combine(_settings.SourceFolder, mod.ModId);
             if (Directory.Exists(finalRoot))
                 Directory.Delete(finalRoot, recursive: true);
             Directory.Move(stagingRoot, finalRoot);
 
             try
             {
-                SeedEditableWorkspace(finalRoot, mod.ModId);
+                SeedTranslationsWorkspace(finalRoot, mod.ModId);
             }
             catch
             {
-                // Do not leave a current manifest behind when the initial Editable
+                // Do not leave a current manifest behind when the initial Translations
                 // copy failed; the next scan must offer extraction again.
                 TryDeleteDirectory(finalRoot);
                 throw;
@@ -186,91 +186,91 @@ public sealed class ExtractionService
         }
     }
 
-    private bool CanRestoreEditableFromCache(ModScanResult mod)
+    private bool CanRestoreTranslationsFromSource(ModScanResult mod)
     {
-        var cachedRoot = Path.Combine(
-            _settings.CachedFolder,
+        var sourceRoot = Path.Combine(
+            _settings.SourceFolder,
             mod.ModId
         );
-        if (!Directory.Exists(cachedRoot))
+        if (!Directory.Exists(sourceRoot))
             return false;
 
-        var cachedHasEditableJson = BuildLanguageCatalog.All.Any(language =>
+        var sourceHasTranslationJson = BuildLanguageCatalog.All.Any(language =>
             File.Exists(
                 Path.Combine(
-                    cachedRoot,
+                    sourceRoot,
                     language.Key + ".json"
                 )
             )
         );
-        if (!cachedHasEditableJson)
+        if (!sourceHasTranslationJson)
             return false;
 
-        var editableRoot = Path.Combine(
-            _settings.EditableFolder,
+        var translationsRoot = Path.Combine(
+            _settings.TranslationsFolder,
             mod.ModId
         );
-        if (!Directory.Exists(editableRoot))
+        if (!Directory.Exists(translationsRoot))
             return true;
 
-        var editableHasAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
+        var translationsHaveAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
             File.Exists(
                 Path.Combine(
-                    editableRoot,
+                    translationsRoot,
                     language.Key + ".json"
                 )
             )
         );
 
-        return !editableHasAnyLanguageJson;
+        return !translationsHaveAnyLanguageJson;
     }
 
-    private void RestoreMissingEditableWorkspace(ModScanResult mod)
+    private void RestoreMissingTranslationsWorkspace(ModScanResult mod)
     {
-        var cachedRoot = Path.Combine(
-            _settings.CachedFolder,
+        var sourceRoot = Path.Combine(
+            _settings.SourceFolder,
             mod.ModId
         );
-        if (!Directory.Exists(cachedRoot))
+        if (!Directory.Exists(sourceRoot))
         {
             throw new DirectoryNotFoundException(
-                $"Cached extraction was not found for {mod.ModName}: {cachedRoot}"
+                $"Source extraction was not found for {mod.ModName}: {sourceRoot}"
             );
         }
 
-        var editableRoot = Path.Combine(
-            _settings.EditableFolder,
+        var translationsRoot = Path.Combine(
+            _settings.TranslationsFolder,
             mod.ModId
         );
-        Directory.CreateDirectory(editableRoot);
+        Directory.CreateDirectory(translationsRoot);
 
         var restored = 0;
 
         foreach (var directory in Directory.EnumerateDirectories(
-                     cachedRoot,
+                     sourceRoot,
                      "*",
                      SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(
-                cachedRoot,
+                sourceRoot,
                 directory
             );
             Directory.CreateDirectory(
-                Path.Combine(editableRoot, relative)
+                Path.Combine(translationsRoot, relative)
             );
         }
 
         foreach (var sourceFile in Directory.EnumerateFiles(
-                     cachedRoot,
+                     sourceRoot,
                      "*",
                      SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(
-                cachedRoot,
+                sourceRoot,
                 sourceFile
             );
             var destinationFile = Path.Combine(
-                editableRoot,
+                translationsRoot,
                 relative
             );
 
@@ -289,31 +289,31 @@ public sealed class ExtractionService
         }
 
         _log?.Invoke(
-            $"Restored {restored} missing Editable file(s) from Cached -> "
-            + editableRoot
+            $"Restored {restored} missing Translations file(s) from Source -> "
+            + translationsRoot
         );
     }
 
-    private void SeedEditableWorkspace(string cachedRoot, string modId)
+    private void SeedTranslationsWorkspace(string sourceRoot, string modId)
     {
-        var editableRoot = Path.Combine(_settings.EditableFolder, modId);
-        if (Directory.Exists(editableRoot))
+        var translationsRoot = Path.Combine(_settings.TranslationsFolder, modId);
+        if (Directory.Exists(translationsRoot))
         {
-            _log?.Invoke($"Editable workspace already exists; leaving it unchanged -> {editableRoot}");
+            _log?.Invoke($"Translations workspace already exists; leaving it unchanged -> {translationsRoot}");
             return;
         }
 
-        Directory.CreateDirectory(_settings.EditableFolder);
+        Directory.CreateDirectory(_settings.TranslationsFolder);
         var stagingRoot = Path.Combine(
-            _settings.EditableFolder,
+            _settings.TranslationsFolder,
             $".{modId}.staging.{Guid.NewGuid():N}"
         );
 
         try
         {
-            CopyDirectory(cachedRoot, stagingRoot);
-            Directory.Move(stagingRoot, editableRoot);
-            _log?.Invoke($"Created editable 1:1 Editable copy -> {editableRoot}");
+            CopyDirectory(sourceRoot, stagingRoot);
+            Directory.Move(stagingRoot, translationsRoot);
+            _log?.Invoke($"Created Translations 1:1 copy -> {translationsRoot}");
         }
         catch
         {
@@ -723,7 +723,7 @@ public sealed class ExtractionService
                 string.Equals(language.LocresCulture, source.CultureCode, StringComparison.OrdinalIgnoreCase));
             if (sourceLanguage is null)
             {
-                _log?.Invoke($"{source.InternalPath}: no editable language JSON mapping for culture '{source.CultureCode}'");
+                _log?.Invoke($"{source.InternalPath}: no translation language JSON mapping for culture '{source.CultureCode}'");
             }
             locresDocuments.Add((sourceLanguage, document));
 
@@ -754,15 +754,15 @@ public sealed class ExtractionService
             {
                 foreach (var entry in ns.Entries)
                 {
-                    var editableKey = namespaceCounts[entry.Key] > 1
+                    var translationKey = namespaceCounts[entry.Key] > 1
                         ? $"{ns.Name}::{entry.Key}"
                         : entry.Key;
 
                     foreach (var languageDump in languageDumps.Values)
-                        MergeDumpValue(languageDump, editableKey, string.Empty);
+                        MergeDumpValue(languageDump, translationKey, string.Empty);
 
                     if (item.Language is not null)
-                        MergeDumpValue(languageDumps[item.Language.Id], editableKey, entry.Value);
+                        MergeDumpValue(languageDumps[item.Language.Id], translationKey, entry.Value);
                 }
             }
         }
