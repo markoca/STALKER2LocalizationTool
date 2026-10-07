@@ -66,22 +66,6 @@ public static class LocalizationDatabaseCodec
         return payload;
     }
 
-    public static byte[] Serialize(LocalizationPayload parsed)
-    {
-        using var stream = new MemoryStream();
-        WritePayload(stream, parsed);
-        return stream.ToArray();
-    }
-
-    public static bool RoundTripMatches(
-        LocalizationPayload parsed,
-        byte[] originalPayload)
-    {
-        using var stream = new ComparingWriteStream(originalPayload);
-        WritePayload(stream, parsed);
-        return stream.IsExactMatch;
-    }
-
     private static void WritePayload(
         Stream stream,
         LocalizationPayload parsed)
