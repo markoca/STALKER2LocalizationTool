@@ -26,6 +26,9 @@
 - [ ] Before the first MODS scan in a session, entering the MODS tab shows **MODS FOUND** and **READY TO SCAN** once when mod sources are present; tab switching does not duplicate the banners.
 - [ ] MODS scanning starts only when the user clicks **SCAN MODS**.
 - [ ] SCAN MODS discovers loose and ZIP/7z/RAR sources.
+- [ ] ZIP/7z/RAR SCAN MODS is UTOC-only: `.pak` / `.ucas` payloads are not materialized merely to discover localization.
+- [ ] EXTRACT lazily materializes the required archive `.pak` / `.ucas` siblings and completes normally for an archive-backed localization container.
+- [ ] A second unchanged archive scan reuses discovery/scan caches and logs discovery time, total scan time, cache reuse and `retoc` scan counts.
 - [ ] MODS localization uses supported OverrideContent-side containers only.
 - [ ] Nexus download IDs are not shown in mod display names and detected versions are normalized.
 - [ ] New/changed mods show **Needs extraction**.
@@ -52,4 +55,4 @@
 - [ ] Build-language selection tiles clearly distinguish unchecked, hover, checked and disabled states at 100%, 125% and 150% scaling.
 - [ ] GAME extracted-file result tiles render filenames without clipping and retain full-path tooltips.
 - [ ] LOG remains readable and scrollable with the borderless terminal treatment on Windows and Wine.
-- [ ] Settings path fields, Browse buttons, AUTO indicators, Auto Scan switch, Save/Cancel and Delete Cache render consistently with the Industrial Zone theme.
+- [ ] Settings path fields, Browse buttons, AUTO indicators, Auto Scan switch, Save/Cancel and Delete Source Data render consistently with the Industrial Zone theme.
