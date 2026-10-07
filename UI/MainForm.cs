@@ -140,7 +140,7 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 6,
+            RowCount = 5,
             Margin = new Padding(0),
             BackColor = StalkerTheme.WindowBackground,
         };
@@ -536,7 +536,7 @@ public sealed class MainForm : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 1,
-            RowCount = 5,
+            RowCount = 6,
             Margin = new Padding(0),
             Padding = new Padding(0),
             BackColor = StalkerTheme.PanelAlt,
@@ -567,8 +567,9 @@ public sealed class MainForm : Form
         _gameLocalizationDetails.Margin = new Padding(0, 0, 0, 10);
 
         _gameLocalizationResults.Anchor = AnchorStyles.None;
-        _gameLocalizationResults.AutoSize = true;
-        _gameLocalizationResults.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        _gameLocalizationResults.AutoSize = false;
+        _gameLocalizationResults.Width = 700;
+        _gameLocalizationResults.Height = 0;
         _gameLocalizationResults.ColumnCount = 3;
         _gameLocalizationResults.RowCount = 0;
         _gameLocalizationResults.Margin = new Padding(0);
@@ -1692,8 +1693,13 @@ public sealed class MainForm : Form
         _gameLocalizationResults.SuspendLayout();
         try
         {
-            foreach (Control control in _gameLocalizationResults.Controls)
+            foreach (var control in
+                     _gameLocalizationResults.Controls
+                         .Cast<Control>()
+                         .ToArray())
+            {
                 control.Dispose();
+            }
 
             _gameLocalizationResults.Controls.Clear();
             _gameLocalizationResults.RowStyles.Clear();
@@ -1701,6 +1707,7 @@ public sealed class MainForm : Form
             if (languages.Count == 0)
             {
                 _gameLocalizationResults.RowCount = 0;
+                _gameLocalizationResults.Height = 0;
                 _gameLocalizationResults.Visible = false;
                 return;
             }
@@ -1708,6 +1715,7 @@ public sealed class MainForm : Form
             const int columns = 3;
             var rows = (int)Math.Ceiling(languages.Count / (double)columns);
             _gameLocalizationResults.RowCount = rows;
+            _gameLocalizationResults.Height = rows * 46;
 
             for (var row = 0; row < rows; row++)
                 _gameLocalizationResults.RowStyles.Add(
