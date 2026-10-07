@@ -8,10 +8,11 @@
 - Added lightweight persistence of validated external GAME and MODS source paths through `user-paths.json`.
 - Separated GAME and MODS workflow readiness/status logging with consistent decorated banners.
 - MODS scanning is now strictly manual: it starts only from **SCAN MODS**.
-- Optimized large archive MODS scanning with **UTOC-only archive discovery**: ZIP/7z/RAR scans no longer materialize `.pak` / `.ucas` payloads up front; those files are materialized lazily only on EXTRACT for containers that actually contain localization.
+- Optimized large archive MODS scanning by avoiding full archive SHA-256 reads and deferring `.pak` materialization until EXTRACT. Archive SCAN materializes the `.utoc` + `.ucas` pair required by `retoc list`.
 - Removed the full archive SHA-256 read from MODS discovery and collapsed loose/archive source discovery into a single filesystem traversal; scan logs now include discovery time, total scan time, cache hits and actual `retoc` scans.
 - Added bounded parallel container scanning with at most **2 concurrent `retoc list` operations**, while preserving deterministic per-mod aggregation and cancellation; per-container logs now report UTOC hash time, `retoc` time or cache hits.
-- Cold archive discovery now logs the time required to materialize each scan-only UTOC, making 7z/RAR decompression bottlenecks visible separately from `retoc` time.
+- Corrected the archive SCAN dependency after cold-cache testing showed that `retoc list` opens the adjacent `.ucas`; SCAN now materializes `.utoc` + `.ucas` and keeps only `.pak` lazy.
+- Cold archive discovery now logs the time required to materialize each scan payload (`.utoc` + `.ucas`), making archive decompression bottlenecks visible separately from `retoc` time.
 - Entering MODS performs only a one-shot pre-scan source-presence check and reports **MODS FOUND / READY TO SCAN** when appropriate.
 - Removed obsolete MODS scan snapshot persistence and related dead code.
 - Third-party helper-tool binaries are no longer tracked or distributed; users supply compatible tools under `tools/`.
