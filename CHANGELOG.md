@@ -20,6 +20,7 @@
 - The new main-window styling remains owner-drawn WinForms to preserve deterministic Windows/Wine rendering without adding a UI framework dependency.
 - Extended the **Industrial Zone** styling to the remaining UI: language-selection tiles, GAME extraction result tiles, borderless terminal log, chamfered utility buttons, industrial Settings path fields, Auto Scan switch, primary Save action, and destructive Delete Source Data treatment.
 - MODS status messages now render as plain color-coded text instead of badge/button-like controls.
+- MODS EXTRACT now completes without a success popup; completion remains visible through the grid status, workflow log and status bar.
 - Settings typography now uses the same Segoe UI family as the main window, avoiding a separate Bahnschrift rendering dependency across Windows/Wine.
 - Fixed borderless-window dragging: the main and Settings custom title bars are draggable from their non-interactive child surfaces while caption buttons remain clickable.
 - Renamed the runtime workspace folders from **Cached / Editable** to gamer-facing **Source / Translations** across the application, build/extraction pipeline, Settings, documentation and publishers.
