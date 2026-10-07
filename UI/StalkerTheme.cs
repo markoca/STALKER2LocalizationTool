@@ -408,38 +408,6 @@ internal static class StalkerTheme
         }
     }
 
-    public static Icon? CreateWindowIcon()
-    {
-        if (!OperatingSystem.IsWindows())
-            return null;
-
-        try
-        {
-            using var bitmap = new Bitmap(32, 32);
-            using (var graphics = Graphics.FromImage(bitmap))
-            {
-                graphics.SmoothingMode = SmoothingMode.AntiAlias;
-                graphics.Clear(Color.Transparent);
-                DrawRadiationMark(graphics, new Rectangle(1, 1, 30, 30));
-            }
-
-            var hIcon = bitmap.GetHicon();
-            try
-            {
-                using var temporary = Icon.FromHandle(hIcon);
-                return (Icon)temporary.Clone();
-            }
-            finally
-            {
-                _ = DestroyIcon(hIcon);
-            }
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     internal static void DrawRadiationMark(Graphics graphics, Rectangle bounds)
     {
         graphics.SmoothingMode = SmoothingMode.AntiAlias;
