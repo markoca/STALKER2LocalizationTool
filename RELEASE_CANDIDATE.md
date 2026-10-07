@@ -24,8 +24,8 @@ English UI strings are embedded in the executable; no loose `locales/` directory
 Internal runtime paths are derived from the directory containing `Localization Workbench.exe`:
 
 ```text
-Cached/
-Editable/
+Source/
+Translations/
 Output/
 tools/
 ```
@@ -51,8 +51,8 @@ Both publishers preserve locally existing runtime data:
 ```text
 user-paths.json
 Mods/
-Cached/
-Editable/
+Source/
+Translations/
 Output/
 tools/
 ```
@@ -70,8 +70,8 @@ publish/win-x64/
   tools/
     README.txt            # user places required tools here
   Mods/
-  Cached/
-  Editable/
+  Source/
+  Translations/
   Output/
 ```
 
