@@ -200,6 +200,10 @@ public sealed class ModScanner
                         RetocScanned = true,
                     };
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     _log?.Invoke(
