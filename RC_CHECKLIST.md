@@ -42,6 +42,7 @@
 - [ ] GAME / MODS workflow buttons remain step-aware.
 - [ ] Custom title bar, window controls and spinning radiation mark render correctly.
 - [ ] Main and Settings windows can be dragged from the title area, including over title labels/panels, while minimize/maximize/close remain clickable.
+- [ ] Main and Settings title words use the same 17 pt size without clipping at 100%, 125% and 150% scaling.
 - [ ] Industrial Zone chamfered cards and action buttons render cleanly with no clipped text at 100%, 125% and 150% Windows scaling.
 - [ ] GAME localization overview shows only **READY TO SCAN** before scanning, without redundant supported-language or `pakchunk0` text.
 - [ ] After GAME EXTRACT, the central panel shows **EXTRACTED** and lists the actual translation JSON files; no extraction-complete MessageBox is shown.
