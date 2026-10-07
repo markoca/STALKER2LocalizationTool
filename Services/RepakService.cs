@@ -60,17 +60,6 @@ public sealed class RepakService
         return output;
     }
 
-    public async Task UnpackAsync(string pakPath, string outputDirectory, CancellationToken cancellationToken = default)
-    {
-        Directory.CreateDirectory(outputDirectory);
-        await ProcessRunner.RunAsync(
-            _repakPath,
-            new[] { "unpack", pakPath, "-o", outputDirectory },
-            _log,
-            cancellationToken
-        );
-    }
-
     public async Task UnpackEntriesAsync(
         string pakPath,
         string outputDirectory,
