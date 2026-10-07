@@ -39,6 +39,7 @@ public sealed class ModScanner
             return new List<ModScanResult>();
 
         progress?.Report((0, 100, "Starting MODS scan..."));
+        var scanTimer = Stopwatch.StartNew();
 
         var materializationRoot = Path.Combine(_sourceRoot, ".source_cache");
         var scanCacheRoot = Path.Combine(_sourceRoot, ".scan_cache");
@@ -49,12 +50,18 @@ public sealed class ModScanner
             progress?.Report((overall, 100, p.Message));
         });
 
+        var discoveryTimer = Stopwatch.StartNew();
         var discoveredSources = await ModSourceDiscovery.DiscoverAsync(
             _modsRoot,
             materializationRoot,
             _log,
             discoveryProgress,
             cancellationToken
+        );
+        discoveryTimer.Stop();
+        _log?.Invoke(
+            $"MODS source discovery completed in "
+            + $"{discoveryTimer.Elapsed.TotalSeconds:N1}s."
         );
 
         progress?.Report((25, 100, "Mod sources discovered. Scanning localization containers..."));
@@ -70,6 +77,8 @@ public sealed class ModScanner
 
         var totalSources = groups.Sum(group => group.Containers.Count);
         var processed = 0;
+        var scanCacheHits = 0;
+        var retocScans = 0;
 
         var completedGroups = 0;
 
@@ -120,10 +129,12 @@ public sealed class ModScanner
                     if (cachedAliases is not null)
                     {
                         aliases.AddRange(cachedAliases);
+                        scanCacheHits++;
                         _log?.Invoke($"Scan cache reused: {group.ModName} :: {containerLabel}");
                     }
                     else
                     {
+                        retocScans++;
                         progress?.Report((
                             scanOverall,
                             100,
@@ -208,6 +219,12 @@ public sealed class ModScanner
         }
 
         progress?.Report((100, 100, "MODS scan complete"));
+        scanTimer.Stop();
+        _log?.Invoke(
+            $"MODS scan completed in {scanTimer.Elapsed.TotalSeconds:N1}s; "
+            + $"containers={totalSources}, cache-reused={scanCacheHits}, "
+            + $"retoc-scanned={retocScans}."
+        );
 
         return groups
             .OrderBy(x => x.ModName, StringComparer.CurrentCultureIgnoreCase)
