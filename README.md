@@ -133,7 +133,9 @@ The full MODS workflow is:
 7. Edit `Translations/<mod>/<language>.json`.
 8. Build either **MODULAR** or **ALL-IN-ONE**.
 
-If translation files are removed while corresponding Source data is still valid, EXTRACT restores only the missing translation files and does not overwrite files that are still present.
+When you add a new ZIP/7z/RAR archive or change a loose mod, run **SCAN MODS** again. If any mods are marked **Needs extraction**, **EXTRACT** processes only those pending mods. Already extracted mods are skipped, and their Source workspaces and edited translation JSONs are not touched.
+
+If no source extraction is pending, **EXTRACT** can restore missing translation JSONs from valid Source data. Existing translation files are never overwritten.
 
 Archive display names are normalized for the UI: Nexus download IDs are omitted and detected versions are shown as `vX.X` / `vX.X.X` where available.
 
