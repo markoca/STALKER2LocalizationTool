@@ -2156,6 +2156,12 @@ public sealed class MainForm : Form
             return;
         }
 
+        if (IsSettingsWorkspace)
+        {
+            _statusText.Text = "SOURCE DATA DELETED";
+            return;
+        }
+
         _statusText.Text = "READY TO SCAN MODS";
         AppendLog("=========== READY TO SCAN MODS ===========");
     }
