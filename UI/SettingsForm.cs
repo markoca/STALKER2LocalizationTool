@@ -653,7 +653,7 @@ public sealed class SettingsForm : Form
 
         var confirmation = MessageBox.Show(
             this,
-            string.Format(_l.T("ui.delete_source_data_confirm"), sourceRoot),
+            string.Format(_l.T("ui.delete_source_confirm"), sourceRoot),
             AppConstants.AppName,
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning,
