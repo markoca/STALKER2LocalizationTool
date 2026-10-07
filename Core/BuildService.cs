@@ -297,7 +297,7 @@ public sealed class BuildService
                     scriptObjectsCopied = true;
                 }
 
-                expectedPackages[identityPath] = ExpectedDatabasePackage.From(asset, patch.Payload, mod.ModName);
+                expectedPackages[identityPath] = ExpectedDatabasePackage.From(asset, patch.Payload);
                 result.AssetsPatched++;
             }
 
@@ -838,17 +838,15 @@ public sealed class BuildService
 
     private sealed class ExpectedDatabasePackage
     {
-        public string Label { get; init; } = string.Empty;
         public string VirtualPath { get; init; } = string.Empty;
         public string ZenChunkId { get; init; } = string.Empty;
         public string DirectoryAliasPackagePath { get; init; } = string.Empty;
         public byte[] Payload { get; init; } = Array.Empty<byte>();
 
-        public static ExpectedDatabasePackage From(ExtractedAssetManifest asset, byte[] payload, string label)
+        public static ExpectedDatabasePackage From(ExtractedAssetManifest asset, byte[] payload)
         {
             return new ExpectedDatabasePackage
             {
-                Label = label + " :: " + asset.VirtualPath,
                 VirtualPath = asset.VirtualPath,
                 ZenChunkId = asset.ZenChunkId.ToLowerInvariant(),
                 DirectoryAliasPackagePath = asset.DirectoryAliasPackagePath,
