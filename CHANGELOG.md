@@ -12,6 +12,7 @@
 - Removed obsolete MODS scan snapshot persistence and related dead code.
 - Third-party helper-tool binaries are no longer tracked or distributed; users supply compatible tools under `tools/`.
 - GAME action buttons were simplified to **SCAN GAME**, **EXTRACT**, and **BUILD**; the v2 quick user handbook was added and aligned with the current workflow.
+- MODS extraction button was simplified from **EXTRACT NEW / CHANGED** to **EXTRACT**.
 - Consolidated the current development baseline onto `main` and refreshed release-candidate documentation.
 
 ## 1.0.0-rc.7
