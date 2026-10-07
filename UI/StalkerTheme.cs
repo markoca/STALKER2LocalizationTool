@@ -115,9 +115,7 @@ internal static class StalkerTheme
                 break;
 
             case TextBoxBase textBox:
-                textBox.BackColor = textBox.Parent is StalkerPathField
-                    ? PanelAlt
-                    : PanelAlt;
+                textBox.BackColor = PanelAlt;
                 textBox.ForeColor = textBox.ReadOnly
                     ? MutedText
                     : Text;
@@ -1634,6 +1632,120 @@ internal sealed class StalkerProgressBar : Control
                 fillRect.Bottom - 1
             );
         }
+    }
+}
+
+/// <summary>
+/// Compact extracted-file result tile used by the GAME overview.
+/// </summary>
+internal sealed class StalkerResultTile : Control
+{
+    public string TitleText { get; set; } = string.Empty;
+    public string SubtitleText { get; set; } = string.Empty;
+
+    public StalkerResultTile()
+    {
+        BackColor = StalkerTheme.Panel;
+        ForeColor = StalkerTheme.Text;
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var rect = new Rectangle(
+            0,
+            0,
+            Math.Max(0, ClientSize.Width - 1),
+            Math.Max(0, ClientSize.Height - 1)
+        );
+        if (rect.Width <= 0 || rect.Height <= 0)
+            return;
+
+        e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        using var path = StalkerTheme.CreateChamferPath(rect, 5);
+
+        using (var fill = new SolidBrush(StalkerTheme.Panel))
+            e.Graphics.FillPath(fill, path);
+        using (var border = new Pen(StalkerTheme.BorderSoft))
+            e.Graphics.DrawPath(border, path);
+
+        using (var rail = new SolidBrush(StalkerTheme.Success))
+            e.Graphics.FillRectangle(
+                rail,
+                rect.Left + 1,
+                rect.Top + 6,
+                2,
+                Math.Max(1, rect.Height - 12)
+            );
+
+        var iconRect = new Rectangle(
+            rect.Left + 10,
+            rect.Top + 12,
+            12,
+            12
+        );
+        using (var icon = new Pen(StalkerTheme.Success, 2F))
+        {
+            e.Graphics.DrawLine(
+                icon,
+                iconRect.Left,
+                iconRect.Top + 6,
+                iconRect.Left + 4,
+                iconRect.Bottom - 1
+            );
+            e.Graphics.DrawLine(
+                icon,
+                iconRect.Left + 4,
+                iconRect.Bottom - 1,
+                iconRect.Right,
+                iconRect.Top + 1
+            );
+        }
+
+        var titleRect = new Rectangle(
+            rect.Left + 30,
+            rect.Top + 5,
+            Math.Max(0, rect.Width - 38),
+            18
+        );
+        var subtitleRect = new Rectangle(
+            rect.Left + 30,
+            rect.Top + 23,
+            Math.Max(0, rect.Width - 38),
+            16
+        );
+
+        using var titleFont = new Font("Segoe UI", 8.25F, FontStyle.Bold);
+        using var subtitleFont = new Font("Segoe UI", 7.75F, FontStyle.Regular);
+
+        TextRenderer.DrawText(
+            e.Graphics,
+            TitleText,
+            titleFont,
+            titleRect,
+            StalkerTheme.Text,
+            TextFormatFlags.Left
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis
+            | TextFormatFlags.NoPrefix
+        );
+
+        TextRenderer.DrawText(
+            e.Graphics,
+            SubtitleText,
+            subtitleFont,
+            subtitleRect,
+            StalkerTheme.MutedText,
+            TextFormatFlags.Left
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis
+            | TextFormatFlags.NoPrefix
+        );
     }
 }
 
