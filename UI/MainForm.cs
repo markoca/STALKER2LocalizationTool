@@ -2154,7 +2154,7 @@ public sealed class MainForm : Form
             BeginInvoke(new Action<string>(AppendLog), message);
             return;
         }
-        _logBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        _logBox.AppendText($"{message}{Environment.NewLine}");
     }
 
     private void LogGameWorkflowReady()
