@@ -381,6 +381,25 @@ public sealed class ExtractionService
 
                 try
                 {
+                    if (string.Equals(
+                            mod.SourceKind,
+                            "archive",
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        await ModSourceDiscovery
+                            .EnsureArchiveContainerMaterializedAsync(
+                                _sourceRoot,
+                                Path.Combine(
+                                    _settings.SourceFolder,
+                                    ".source_cache"
+                                ),
+                                mod.SourceLabel,
+                                sourceUtoc,
+                                _log,
+                                cancellationToken
+                            );
+                    }
+
                     var inputTimer = Stopwatch.StartNew();
                     await PrepareRetocInputAsync(
                         sourceUtoc,
