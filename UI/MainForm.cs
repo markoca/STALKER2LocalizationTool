@@ -1391,7 +1391,7 @@ public sealed class MainForm : Form
             return;
         }
 
-        if (!ValidateBuildPaths(mode))
+        if (!ValidateBuildPaths())
             return;
 
         SetBusy(true, _l.T("ui.building"));
@@ -2286,7 +2286,7 @@ public sealed class MainForm : Form
         return true;
     }
 
-    private bool ValidateBuildPaths(BuildMode mode)
+    private bool ValidateBuildPaths()
     {
         // MODS is LocalizationDatabase-only. Build verification round-trips the
         // finished IoStore asset through UAssetGUI, so retoc + UAssetGUI + mappings
