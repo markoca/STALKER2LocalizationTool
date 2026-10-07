@@ -42,8 +42,7 @@ public static class ModSourceDiscovery
     {
         public string Stem { get; init; } = string.Empty;
         public string Family { get; init; } = string.Empty;
-        public string Parent { get; init; } = string.Empty;
-        public string PakMember { get; init; } = string.Empty;
+            public string PakMember { get; init; } = string.Empty;
         public string UtocMember { get; init; } = string.Empty;
         public string UcasMember { get; init; } = string.Empty;
         public long PakSize { get; init; }
@@ -488,7 +487,6 @@ public static class ModSourceDiscovery
             {
                 Stem = stem,
                 Family = PathUtil.InferContainerFamilyName(stem),
-                Parent = parent,
                 PakMember = pak,
                 UtocMember = utoc,
                 UcasMember = ucas,
