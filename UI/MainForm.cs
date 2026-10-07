@@ -69,6 +69,7 @@ public sealed class MainForm : Form
     private readonly Button _openJsons = new StalkerUtilityButton();
     private readonly Button _openOutput = new StalkerUtilityButton();
     private readonly DataGridView _grid = new();
+    private readonly StalkerVScrollBar _gridScroll = new();
     private readonly StalkerLogBox _logBox = new();
     private readonly Label _logLabel = new();
     private readonly StalkerProgressBar _progress = new();
@@ -685,8 +686,26 @@ public sealed class MainForm : Form
         _modsTab.Controls.Add(layout);
 
         ConfigureGrid();
-        _grid.Margin = new Padding(0, 0, 0, 10);
-        layout.Controls.Add(_grid, 0, 0);
+
+        var gridHost = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Margin = new Padding(0, 0, 0, 10),
+            Padding = new Padding(0),
+            BackColor = StalkerTheme.Panel,
+        };
+        gridHost.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        gridHost.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 15F));
+        gridHost.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+        _grid.Margin = new Padding(0);
+        _gridScroll.Dock = DockStyle.Fill;
+        _gridScroll.Margin = new Padding(3, 0, 0, 0);
+        gridHost.Controls.Add(_grid, 0, 0);
+        gridHost.Controls.Add(_gridScroll, 1, 0);
+        layout.Controls.Add(gridHost, 0, 0);
 
         var actionCard = new StalkerCardPanel
         {
@@ -918,6 +937,7 @@ public sealed class MainForm : Form
         _grid.MultiSelect = false;
         _grid.AutoGenerateColumns = false;
         _grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
+        _grid.ScrollBars = ScrollBars.None;
         _grid.BackgroundColor = StalkerTheme.Panel;
         _grid.BorderStyle = BorderStyle.None;
         _grid.ColumnHeadersHeight = 36;
@@ -976,6 +996,58 @@ public sealed class MainForm : Form
             if (mod.HasLocalization && !mod.NeedsExtraction)
                 OpenFolder(Path.Combine(_settings.TranslationsFolder, mod.ModId));
         };
+
+        _grid.Scroll += (_, _) => SyncGridScrollBar();
+        _grid.Resize += (_, _) => SyncGridScrollBar();
+        _grid.Sorted += (_, _) => SyncGridScrollBar();
+        _gridScroll.ValueChanged += (_, _) => ScrollGridTo(_gridScroll.Value);
+    }
+
+    private void SyncGridScrollBar()
+    {
+        if (_grid.RowCount == 0 || !_grid.IsHandleCreated)
+        {
+            _gridScroll.SetScrollInfo(0, 1, 0);
+            return;
+        }
+
+        var visibleRows = Math.Max(
+            1,
+            _grid.DisplayedRowCount(includePartialRow: false)
+        );
+        var maximum = Math.Max(0, _grid.RowCount - visibleRows);
+        var firstRow = Math.Max(0, _grid.FirstDisplayedScrollingRowIndex);
+
+        _gridScroll.SetScrollInfo(
+            maximum,
+            visibleRows,
+            Math.Min(firstRow, maximum)
+        );
+    }
+
+    private void ScrollGridTo(int rowIndex)
+    {
+        if (_grid.RowCount == 0)
+            return;
+
+        var target = Math.Clamp(rowIndex, 0, _grid.RowCount - 1);
+        while (target < _grid.RowCount && !_grid.Rows[target].Visible)
+            target++;
+
+        if (target >= _grid.RowCount)
+            return;
+
+        try
+        {
+            _grid.FirstDisplayedScrollingRowIndex = target;
+        }
+        catch (InvalidOperationException)
+        {
+            // The grid may be between layout passes after a refresh/resize.
+            return;
+        }
+
+        SyncGridScrollBar();
     }
 
     private static Color StatusTextColor(ModUiStatus status) => status switch
@@ -1556,6 +1628,8 @@ public sealed class MainForm : Form
                 details
             );
         }
+
+        SyncGridScrollBar();
     }
 
 

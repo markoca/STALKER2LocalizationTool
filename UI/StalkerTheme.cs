@@ -1003,6 +1003,240 @@ internal sealed class StalkerUtilityButton : Button
 }
 
 /// <summary>
+/// Owner-drawn vertical scrollbar used where native WinForms scrollbars would
+/// break the graphite/yellow visual system, especially under Wine.
+/// </summary>
+internal sealed class StalkerVScrollBar : Control
+{
+    private const int MinimumThumbHeight = 28;
+
+    private int _maximum;
+    private int _pageSize = 1;
+    private int _value;
+    private bool _hovered;
+    private bool _dragging;
+    private int _dragOffset;
+
+    public event EventHandler? ValueChanged;
+
+    internal int Value => _value;
+
+    public StalkerVScrollBar()
+    {
+        SetStyle(
+            ControlStyles.UserPaint
+            | ControlStyles.AllPaintingInWmPaint
+            | ControlStyles.OptimizedDoubleBuffer
+            | ControlStyles.ResizeRedraw,
+            true
+        );
+
+        BackColor = StalkerTheme.TitleBar;
+        Cursor = Cursors.Default;
+        TabStop = false;
+        MinimumSize = new Size(12, 40);
+    }
+
+    internal void SetScrollInfo(
+        int maximum,
+        int pageSize,
+        int value)
+    {
+        _maximum = Math.Max(0, maximum);
+        _pageSize = Math.Max(1, pageSize);
+        _value = Math.Clamp(value, 0, _maximum);
+        Invalidate();
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _hovered = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _hovered = false;
+        if (!_dragging)
+            Cursor = Cursors.Default;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        if (e.Button == MouseButtons.Left && _maximum > 0)
+        {
+            var thumb = ThumbBounds();
+            if (thumb.Contains(e.Location))
+            {
+                _dragging = true;
+                _dragOffset = e.Y - thumb.Top;
+                Capture = true;
+                Cursor = Cursors.SizeNS;
+            }
+            else
+            {
+                SetValue(
+                    _value + (e.Y < thumb.Top ? -_pageSize : _pageSize)
+                );
+            }
+
+            Invalidate();
+        }
+
+        base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        if (_dragging)
+        {
+            var track = TrackBounds();
+            var thumb = ThumbBounds();
+            var travel = Math.Max(1, track.Height - thumb.Height);
+            var thumbTop = Math.Clamp(
+                e.Y - _dragOffset - track.Top,
+                0,
+                travel
+            );
+            var next = (int)Math.Round(
+                thumbTop * (double)_maximum / travel,
+                MidpointRounding.AwayFromZero
+            );
+            SetValue(next);
+        }
+        else
+        {
+            Cursor = ThumbBounds().Contains(e.Location)
+                ? Cursors.Hand
+                : Cursors.Default;
+        }
+
+        base.OnMouseMove(e);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        if (_dragging && e.Button == MouseButtons.Left)
+        {
+            _dragging = false;
+            Capture = false;
+            Cursor = ClientRectangle.Contains(e.Location)
+                ? Cursors.Hand
+                : Cursors.Default;
+            Invalidate();
+        }
+
+        base.OnMouseUp(e);
+    }
+
+    protected override void OnMouseWheel(MouseEventArgs e)
+    {
+        if (_maximum > 0 && e.Delta != 0)
+        {
+            var lines = SystemInformation.MouseWheelScrollLines;
+            var step = lines > 0 ? lines : 3;
+            SetValue(_value - Math.Sign(e.Delta) * step);
+        }
+
+        base.OnMouseWheel(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.Clear(StalkerTheme.TitleBar);
+
+        var track = TrackBounds();
+        using (var trackFill = new SolidBrush(StalkerTheme.PanelAlt))
+            e.Graphics.FillRectangle(trackFill, track);
+
+        using (var trackBorder = new Pen(StalkerTheme.BorderSoft))
+            e.Graphics.DrawRectangle(
+                trackBorder,
+                track.Left,
+                track.Top,
+                Math.Max(0, track.Width - 1),
+                Math.Max(0, track.Height - 1)
+            );
+
+        if (_maximum <= 0)
+            return;
+
+        var thumb = ThumbBounds();
+        var thumbColor = _dragging
+            ? StalkerTheme.Accent
+            : _hovered
+                ? StalkerTheme.AccentDark
+                : StalkerTheme.PanelPressed;
+
+        using (var thumbFill = new SolidBrush(thumbColor))
+            e.Graphics.FillRectangle(thumbFill, thumb);
+
+        using var thumbBorder = new Pen(
+            _dragging || _hovered
+                ? StalkerTheme.Accent
+                : StalkerTheme.Border
+        );
+        e.Graphics.DrawRectangle(
+            thumbBorder,
+            thumb.Left,
+            thumb.Top,
+            Math.Max(0, thumb.Width - 1),
+            Math.Max(0, thumb.Height - 1)
+        );
+    }
+
+    private Rectangle TrackBounds()
+    {
+        return new Rectangle(
+            1,
+            1,
+            Math.Max(1, ClientSize.Width - 2),
+            Math.Max(1, ClientSize.Height - 2)
+        );
+    }
+
+    private Rectangle ThumbBounds()
+    {
+        var track = TrackBounds();
+        if (_maximum <= 0)
+            return track;
+
+        var total = _maximum + _pageSize;
+        var thumbHeight = Math.Clamp(
+            (int)Math.Round(track.Height * (_pageSize / (double)total)),
+            Math.Min(MinimumThumbHeight, track.Height),
+            track.Height
+        );
+
+        var travel = Math.Max(0, track.Height - thumbHeight);
+        var top = track.Top + (int)Math.Round(
+            travel * (_value / (double)_maximum)
+        );
+
+        return new Rectangle(
+            track.Left,
+            top,
+            track.Width,
+            thumbHeight
+        );
+    }
+
+    private void SetValue(int value)
+    {
+        var next = Math.Clamp(value, 0, _maximum);
+        if (next == _value)
+            return;
+
+        _value = next;
+        Invalidate();
+        ValueChanged?.Invoke(this, EventArgs.Empty);
+    }
+}
+
+/// <summary>
 /// Compact radiation / Zone mark used by the workbench header.
 /// </summary>
 internal sealed class StalkerBrandMark : Control
