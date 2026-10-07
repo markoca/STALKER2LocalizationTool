@@ -408,7 +408,7 @@ Click:
 EXTRACT
 ```
 
-Only localization that requires extraction is processed.
+After adding a new ZIP/7z/RAR archive, click **SCAN MODS**. If some mods are already extracted, **EXTRACT** processes only mods marked **Needs extraction** and skips the others. Their Source data and edited JSONs remain untouched. If no source extraction is pending, EXTRACT can instead restore missing translation JSONs without overwriting existing files.
 
 Internal rebuild data is stored under:
 
