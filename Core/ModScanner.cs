@@ -224,7 +224,7 @@ public sealed class ModScanner
                                     _modsRoot,
                                     materializationRoot,
                                     group.SourceLabel,
-                                    group.Containers,
+                                    new[] { utoc },
                                     _log,
                                     cancellationToken
                                 );
