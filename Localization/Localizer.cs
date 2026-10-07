@@ -87,8 +87,6 @@ public sealed class Localizer
         ["status.built_verified"] = "Built & verified",
         ["status.no_language_selected"] = "No build language selected",
         ["status.error"] = "Error",
-        ["help.mods"] = "The app scans the Mods folder for LocalizationDatabase / IoStore localization only. Game.locres is handled exclusively in the GAME tab.",
-        ["help.translations"] = "Translation JSONs can be built. Extraction creates this mod folder only when it does not already exist, so your edits are never overwritten.",
         ["help.status.no_localization"] = "This mod does not contain localization data supported by this tool, so nothing needs to be extracted from it.",
         ["help.status.needs_extraction"] = "This mod is new or has been updated. Extract it before building a translation.",
         ["help.status.missing_translation"] = "The mod was extracted successfully, but no finished translation was found in the Translations folder.",
