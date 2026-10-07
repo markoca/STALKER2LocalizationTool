@@ -136,6 +136,8 @@ tools\Mappings.usmap
 
 If the game is updated beyond 2.0.4, obtain a mapping generated for that game build instead of assuming the old mapping is compatible.
 
+**When mappings are needed:** UAssetGUI.exe and Mappings.usmap are needed for extracting localization databases. They are **not** needed for SCAN, GAME BUILD, BUILD MODULAR or BUILD ALL-IN-ONE when Source has already been extracted. Building database packages still requires retoc.exe and valid Game Paks data.
+
 UAssetGUI v1.1.0 may require the .NET 8 Desktop Runtime when that dependency is not already available.
 
 ### 1.3 Start the application

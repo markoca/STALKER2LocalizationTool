@@ -9,20 +9,17 @@ public sealed class BuildService
     private readonly RetocService _retoc;
     private readonly RepakService _repak;
     private readonly S2HocmmService _s2Hocmm;
-    private readonly UAssetGuiService _uassetGui;
     private readonly Action<string>? _log;
 
     public BuildService(
         AppSettings settings,
         RetocService retoc,
         RepakService repak,
-        UAssetGuiService uassetGui,
         Action<string>? log = null)
     {
         _settings = settings;
         _retoc = retoc;
         _repak = repak;
-        _uassetGui = uassetGui;
         _s2Hocmm = new S2HocmmService(settings.S2HocmmPath, settings.RepakPath, log);
         _log = log;
     }
@@ -813,9 +810,9 @@ public sealed class BuildService
     {
         if (mods.Any(x => x.Assets.Count > 0))
         {
+            // BUILD uses retained .uasset/.uexp and UAssetGUI JSON from Source.
+            // Only EXTRACT needs UAssetGUI.exe and Mappings.usmap.
             RequireFile(_settings.RetocPath, "retoc.exe");
-            RequireFile(_settings.UAssetGuiPath, "UAssetGUI.exe");
-            RequireFile(_settings.MappingsPath, "Mappings.usmap");
             RequireValidGamePaksFolder();
         }
 

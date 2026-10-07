@@ -60,6 +60,8 @@ Tested tool baselines and download sources:
 
 If S.T.A.L.K.E.R. 2 is updated, obtain a mapping generated for that game build rather than assuming an older `.usmap` is compatible.
 
+**Tool requirements by action:** SCAN requires no mappings. EXTRACT uses UAssetGUI.exe and the game-compatible Mappings.usmap when reading localization databases. BUILD (GAME, MODULAR, and ALL-IN-ONE) uses already extracted Source data and does **not** require UAssetGUI.exe or Mappings.usmap. retoc.exe and a valid Game Paks folder remain required for database builds; GAME LOCRES builds additionally require repak.exe and S2HOCMM.exe.
+
 The publish scripts do not download, validate, copy, or redistribute these third-party tools.
 
 ## GAME workflow

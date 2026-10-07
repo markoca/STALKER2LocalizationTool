@@ -1351,7 +1351,6 @@ public sealed class MainForm : Form
                 _settings,
                 new RetocService(_settings.RetocPath, AppendLog),
                 new RepakService(_settings.RepakPath, AppendLog),
-                new UAssetGuiService(_settings.UAssetGuiPath, _settings.MappingsPath, AppendLog),
                 AppendLog
             );
             var builtLanguages = 0;
@@ -1563,7 +1562,6 @@ public sealed class MainForm : Form
                 _settings,
                 retoc,
                 repak,
-                new UAssetGuiService(_settings.UAssetGuiPath, _settings.MappingsPath, AppendLog),
                 AppendLog
             );
             var allResults = new List<ModBuildResult>();
@@ -2368,22 +2366,10 @@ public sealed class MainForm : Form
         AppendLog("=== READY TO SCAN MODS ===");
     }
 
+    // Startup/SCAN needs neither UAssetGUI nor mappings. Later actions validate
+    // their own dependencies when the user actually requests them.
     private bool NeedsInitialSetup() =>
-        !AreRequiredToolsAvailable() || !IsGamePathValid();
-
-    private bool AreRequiredToolsAvailable()
-    {
-        return !string.IsNullOrWhiteSpace(_settings.RetocPath)
-               && File.Exists(_settings.RetocPath)
-               && !string.IsNullOrWhiteSpace(_settings.UAssetGuiPath)
-               && File.Exists(_settings.UAssetGuiPath)
-               && !string.IsNullOrWhiteSpace(_settings.MappingsPath)
-               && File.Exists(_settings.MappingsPath)
-               && !string.IsNullOrWhiteSpace(_settings.RepakPath)
-               && File.Exists(_settings.RepakPath)
-               && !string.IsNullOrWhiteSpace(_settings.S2HocmmPath)
-               && File.Exists(_settings.S2HocmmPath);
-    }
+        !File.Exists(_settings.RetocPath) || !IsGamePathValid();
 
     private bool IsGamePathValid()
     {
@@ -2395,15 +2381,15 @@ public sealed class MainForm : Form
 
     private string InitialSetupMessage()
     {
-        var toolsMissing = !AreRequiredToolsAvailable();
+        var toolsMissing = !File.Exists(_settings.RetocPath);
         var gamePathMissing = !IsGamePathValid();
         var toolsFolder = Path.Combine(AppContext.BaseDirectory, "tools");
 
         if (toolsMissing && gamePathMissing)
         {
             return
-                "Required tool files could not be found.\r\n" +
-                "Put the required files in the tools folder:\r\n" +
+                "retoc.exe could not be found.\r\n" +
+                "Place it in the tools folder or configure its path in Settings:\r\n" +
                 toolsFolder + "\r\n\r\n" +
                 "The game path could not be found or is not valid.\r\n" +
                 "Set the Game Paks folder in Settings.";
@@ -2412,8 +2398,8 @@ public sealed class MainForm : Form
         if (toolsMissing)
         {
             return
-                "Required tool files could not be found.\r\n" +
-                "Put the required files in the tools folder:\r\n" +
+                "retoc.exe could not be found.\r\n" +
+                "Place it in the tools folder or configure its path in Settings:\r\n" +
                 toolsFolder;
         }
 
@@ -2429,9 +2415,18 @@ public sealed class MainForm : Form
 
     private bool ValidateExtractionPaths()
     {
-        if (NeedsInitialSetup())
+        if (!File.Exists(_settings.RetocPath)
+            || !File.Exists(_settings.UAssetGuiPath)
+            || !File.Exists(_settings.MappingsPath)
+            || !IsGamePathValid())
         {
-            MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(
+                this,
+                "MODS EXTRACT requires retoc.exe, UAssetGUI.exe and Mappings.usmap, "
+                + "plus a valid Game Paks folder. Configure these paths in Settings.",
+                AppConstants.AppName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
             OpenSettingsTab();
             return false;
         }
@@ -2440,14 +2435,17 @@ public sealed class MainForm : Form
 
     private bool ValidateBuildPaths()
     {
-        // MODS is LocalizationDatabase-only. Build verification round-trips the
-        // finished IoStore asset through UAssetGUI, so retoc + UAssetGUI + mappings
-        // are required. repak/S2HOCMM remain reserved for the GAME LOCRES path.
-        if (!File.Exists(_settings.RetocPath)
-            || !File.Exists(_settings.UAssetGuiPath)
-            || !File.Exists(_settings.MappingsPath))
+        // MODS BUILD patches pristine Source files and verifies output with retoc.
+        // UAssetGUI.exe and Mappings.usmap are only used during EXTRACT.
+        if (!File.Exists(_settings.RetocPath) || !IsGamePathValid())
         {
-            MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(
+                this,
+                "MODS BUILD requires retoc.exe and a valid Game Paks folder. "
+                + "UAssetGUI.exe and Mappings.usmap are only required for EXTRACT.",
+                AppConstants.AppName,
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
             OpenSettingsTab();
             return false;
         }
@@ -2458,22 +2456,32 @@ public sealed class MainForm : Form
     {
         bool IsValid()
         {
-            var databaseToolsRequired = requireExtractionTools || (_game?.Assets.Count ?? 0) > 0;
-            return Directory.Exists(_settings.GamePaksFolder)
-                   && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.utoc"))
-                   && File.Exists(Path.Combine(_settings.GamePaksFolder, "global.ucas"))
+            var databaseExtractionToolsRequired = requireExtractionTools
+                && (_game?.Assets.Count ?? 0) > 0;
+            return IsGamePathValid()
                    && File.Exists(_settings.RetocPath)
                    && File.Exists(_settings.RepakPath)
                    && (requireExtractionTools
                        || _game?.LocresAssets.Count == 0
                        || File.Exists(_settings.S2HocmmPath))
-                   && (!databaseToolsRequired
-                       || (File.Exists(_settings.UAssetGuiPath) && File.Exists(_settings.MappingsPath)));
+                   && (!databaseExtractionToolsRequired
+                       || (File.Exists(_settings.UAssetGuiPath)
+                           && File.Exists(_settings.MappingsPath)));
         }
 
-        if (IsValid()) return true;
+        if (IsValid())
+            return true;
 
-        MessageBox.Show(this, InitialSetupMessage(), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        MessageBox.Show(
+            this,
+            requireExtractionTools
+                ? "GAME EXTRACT requires retoc.exe, repak.exe and a valid Game Paks folder. "
+                  + "UAssetGUI.exe and Mappings.usmap are additionally required for localization databases."
+                : "GAME BUILD requires retoc.exe, repak.exe and a valid Game Paks folder. "
+                  + "S2HOCMM.exe is also required for LOCRES. Mappings.usmap is not needed.",
+            AppConstants.AppName,
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
         OpenSettingsTab();
         return false;
     }
