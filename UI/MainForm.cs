@@ -1162,8 +1162,7 @@ public sealed class MainForm : Form
                 repak,
                 uasset,
                 AppendLog,
-                _settings.GamePaksFolder,
-                hashSourceFiles: false
+                _settings.GamePaksFolder
             );
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             var extractionToken = _operationCts.Token;
@@ -1337,8 +1336,7 @@ public sealed class MainForm : Form
                 repak,
                 uasset,
                 AppendLog,
-                _settings.ModsFolder,
-                hashSourceFiles: false
+                _settings.ModsFolder
             );
             var progress = CreateUiProgress(p => UpdateProgress(p.Current, p.Total, p.Message));
             var extractionToken = _operationCts.Token;
