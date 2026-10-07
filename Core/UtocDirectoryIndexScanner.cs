@@ -488,19 +488,19 @@ public static class UtocDirectoryIndexScanner
                 );
             }
 
-            var bytes = ReadExact(
+            var ansiBytes = ReadExact(
                 reader,
                 length
             );
-            var terminator = Array.IndexOf(
-                bytes,
+            var ansiTerminator = Array.IndexOf(
+                ansiBytes,
                 (byte)0
             );
-            var contentLength = terminator >= 0
-                ? terminator
-                : bytes.Length;
+            var contentLength = ansiTerminator >= 0
+                ? ansiTerminator
+                : ansiBytes.Length;
             return Encoding.UTF8.GetString(
-                bytes,
+                ansiBytes,
                 0,
                 contentLength
             );
