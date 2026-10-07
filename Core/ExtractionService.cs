@@ -357,6 +357,24 @@ public sealed class ExtractionService
         var extractedContainers = new Dictionary<string, RetocExtractedContainer>(StringComparer.OrdinalIgnoreCase);
         try
         {
+            if (string.Equals(
+                    mod.SourceKind,
+                    "archive",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                await ModSourceDiscovery
+                    .EnsureArchiveContainersMaterializedAsync(
+                        _sourceRoot,
+                        Path.Combine(
+                            _settings.SourceFolder,
+                            ".source_cache"
+                        ),
+                        mod.SourceLabel,
+                        sourceUtocs,
+                        _log,
+                        cancellationToken
+                    );
+            }
             // Extract every alias source first. The current launch.py baseline resolves
             // NewContent and OverrideContent only after inspecting the actual database
             // payloads, so we must not throw either side away before this point.
@@ -381,25 +399,6 @@ public sealed class ExtractionService
 
                 try
                 {
-                    if (string.Equals(
-                            mod.SourceKind,
-                            "archive",
-                            StringComparison.OrdinalIgnoreCase))
-                    {
-                        await ModSourceDiscovery
-                            .EnsureArchiveContainerMaterializedAsync(
-                                _sourceRoot,
-                                Path.Combine(
-                                    _settings.SourceFolder,
-                                    ".source_cache"
-                                ),
-                                mod.SourceLabel,
-                                sourceUtoc,
-                                _log,
-                                cancellationToken
-                            );
-                    }
-
                     var inputTimer = Stopwatch.StartNew();
                     await PrepareRetocInputAsync(
                         sourceUtoc,
