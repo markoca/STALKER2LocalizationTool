@@ -20,10 +20,11 @@ public sealed class MainForm : Form
     private readonly Label _buildLanguageLabel = new();
     private readonly StalkerLanguageSelector _buildLanguages = new();
     private readonly Button _settingsButton = new StalkerUtilityButton();
-    private readonly Button _scanModsButton = new();
-    private readonly Button _extractButton = new();
-    private readonly Button _buildModularButton = new();
-    private readonly Button _buildAllInOneButton = new();
+    private readonly StalkerActionButton _scanModsButton = new();
+    private readonly StalkerActionButton _extractButton = new();
+    private readonly StalkerActionButton _buildModularButton = new();
+    private readonly StalkerActionButton _buildAllInOneButton = new();
+    private readonly StalkerWorkflowRail _modsWorkflowRail = new("SCAN", "EXTRACT", "BUILD");
     private readonly Panel _workspaceHost = new();
     private readonly Panel _gameTab = new();
     private readonly Panel _modsTab = new();
@@ -32,9 +33,10 @@ public sealed class MainForm : Form
     private Panel? _activeWorkspaceTab;
     private bool IsGameWorkspace => ReferenceEquals(_activeWorkspaceTab, _gameTab);
     private bool IsModsWorkspace => ReferenceEquals(_activeWorkspaceTab, _modsTab);
-    private readonly Button _scanGameButton = new();
-    private readonly Button _extractGameButton = new();
-    private readonly Button _buildGameButton = new();
+    private readonly StalkerActionButton _scanGameButton = new();
+    private readonly StalkerActionButton _extractGameButton = new();
+    private readonly StalkerActionButton _buildGameButton = new();
+    private readonly StalkerWorkflowRail _gameWorkflowRail = new("SCAN", "EXTRACT", "BUILD");
     private readonly Button _openJsons = new StalkerUtilityButton();
     private readonly Button _openOutput = new StalkerUtilityButton();
     private readonly DataGridView _grid = new();
@@ -535,25 +537,23 @@ public sealed class MainForm : Form
             RowCount = 2,
             Margin = new Padding(0),
         };
+        workflow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        workflow.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+
         var workflowTitle = new Label
         {
-            Text = "WORKFLOW",
+            Text = "GAME PIPELINE",
             AutoSize = true,
             Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
             Tag = StalkerTheme.SectionLabelTag,
-            Margin = new Padding(0, 0, 0, 5),
+            Margin = new Padding(0, 0, 0, 3),
         };
-        var explanation = new Label
-        {
-            AutoSize = true,
-            MaximumSize = new Size(1120, 0),
-            Text = "1. Scan the game     2. Extract all language JSON files     3. Edit JSONs in /Editable/Game     4. Build for selected languages",
-            Font = new Font("Segoe UI", 8.5F),
-            Tag = StalkerTheme.MutedLabelTag,
-            Margin = new Padding(0),
-        };
+
+        _gameWorkflowRail.Dock = DockStyle.Fill;
+        _gameWorkflowRail.Margin = new Padding(0);
+
         workflow.Controls.Add(workflowTitle, 0, 0);
-        workflow.Controls.Add(explanation, 0, 1);
+        workflow.Controls.Add(_gameWorkflowRail, 0, 1);
         workflowCard.Controls.Add(workflow);
         layout.Controls.Add(workflowCard, 0, 0);
 
@@ -574,8 +574,8 @@ public sealed class MainForm : Form
             Margin = new Padding(0),
         };
         ConfigureActionButton(_scanGameButton, 145);
-        ConfigureActionButton(_extractGameButton, 205);
-        ConfigureActionButton(_buildGameButton, 190);
+        ConfigureActionButton(_extractGameButton, 145);
+        ConfigureActionButton(_buildGameButton, 145);
         _scanGameButton.Click += async (_, _) => await ScanGameAsync();
         _extractGameButton.Click += async (_, _) => await ExtractGameAsync();
         _buildGameButton.Click += async (_, _) => await BuildGameAsync();
@@ -593,16 +593,52 @@ public sealed class MainForm : Form
             Dock = DockStyle.Fill,
             Padding = new Padding(0),
             ColumnCount = 1,
-            RowCount = 2,
+            RowCount = 3,
             Margin = new Padding(0),
         };
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         _modsTab.Controls.Add(layout);
 
+        var workflowCard = new StalkerCardPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            BackColor = StalkerTheme.PanelAlt,
+            Padding = new Padding(14, 8, 14, 8),
+            Margin = new Padding(0, 0, 0, 10),
+        };
+        var workflowLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            ColumnCount = 1,
+            RowCount = 2,
+            Margin = new Padding(0),
+        };
+        workflowLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        workflowLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50));
+
+        var workflowTitle = new Label
+        {
+            Text = "MOD PIPELINE",
+            AutoSize = true,
+            Font = new Font("Segoe UI", 8.5F, FontStyle.Bold),
+            Tag = StalkerTheme.SectionLabelTag,
+            Margin = new Padding(0, 0, 0, 3),
+        };
+
+        _modsWorkflowRail.Dock = DockStyle.Fill;
+        _modsWorkflowRail.Margin = new Padding(0);
+        workflowLayout.Controls.Add(workflowTitle, 0, 0);
+        workflowLayout.Controls.Add(_modsWorkflowRail, 0, 1);
+        workflowCard.Controls.Add(workflowLayout);
+        layout.Controls.Add(workflowCard, 0, 0);
+
         ConfigureGrid();
         _grid.Margin = new Padding(0, 0, 0, 10);
-        layout.Controls.Add(_grid, 0, 0);
+        layout.Controls.Add(_grid, 0, 1);
 
         var actionCard = new StalkerCardPanel
         {
@@ -646,7 +682,7 @@ public sealed class MainForm : Form
 
         actionLayout.Controls.Add(actionButtons, 1, 0);
         actionCard.Controls.Add(actionLayout);
-        layout.Controls.Add(actionCard, 0, 1);
+        layout.Controls.Add(actionCard, 0, 2);
     }
 
     private static void ConfigureActionButton(Button button, int width)
@@ -745,13 +781,14 @@ public sealed class MainForm : Form
         _grid.AutoGenerateColumns = false;
         _grid.AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells;
         _grid.BackgroundColor = StalkerTheme.Panel;
-        _grid.BorderStyle = BorderStyle.FixedSingle;
-        _grid.ColumnHeadersHeight = 34;
-        _grid.RowTemplate.Height = 30;
+        _grid.BorderStyle = BorderStyle.None;
+        _grid.ColumnHeadersHeight = 36;
+        _grid.RowTemplate.Height = 34;
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Mod", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 52 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Localization", Width = 155 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Status", Width = 180 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Details", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 48 });
+        _grid.CellPainting += PaintModGridStatusCell;
         _grid.CellToolTipTextNeeded += (_, e) =>
         {
             if (e.RowIndex < 0 || e.RowIndex >= _mods.Count) return;
@@ -770,6 +807,64 @@ public sealed class MainForm : Form
             if (mod.HasLocalization && !mod.NeedsExtraction)
                 OpenFolder(Path.Combine(_settings.EditableFolder, mod.ModId));
         };
+    }
+
+    private void PaintModGridStatusCell(object? sender, DataGridViewCellPaintingEventArgs e)
+    {
+        if (e.RowIndex < 0
+            || e.RowIndex >= _mods.Count
+            || e.ColumnIndex != _grid.Columns["Status"].Index)
+        {
+            return;
+        }
+
+        e.PaintBackground(e.CellBounds, true);
+
+        var status = _mods[e.RowIndex].UiStatus;
+        var textValue = StatusText(status);
+        var accent = status switch
+        {
+            ModUiStatus.BuiltVerified => StalkerTheme.Success,
+            ModUiStatus.Available or ModUiStatus.Extracted => StalkerTheme.Accent,
+            ModUiStatus.NeedsExtraction or ModUiStatus.MissingTranslation => StalkerTheme.AccentHover,
+            ModUiStatus.Error => StalkerTheme.Danger,
+            _ => StalkerTheme.MutedText,
+        };
+
+        var badge = Rectangle.Inflate(e.CellBounds, -8, -6);
+        if (badge.Width <= 0 || badge.Height <= 0)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        var fillBase = (e.State & DataGridViewElementStates.Selected) != 0
+            ? StalkerTheme.PanelHover
+            : (e.RowIndex % 2 == 0 ? StalkerTheme.Panel : StalkerTheme.PanelAlt);
+        var fillColor = StalkerTheme.Blend(accent, fillBase, 34);
+
+        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using (var path = StalkerTheme.CreateChamferPath(badge, 5))
+        {
+            using var fill = new SolidBrush(fillColor);
+            using var border = new Pen(StalkerTheme.Blend(accent, fillBase, 175));
+            e.Graphics.FillPath(fill, path);
+            e.Graphics.DrawPath(border, path);
+        }
+
+        TextRenderer.DrawText(
+            e.Graphics,
+            textValue.ToUpperInvariant(),
+            new Font("Segoe UI", 7.5F, FontStyle.Bold),
+            badge,
+            accent,
+            TextFormatFlags.HorizontalCenter
+            | TextFormatFlags.VerticalCenter
+            | TextFormatFlags.EndEllipsis
+            | TextFormatFlags.NoPrefix
+        );
+
+        e.Handled = true;
     }
 
     private void ApplyWindowTitle()
@@ -1610,6 +1705,53 @@ public sealed class MainForm : Form
             _buildAllInOneButton,
             this,
             modsBuildStage && _buildAllInOneButton.Enabled
+        );
+
+        var gameExtractComplete = _gameScanSuccessful
+            && _game is not null
+            && !_extractGameButton.Enabled
+            && !_game.NeedsExtraction;
+        var gameBuildComplete = _game?.UiStatus == ModUiStatus.BuiltVerified;
+
+        _gameWorkflowRail.SetStates(
+            gameScanPrimary
+                ? StalkerWorkflowState.Active
+                : StalkerWorkflowState.Complete,
+            gameExtractPrimary
+                ? StalkerWorkflowState.Active
+                : gameExtractComplete
+                    ? StalkerWorkflowState.Complete
+                    : StalkerWorkflowState.Pending,
+            gameBuildPrimary
+                ? StalkerWorkflowState.Active
+                : gameBuildComplete
+                    ? StalkerWorkflowState.Complete
+                    : StalkerWorkflowState.Pending
+        );
+
+        var modsLocalized = _mods.Where(mod => mod.HasLocalization).ToList();
+        var modsExtractComplete = _modsScanSuccessful
+            && modsLocalized.Count > 0
+            && !modsCanExtract;
+        var modsBuildComplete = modsLocalized.Count > 0
+            && modsLocalized.All(mod => mod.UiStatus == ModUiStatus.BuiltVerified);
+        var modsBuildActive = modsBuildStage
+            && (_buildModularButton.Enabled || _buildAllInOneButton.Enabled);
+
+        _modsWorkflowRail.SetStates(
+            modsScanPrimary
+                ? StalkerWorkflowState.Active
+                : StalkerWorkflowState.Complete,
+            modsExtractPrimary
+                ? StalkerWorkflowState.Active
+                : modsExtractComplete
+                    ? StalkerWorkflowState.Complete
+                    : StalkerWorkflowState.Pending,
+            modsBuildComplete
+                ? StalkerWorkflowState.Complete
+                : modsBuildActive
+                    ? StalkerWorkflowState.Active
+                    : StalkerWorkflowState.Pending
         );
     }
 
