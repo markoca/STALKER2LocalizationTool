@@ -400,12 +400,12 @@ When extraction is required, the log reports:
 =========== MODS READY FOR EXTRACTION ===========
 ```
 
-### STEP 3 — EXTRACT NEW / CHANGED
+### STEP 3 — EXTRACT
 
 Click:
 
 ```text
-EXTRACT NEW / CHANGED
+EXTRACT
 ```
 
 Only localization that requires extraction is processed.
@@ -538,7 +538,7 @@ When a mod is updated:
 2. Open the MODS tab.
 3. Click **SCAN MODS**.
 4. The updated localization should be detected as **Needs extraction**.
-5. Click **EXTRACT NEW / CHANGED**.
+5. Click **EXTRACT**.
 6. Review your existing Editable JSON against the updated localization data.
 7. Build the localization again.
 
@@ -668,7 +668,7 @@ Open MODS
     ->
 SCAN MODS
     ->
-EXTRACT NEW / CHANGED
+EXTRACT
     ->
 Edit JSON files in Editable\<ModName>\
     ->
