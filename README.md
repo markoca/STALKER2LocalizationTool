@@ -35,7 +35,7 @@ This branch is the final **Version 2** baseline. The project uses `main` as the 
 
 The application targets **Windows x64** on **.NET 10 LTS** (`net10.0-windows`).
 
-Linux is supported as a development host for cross-publishing and Wine testing, not as a native application target. The development host requires a .NET 10 SDK.
+Linux is supported as a development host for cross-publishing and Wine testing, not as a native application target. The development host requires a .NET 10 SDK. `global.json` keeps project builds on the .NET 10 SDK line while allowing newer .NET 10 feature/patch releases.
 
 Localization Workbench does **not** distribute helper-tool binaries.
 
