@@ -43,6 +43,6 @@
 - [ ] Industrial Zone chamfered cards and action buttons render cleanly with no clipped text at 100%, 125% and 150% Windows scaling.
 - [ ] GAME localization overview shows only **READY TO SCAN** before scanning, without redundant supported-language or `pakchunk0` text.
 - [ ] After GAME EXTRACT, the central panel shows **EXTRACTED** and lists the actual editable language JSON files; no extraction-complete MessageBox is shown.
-- [ ] Each extracted GAME language result shows the correct top-level SID count, and the count refreshes after that JSON file is edited.
+- [ ] Each extracted GAME language result shows the correct editable JSON filename.
 - [ ] Before extraction is complete, a successful GAME scan may report **LOCALIZATION FOUND** with extraction readiness, but must not show stale extraction results.
 - [ ] MODS status badges remain readable for every status and selected row state.
