@@ -86,14 +86,18 @@ public sealed class MainForm : Form
         Font = new Font("Segoe UI", 9F);
         FormBorderStyle = FormBorderStyle.None;
 
-        // Keep the native window icon enabled for the shell/taskbar. This form
-        // has no native caption, and the custom title bar never renders Icon,
-        // so no extra icon is added to the top bar.
-        var executableIcon = System.Drawing.Icon.ExtractAssociatedIcon(
-            Application.ExecutablePath
-        );
-        if (executableIcon is not null)
-            Icon = executableIcon;
+        // Keep the shell/taskbar icon independent from Wine's executable icon
+        // extraction. The form is borderless, so this never adds an icon to the
+        // custom title bar.
+        using (var iconStream = typeof(MainForm).Assembly.GetManifestResourceStream(
+                   "LocalizationWorkbench.Assets.localization-workbench.ico"))
+        {
+            if (iconStream is not null)
+            {
+                using var resourceIcon = new Icon(iconStream);
+                Icon = (Icon)resourceIcon.Clone();
+            }
+        }
         ShowIcon = true;
 
         Padding = new Padding(1);
