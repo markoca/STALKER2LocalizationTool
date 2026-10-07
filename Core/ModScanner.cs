@@ -279,8 +279,7 @@ public sealed class ModScanner
                         FingerprintLine = fingerprintLine,
                         Aliases = scannedAliases,
                         RetocScanned = true,
-                        DirectFallback = true,
-                    };
+                            };
                 }
                 catch (OperationCanceledException)
                 {
@@ -437,7 +436,6 @@ public sealed class ModScanner
         public bool CacheHit { get; init; }
         public bool DirectIndexed { get; init; }
         public bool RetocScanned { get; init; }
-        public bool DirectFallback { get; init; }
     }
 
     private sealed class InlineProgress<T> : IProgress<T>
