@@ -56,7 +56,7 @@ public sealed class ModScanResult
     public string SourceFingerprint { get; set; } = string.Empty;
     public bool NeedsExtraction { get; set; }
     public string? ScanError { get; set; }
-    public string? EditableTranslationFile { get; set; }
+    public string? TranslationFile { get; set; }
     public ModUiStatus UiStatus { get; set; } = ModUiStatus.Unknown;
 
     [JsonIgnore]
