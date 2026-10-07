@@ -3,10 +3,10 @@ using SharpCompress.Archives;
 namespace LocalizationWorkbench.Core;
 
 /// <summary>
-/// Discovers physical mod sources the same way the release launch pipeline does:
-/// complete adjacent .pak/.utoc/.ucas triplets can come from loose/extracted trees
-/// or directly from ZIP/7z/RAR archives. Archive entries are materialized into a
-/// deterministic cache outside the user's Mods folder before retoc sees them.
+/// Discovers complete physical IoStore mod sources from loose/extracted trees
+/// or directly from ZIP/7z/RAR archives. Archive SCAN materializes only UTOC into
+/// a deterministic cache; UCAS/PAK payloads remain lazy unless retoc fallback or
+/// EXTRACT actually needs them.
 /// </summary>
 public static class ModSourceDiscovery
 {
