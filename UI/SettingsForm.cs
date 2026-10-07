@@ -29,7 +29,7 @@ public sealed class SettingsForm : Form
 
         Text = _l.T("ui.settings") + " - " + AppConstants.AppName;
         StartPosition = FormStartPosition.CenterParent;
-        MinimumSize = _embedded ? Size.Empty : new Size(920, 700);
+        MinimumSize = _embedded ? System.Drawing.Size.Empty : new Size(920, 700);
         Size = _embedded ? new Size(860, 620) : new Size(980, 800);
         Font = new Font("Segoe UI", 9F);
         FormBorderStyle = FormBorderStyle.None;
