@@ -137,7 +137,7 @@ If translation files are removed while corresponding Source data is still valid,
 
 Archive display names are normalized for the UI: Nexus download IDs are omitted and detected versions are shown as `vX.X` / `vX.X.X` where available.
 
-For ZIP/7z/RAR sources, **SCAN MODS** reads the archive index and materializes only the `.utoc` directory index required by `retoc list`. Large companion `.pak` / `.ucas` payloads are materialized lazily only when **EXTRACT** actually needs a localization container. Archive scan identity uses path + size + modification time, avoiding a full archive SHA-256 pass during discovery.
+For ZIP/7z/RAR sources, **SCAN MODS** reads the archive index and materializes the `.utoc` + `.ucas` pair required by `retoc list`. The companion `.pak` remains deferred until **EXTRACT** actually needs a localization container. Archive scan identity uses path + size + modification time, avoiding a full archive SHA-256 pass during discovery.
 
 ## Paths and persistence
 
