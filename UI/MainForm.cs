@@ -60,12 +60,12 @@ public sealed class MainForm : Form
     private bool _shownOnce;
     private bool _loadingLanguageChecks;
     private bool _suspendWatcherScan;
-    private bool _lastSettingsDeletedCache;
+    private bool _lastSettingsDeletedSource;
     private bool _modsScanInProgress;
     private bool _modsReadyPromptShown;
 
-    private FileSystemWatcher? _editableWatcher;
-    private FileSystemWatcher? _cachedWatcher;
+    private FileSystemWatcher? _translationsWatcher;
+    private FileSystemWatcher? _sourceWatcher;
     private readonly System.Windows.Forms.Timer _watchDebounce = new() { Interval = 900 };
 
     public MainForm(AppSettings settings, Localizer localizer)
@@ -99,11 +99,11 @@ public sealed class MainForm : Form
             if (IsGameWorkspace)
             {
                 if (_game is not null)
-                    RefreshGameEditableTranslation();
+                    RefreshGameTranslation();
             }
             else if (IsModsWorkspace && _modsScanSuccessful)
             {
-                RefreshModEditableStatuses();
+                RefreshModTranslationStatuses();
             }
         };
 
@@ -287,7 +287,7 @@ public sealed class MainForm : Form
             if (ShowSettings() != DialogResult.OK)
                 return;
 
-            if (_lastSettingsDeletedCache)
+            if (_lastSettingsDeletedSource)
                 return;
 
             if (IsGameWorkspace)
@@ -493,8 +493,8 @@ public sealed class MainForm : Form
         ConfigureChromeButton(_openOutput, 132);
         _openJsons.Click += (_, _) => OpenFolder(
             IsGameWorkspace
-                ? Path.Combine(_settings.EditableFolder, "Game")
-                : _settings.EditableFolder
+                ? Path.Combine(_settings.TranslationsFolder, "Game")
+                : _settings.TranslationsFolder
         );
         _openOutput.Click += (_, _) => OpenFolder(_settings.OutputFolder);
         openButtons.Controls.Add(_openJsons);
@@ -820,7 +820,7 @@ public sealed class MainForm : Form
             if (e.RowIndex < 0 || e.RowIndex >= _mods.Count) return;
             var mod = _mods[e.RowIndex];
             if (mod.HasLocalization && !mod.NeedsExtraction)
-                OpenFolder(Path.Combine(_settings.EditableFolder, mod.ModId));
+                OpenFolder(Path.Combine(_settings.TranslationsFolder, mod.ModId));
         };
     }
 
@@ -907,8 +907,8 @@ public sealed class MainForm : Form
             var scanner = new ModScanner(
                 retoc,
                 _settings.ModsFolder,
-                _settings.CachedFolder,
-                _settings.EditableFolder,
+                _settings.SourceFolder,
+                _settings.TranslationsFolder,
                 _settings.BuildLanguageIds,
                 AppendLog
             );
@@ -977,8 +977,8 @@ public sealed class MainForm : Form
                 new RetocService(_settings.RetocPath, AppendLog),
                 new RepakService(_settings.RepakPath, AppendLog),
                 _settings.GamePaksFolder,
-                _settings.CachedFolder,
-                _settings.EditableFolder,
+                _settings.SourceFolder,
+                _settings.TranslationsFolder,
                 _settings.BuildLanguageIds,
                 AppendLog
             );
@@ -1013,19 +1013,19 @@ public sealed class MainForm : Form
 
     private async Task ExtractGameAsync()
     {
-        var canRestoreEditable = _game is not null
-            && CanRestoreEditableFromCache(_game);
+        var canRestoreTranslations = _game is not null
+            && CanRestoreTranslationsFromSource(_game);
 
         if (_game is null
             || (_game.UiStatus != ModUiStatus.NeedsExtraction
                 && _game.UiStatus != ModUiStatus.MissingTranslation
-                && !canRestoreEditable))
+                && !canRestoreTranslations))
         {
             MessageBox.Show(this, _l.T("ui.no_extract"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
-        // A Cached -> Editable restore does not need retoc/UAssetGUI/repak.
+        // A Source -> Translations restore does not need retoc/UAssetGUI/repak.
         if (!ValidateGamePaths(requireExtractionTools: _game.NeedsExtraction))
             return;
 
@@ -1056,7 +1056,7 @@ public sealed class MainForm : Form
                 extractionToken
             );
             _game!.NeedsExtraction = false;
-            RefreshGameEditableTranslation();
+            RefreshGameTranslation();
             CompleteProgress(_l.T("ui.done"));
             AppendLog("=========== LOCALIZATION EXTRACTION DONE ===========");
             LogGameWorkflowReady();
@@ -1088,7 +1088,7 @@ public sealed class MainForm : Form
         }
         if (_game is null || !_game.HasLocalization || _game.NeedsExtraction || !string.IsNullOrWhiteSpace(_game.ScanError))
         {
-            MessageBox.Show(this, _l.T("ui.no_editable"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, _l.T("ui.no_translations"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
         if (!ValidateGamePaths(requireExtractionTools: false)) return;
@@ -1109,15 +1109,15 @@ public sealed class MainForm : Form
             foreach (var language in languages)
             {
                 _operationCts.Token.ThrowIfCancellationRequested();
-                string? editableFile = Path.Combine(_settings.EditableFolder, "Game", language.Key + ".json");
-                if (!File.Exists(editableFile)) editableFile = null;
-                if (string.IsNullOrWhiteSpace(editableFile))
+                string? translationFile = Path.Combine(_settings.TranslationsFolder, "Game", language.Key + ".json");
+                if (!File.Exists(translationFile)) translationFile = null;
+                if (string.IsNullOrWhiteSpace(translationFile))
                 {
-                    AppendLog($"Game / {language.EnglishName}: editable JSON is missing; skipped.");
+                    AppendLog($"Game / {language.EnglishName}: translation JSON is missing; skipped.");
                     continue;
                 }
 
-                _game.EditableTranslationFile = editableFile;
+                _game.TranslationFile = translationFile;
                 _game.UiStatus = ModUiStatus.Available;
                 var languageProgress = CreateUiProgress(p =>
                 {
@@ -1133,7 +1133,7 @@ public sealed class MainForm : Form
                 var buildToken = _operationCts.Token;
                 AppendLog($"GAME / {language.EnglishName}: build pipeline started.");
                 var results = await Task.Run(
-                    () => builder.BuildAllEditableAsync(
+                    () => builder.BuildAllTranslationsAsync(
                         new[] { _game! },
                         language.Id,
                         BuildMode.Modular,
@@ -1150,7 +1150,7 @@ public sealed class MainForm : Form
                 builtLanguages++;
             }
             if (builtLanguages == 0)
-                throw new InvalidDataException(_l.T("ui.no_editable"));
+                throw new InvalidDataException(_l.T("ui.no_translations"));
 
             AppendLog("Build complete");
             AppendLog("GAME");
@@ -1184,7 +1184,7 @@ public sealed class MainForm : Form
             _operationCts = null;
             SetBusy(false, _l.T("ui.idle"));
         }
-        RefreshGameEditableTranslation();
+        RefreshGameTranslation();
     }
 
     private async Task ExtractAsync()
@@ -1193,7 +1193,7 @@ public sealed class MainForm : Form
             .Where(mod =>
                 mod.UiStatus is ModUiStatus.NeedsExtraction
                     or ModUiStatus.MissingTranslation
-                || CanRestoreEditableFromCache(mod))
+                || CanRestoreTranslationsFromSource(mod))
             .ToList();
         if (targets.Count == 0)
         {
@@ -1233,7 +1233,7 @@ public sealed class MainForm : Form
             foreach (var mod in targets)
                 mod.NeedsExtraction = false;
 
-            RefreshModEditableStatuses();
+            RefreshModTranslationStatuses();
             CompleteProgress(_l.T("ui.done"));
             LogModsWorkflowReady();
             MessageBox.Show(this, _l.T("ui.extract_complete"), _l.T("ui.operation_complete"), MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1270,7 +1270,7 @@ public sealed class MainForm : Form
             .ToList();
         if (candidates.Count == 0)
         {
-            MessageBox.Show(this, _l.T("ui.no_editable"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, _l.T("ui.no_translations"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
@@ -1297,18 +1297,18 @@ public sealed class MainForm : Form
                 _operationCts.Token.ThrowIfCancellationRequested();
                 var language = languages[languageIndex];
                 var availableMods = candidates
-                    .Select(mod => (Mod: mod, File: EditableScanner.FindTranslationFile(_settings.EditableFolder, mod, language)))
+                    .Select(mod => (Mod: mod, File: TranslationScanner.FindTranslationFile(_settings.TranslationsFolder, mod, language)))
                     .Where(item => !string.IsNullOrWhiteSpace(item.File))
                     .Select(item =>
                     {
-                        item.Mod.EditableTranslationFile = item.File;
+                        item.Mod.TranslationFile = item.File;
                         item.Mod.UiStatus = ModUiStatus.Extracted;
                         return item.Mod;
                     })
                     .ToList();
                 if (availableMods.Count == 0)
                 {
-                    AppendLog($"{language.EnglishName}: no editable mod JSON files; skipped.");
+                    AppendLog($"{language.EnglishName}: no translation mod JSON files; skipped.");
                     continue;
                 }
 
@@ -1330,7 +1330,7 @@ public sealed class MainForm : Form
                     + "build pipeline started."
                 );
                 var results = await Task.Run(
-                    () => builder.BuildAllEditableAsync(
+                    () => builder.BuildAllTranslationsAsync(
                         availableMods,
                         language.Id,
                         mode,
@@ -1350,7 +1350,7 @@ public sealed class MainForm : Form
             }
 
             if (allResults.Count == 0)
-                throw new InvalidDataException(_l.T("ui.no_editable"));
+                throw new InvalidDataException(_l.T("ui.no_translations"));
             var built = allResults.Count(result => result.Built && result.Verified);
             var skipped = allResults.Count(result => !result.Built && result.Verified);
             AppendLog("Build complete");
@@ -1387,7 +1387,7 @@ public sealed class MainForm : Form
             SetBusy(false, _l.T("ui.idle"));
         }
 
-        RefreshModEditableStatuses();
+        RefreshModTranslationStatuses();
     }
 
     private void RefreshGrid()
@@ -1471,26 +1471,26 @@ public sealed class MainForm : Form
         return string.Join(Environment.NewLine, lines);
     }
 
-    private void RefreshGameEditableTranslation()
+    private void RefreshGameTranslation()
     {
         if (_game is null) return;
         var languages = SelectedBuildLanguages();
-        var editableFiles = languages
+        var translationFiles = languages
             .Select(language =>
             {
-                var path = Path.Combine(_settings.EditableFolder, "Game", language.Key + ".json");
+                var path = Path.Combine(_settings.TranslationsFolder, "Game", language.Key + ".json");
                 return (Language: language, File: File.Exists(path) ? path : null);
             })
             .Where(item => !string.IsNullOrWhiteSpace(item.File))
             .ToList();
-        _game.EditableTranslationFile = editableFiles.FirstOrDefault().File;
+        _game.TranslationFile = translationFiles.FirstOrDefault().File;
         if (string.IsNullOrWhiteSpace(_game.ScanError) && _game.HasLocalization && !_game.NeedsExtraction)
         {
             _game.UiStatus = languages.Count == 0
                 ? ModUiStatus.NoLanguageSelected
-                : editableFiles.Count == 0
+                : translationFiles.Count == 0
                     ? ModUiStatus.MissingTranslation
-                    : editableFiles.Count == languages.Count
+                    : translationFiles.Count == languages.Count
                       && languages.All(language => _builtVerifiedThisSession.Contains(BuildSessionKey(_game.ModId, language.Id)))
                         ? ModUiStatus.BuiltVerified
                         : ModUiStatus.Available;
@@ -1498,7 +1498,7 @@ public sealed class MainForm : Form
         UpdateButtons();
     }
 
-    private void RefreshModEditableStatuses()
+    private void RefreshModTranslationStatuses()
     {
         var languages = SelectedBuildLanguages();
         foreach (var mod in _mods)
@@ -1508,19 +1508,19 @@ public sealed class MainForm : Form
             if (mod.NeedsExtraction) { mod.UiStatus = ModUiStatus.NeedsExtraction; continue; }
             if (languages.Count == 0)
             {
-                mod.EditableTranslationFile = null;
+                mod.TranslationFile = null;
                 mod.UiStatus = ModUiStatus.NoLanguageSelected;
                 continue;
             }
 
-            var editableFiles = languages
-                .Select(language => (Language: language, File: EditableScanner.FindTranslationFile(_settings.EditableFolder, mod, language)))
+            var translationFiles = languages
+                .Select(language => (Language: language, File: TranslationScanner.FindTranslationFile(_settings.TranslationsFolder, mod, language)))
                 .Where(item => !string.IsNullOrWhiteSpace(item.File))
                 .ToList();
-            mod.EditableTranslationFile = editableFiles.FirstOrDefault().File;
-            mod.UiStatus = editableFiles.Count == 0
+            mod.TranslationFile = translationFiles.FirstOrDefault().File;
+            mod.UiStatus = translationFiles.Count == 0
                 ? ModUiStatus.MissingTranslation
-                : editableFiles.Count == languages.Count
+                : translationFiles.Count == languages.Count
                   && languages.All(language => _builtVerifiedThisSession.Contains(BuildSessionKey(mod.ModId, language.Id)))
                     ? ModUiStatus.BuiltVerified
                     : ModUiStatus.Extracted;
@@ -1529,46 +1529,46 @@ public sealed class MainForm : Form
         UpdateButtons();
     }
 
-    private bool CanRestoreEditableFromCache(ModScanResult mod)
+    private bool CanRestoreTranslationsFromSource(ModScanResult mod)
     {
         if (mod.NeedsExtraction || !mod.HasLocalization)
             return false;
 
-        var cachedRoot = Path.Combine(
-            _settings.CachedFolder,
+        var sourceRoot = Path.Combine(
+            _settings.SourceFolder,
             mod.ModId
         );
-        if (!Directory.Exists(cachedRoot))
+        if (!Directory.Exists(sourceRoot))
             return false;
 
-        var cachedHasEditableJson = BuildLanguageCatalog.All.Any(language =>
+        var sourceHasTranslationJson = BuildLanguageCatalog.All.Any(language =>
             File.Exists(
                 Path.Combine(
-                    cachedRoot,
+                    sourceRoot,
                     language.Key + ".json"
                 )
             )
         );
-        if (!cachedHasEditableJson)
+        if (!sourceHasTranslationJson)
             return false;
 
-        var editableRoot = Path.Combine(
-            _settings.EditableFolder,
+        var translationsRoot = Path.Combine(
+            _settings.TranslationsFolder,
             mod.ModId
         );
-        if (!Directory.Exists(editableRoot))
+        if (!Directory.Exists(translationsRoot))
             return true;
 
-        var editableHasAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
+        var translationsHaveAnyLanguageJson = BuildLanguageCatalog.All.Any(language =>
             File.Exists(
                 Path.Combine(
-                    editableRoot,
+                    translationsRoot,
                     language.Key + ".json"
                 )
             )
         );
 
-        return !editableHasAnyLanguageJson;
+        return !translationsHaveAnyLanguageJson;
     }
 
     private void RefreshGameLocalizationOverview()
@@ -1611,7 +1611,7 @@ public sealed class MainForm : Form
             : BuildLanguageCatalog.All
                 .Where(language => File.Exists(
                     Path.Combine(
-                        _settings.EditableFolder,
+                        _settings.TranslationsFolder,
                         "Game",
                         language.Key + ".json"
                     )
@@ -1624,7 +1624,7 @@ public sealed class MainForm : Form
             _gameLocalizationStatus.ForeColor = StalkerTheme.Success;
 
             _gameLocalizationDetails.Text =
-                $"{extractedLanguages.Count} editable JSON file"
+                $"{extractedLanguages.Count} translation JSON file"
                 + (extractedLanguages.Count == 1 ? string.Empty : "s");
 
             SetGameLocalizationResults(extractedLanguages);
@@ -1633,8 +1633,8 @@ public sealed class MainForm : Form
 
         _gameLocalizationStatus.Text = "LOCALIZATION FOUND";
         _gameLocalizationStatus.ForeColor = StalkerTheme.Success;
-        _gameLocalizationDetails.Text = CanRestoreEditableFromCache(_game)
-            ? "Ready to restore editable JSONs"
+        _gameLocalizationDetails.Text = CanRestoreTranslationsFromSource(_game)
+            ? "Ready to restore translation JSONs"
             : "Ready to extract";
         SetGameLocalizationResults(Array.Empty<BuildLanguage>());
     }
@@ -1646,7 +1646,7 @@ public sealed class MainForm : Form
             .Select(language =>
             {
                 var path = Path.Combine(
-                    _settings.EditableFolder,
+                    _settings.TranslationsFolder,
                     "Game",
                     language.Key + ".json"
                 );
@@ -1753,7 +1753,7 @@ public sealed class MainForm : Form
             mod =>
                 mod.UiStatus is ModUiStatus.NeedsExtraction
                     or ModUiStatus.MissingTranslation
-                || CanRestoreEditableFromCache(mod)
+                || CanRestoreTranslationsFromSource(mod)
         );
         var modsCanBuild = !_busy
             && hasLanguages
@@ -1779,7 +1779,7 @@ public sealed class MainForm : Form
             && (
                 _game.UiStatus is ModUiStatus.NeedsExtraction
                     or ModUiStatus.MissingTranslation
-                || CanRestoreEditableFromCache(_game)
+                || CanRestoreTranslationsFromSource(_game)
             );
         _buildGameButton.Enabled = !_busy
             && hasLanguages
@@ -1966,7 +1966,7 @@ public sealed class MainForm : Form
             && (
                 _game.UiStatus is ModUiStatus.NeedsExtraction
                     or ModUiStatus.MissingTranslation
-                || CanRestoreEditableFromCache(_game)
+                || CanRestoreTranslationsFromSource(_game)
             ))
         {
             _statusText.Text = "LOCALIZATION READY FOR EXTRACTION";
@@ -2003,7 +2003,7 @@ public sealed class MainForm : Form
 
     private DialogResult ShowSettings()
     {
-        _lastSettingsDeletedCache = false;
+        _lastSettingsDeletedSource = false;
         _watchDebounce.Stop();
         _suspendWatcherScan = true;
 
@@ -2011,10 +2011,10 @@ public sealed class MainForm : Form
         {
             using var dialog = new SettingsForm(_settings, _l);
             var result = dialog.ShowDialog(this);
-            _lastSettingsDeletedCache = dialog.CacheDeleted;
+            _lastSettingsDeletedSource = dialog.SourceDeleted;
 
-            if (dialog.CacheDeleted)
-                MarkCacheDeleted();
+            if (dialog.SourceDeleted)
+                MarkSourceDeleted();
 
             if (result == DialogResult.OK)
                 ConfigureWatchers();
@@ -2028,7 +2028,7 @@ public sealed class MainForm : Form
         }
     }
 
-    private void MarkCacheDeleted()
+    private void MarkSourceDeleted()
     {
         if (_game is not null && _game.HasLocalization)
         {
@@ -2036,7 +2036,7 @@ public sealed class MainForm : Form
             _game.UiStatus = ModUiStatus.NeedsExtraction;
         }
 
-        // MODS scan results can contain materialized UTOC paths inside Cached.
+        // MODS scan results can contain materialized UTOC paths inside Source.
         // DELETE CACHE removes those files, so keeping the old scan result would
         // leave stale container paths and cause "UTOC not found" errors during
         // extraction. Drop MODS state completely and require a fresh SCAN MODS.
@@ -2172,16 +2172,16 @@ public sealed class MainForm : Form
 
     private void ConfigureWatchers()
     {
-        _editableWatcher?.Dispose();
-        _cachedWatcher?.Dispose();
-        _editableWatcher = null;
-        _cachedWatcher = null;
+        _translationsWatcher?.Dispose();
+        _sourceWatcher?.Dispose();
+        _translationsWatcher = null;
+        _sourceWatcher = null;
 
         if (!_settings.AutoScan)
             return;
 
-        _editableWatcher = CreateWatcher(_settings.EditableFolder);
-        _cachedWatcher = CreateWatcher(_settings.CachedFolder);
+        _translationsWatcher = CreateWatcher(_settings.TranslationsFolder);
+        _sourceWatcher = CreateWatcher(_settings.SourceFolder);
     }
 
     private FileSystemWatcher? CreateWatcher(string path)
@@ -2219,15 +2219,15 @@ public sealed class MainForm : Form
     {
         try
         {
-            var cachedRoot = Path.GetFullPath(_settings.CachedFolder)
+            var sourceRoot = Path.GetFullPath(_settings.SourceFolder)
                 .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
                 + Path.DirectorySeparatorChar;
             var fullPath = Path.GetFullPath(path);
 
-            if (!fullPath.StartsWith(cachedRoot, StringComparison.OrdinalIgnoreCase))
+            if (!fullPath.StartsWith(sourceRoot, StringComparison.OrdinalIgnoreCase))
                 return false;
 
-            var relative = Path.GetRelativePath(_settings.CachedFolder, fullPath);
+            var relative = Path.GetRelativePath(_settings.SourceFolder, fullPath);
             var firstPart = relative.Split(
                 new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
                 StringSplitOptions.RemoveEmptyEntries
@@ -2265,8 +2265,8 @@ public sealed class MainForm : Form
 
         BeginInvoke(new Action(() =>
         {
-            RefreshModEditableStatuses();
-            RefreshGameEditableTranslation();
+            RefreshModTranslationStatuses();
+            RefreshGameTranslation();
         }));
     }
 
@@ -2371,8 +2371,8 @@ public sealed class MainForm : Form
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
         _operationCts?.Cancel();
-        _editableWatcher?.Dispose();
-        _cachedWatcher?.Dispose();
+        _translationsWatcher?.Dispose();
+        _sourceWatcher?.Dispose();
         _watchDebounce.Dispose();
         base.OnFormClosing(e);
     }
