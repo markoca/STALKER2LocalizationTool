@@ -760,7 +760,7 @@ public sealed class MainForm : Form
         finally
         {
             _watchDebounce.Stop();
-            _suspendWatcherScan = false;
+            _suspendWatcherScan = IsSettingsWorkspace;
         }
     }
 
@@ -828,18 +828,35 @@ public sealed class MainForm : Form
         if (leavingMods && _modsScanInProgress)
             _operationCts?.Cancel();
 
+        var enteringSettings = ReferenceEquals(tab, _settingsTab);
+        if (IsSettingsWorkspace && !enteringSettings)
+        {
+            _watchDebounce.Stop();
+            _suspendWatcherScan = false;
+        }
+
         _activeWorkspaceTab = tab;
         _gameTab.Visible = ReferenceEquals(tab, _gameTab);
         _modsTab.Visible = ReferenceEquals(tab, _modsTab);
-        _settingsTab.Visible = ReferenceEquals(tab, _settingsTab);
+        _settingsTab.Visible = enteringSettings;
         _gameTabButton.Selected = ReferenceEquals(tab, _gameTab);
         _modsTabButton.Selected = ReferenceEquals(tab, _modsTab);
-        _settingsButton.Selected = ReferenceEquals(tab, _settingsTab);
+        _settingsButton.Selected = enteringSettings;
+
+        if (enteringSettings)
+        {
+            _watchDebounce.Stop();
+            _suspendWatcherScan = true;
+        }
+
         tab.BringToFront();
     }
 
     private void OpenSettingsTab()
     {
+        if (_busy)
+            return;
+
         SetWorkspace(_settingsTab);
         _statusText.Text = "SETTINGS";
     }
