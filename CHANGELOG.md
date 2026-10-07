@@ -20,6 +20,7 @@
 - The new main-window styling remains owner-drawn WinForms to preserve deterministic Windows/Wine rendering without adding a UI framework dependency.
 - Extended the **Industrial Zone** styling to the remaining UI: language-selection tiles, GAME extraction result tiles, borderless terminal log, chamfered utility buttons, industrial Settings path fields, Auto Scan switch, primary Save action, and destructive Delete Cache treatment.
 - Settings typography now uses the same Segoe UI family as the main window, avoiding a separate Bahnschrift rendering dependency across Windows/Wine.
+- Fixed borderless-window dragging: the main and Settings custom title bars are draggable from their non-interactive child surfaces while caption buttons remain clickable.
 - Consolidated the current development baseline onto `main` and refreshed release-candidate documentation.
 
 ## 1.0.0-rc.7
