@@ -133,7 +133,7 @@ public sealed class BuildService
     private static Dictionary<string, string> LoadTranslations(ModScanResult mod)
     {
         var translationPath = mod.TranslationFile
-                              ?? throw new FileNotFoundException($"Editable language JSON not found for {mod.ModName}");
+                              ?? throw new FileNotFoundException($"Translation language JSON not found for {mod.ModName}");
         var translations = TranslationScanner.LoadFlatTranslations(translationPath);
         if (translations.Count == 0)
             throw new InvalidDataException($"{mod.ModName}: language JSON is empty: {translationPath}");
