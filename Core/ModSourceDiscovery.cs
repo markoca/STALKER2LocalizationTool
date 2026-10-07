@@ -556,26 +556,32 @@ public static class ModSourceDiscovery
             Directory.CreateDirectory(targetDir);
 
             var utocTarget = Path.Combine(targetDir, triplet.Stem + ".utoc");
+            var ucasTarget = Path.Combine(targetDir, triplet.Stem + ".ucas");
 
-            // SCAN only needs the IoStore directory index. Large PAK/UCAS payloads
-            // are materialized lazily by EXTRACT if localization is actually present.
-            var utocWasReady = FileMatchesSize(
-                utocTarget,
-                triplet.UtocSize
-            );
-            var utocTimer = Stopwatch.StartNew();
+            // retoc list resolves the IoStore directory index through the UTOC but
+            // still opens the adjacent UCAS payload. PAK is not required for scan
+            // discovery and remains deferred until EXTRACT.
+            var scanPayloadWasReady =
+                FileMatchesSize(utocTarget, triplet.UtocSize)
+                && FileMatchesSize(ucasTarget, triplet.UcasSize);
+
+            var payloadTimer = Stopwatch.StartNew();
             ExtractIfNeeded(
                 byNormalizedName[triplet.UtocMember],
                 utocTarget
             );
-            utocTimer.Stop();
+            ExtractIfNeeded(
+                byNormalizedName[triplet.UcasMember],
+                ucasTarget
+            );
+            payloadTimer.Stop();
 
-            if (!utocWasReady)
+            if (!scanPayloadWasReady)
             {
                 log?.Invoke(
-                    $"Archive UTOC materialized: {archiveRelative} :: "
-                    + $"{triplet.Stem} in "
-                    + $"{utocTimer.Elapsed.TotalSeconds:N1}s."
+                    $"Archive scan payload materialized: {archiveRelative} :: "
+                    + $"{triplet.Stem} (UTOC + UCAS) in "
+                    + $"{payloadTimer.Elapsed.TotalSeconds:N1}s."
                 );
             }
 
@@ -588,7 +594,7 @@ public static class ModSourceDiscovery
         log?.Invoke(
             $"Archive mod source: {archiveRelative} -> "
             + $"{retained.Count} IoStore container(s) [{displayName}] "
-            + "(UTOC-only scan materialization)"
+            + "(UTOC + UCAS scan materialization)"
         );
 
         yield return new SourceGroup
@@ -862,7 +868,10 @@ public static class ModSourceDiscovery
 
             if (!FileMatchesSize(
                     Path.Combine(targetDir, triplet.Stem + ".utoc"),
-                    triplet.UtocSize))
+                    triplet.UtocSize)
+                || !FileMatchesSize(
+                    Path.Combine(targetDir, triplet.Stem + ".ucas"),
+                    triplet.UcasSize))
             {
                 return false;
             }
