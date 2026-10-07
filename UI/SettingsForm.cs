@@ -205,6 +205,7 @@ public sealed class SettingsForm : Form
         titleLayout.Controls.Add(identity, 0, 0);
         titleLayout.Controls.Add(captionButtons, 1, 0);
         titleBar.Controls.Add(titleLayout);
+        StalkerTheme.EnableWindowDragging(this, titleBar);
 
         return titleBar;
     }
