@@ -331,15 +331,15 @@ public sealed class MainForm : Form
         };
         var languagesLayout = new TableLayoutPanel
         {
-            Dock = DockStyle.Top,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Fill,
+            AutoSize = false,
             ColumnCount = 1,
             RowCount = 2,
             Margin = new Padding(0),
         };
+        languagesLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         languagesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        languagesLayout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        languagesLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
 
         var languagesHeader = new TableLayoutPanel
         {
@@ -360,7 +360,7 @@ public sealed class MainForm : Form
         _buildLanguageLabel.Margin = new Padding(0, 0, 0, 6);
         languagesHeader.Controls.Add(_buildLanguageLabel, 0, 0);
 
-        _buildLanguages.Dock = DockStyle.Top;
+        _buildLanguages.Dock = DockStyle.Fill;
         _buildLanguages.AutoSize = false;
         _buildLanguages.Margin = new Padding(0);
         _buildLanguages.SelectionChanged += BuildLanguagesSelectionChanged;
