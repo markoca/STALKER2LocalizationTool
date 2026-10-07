@@ -1437,27 +1437,55 @@ public sealed class MainForm : Form
         RefreshGameTranslation();
     }
 
+    // New or changed sources have priority over missing JSON recovery.
+    // Keep already extracted mods outside the pending extraction batch.
+    private List<ModScanResult> GetModsExtractionTargets()
+    {
+        var pending = _mods.Where(mod => mod.HasLocalization
+            && mod.NeedsExtraction
+            && string.IsNullOrWhiteSpace(mod.ScanError))
+            .ToList();
+        if (pending.Count > 0)
+            return pending;
+
+        return _mods.Where(mod => mod.HasLocalization
+            && !mod.NeedsExtraction
+            && string.IsNullOrWhiteSpace(mod.ScanError)
+            && (mod.UiStatus == ModUiStatus.MissingTranslation
+                || CanRestoreTranslationsFromSource(mod)))
+            .ToList();
+    }
+
     private async Task ExtractAsync()
     {
-        var targets = _mods
-            .Where(mod =>
-                mod.UiStatus is ModUiStatus.NeedsExtraction
-                    or ModUiStatus.MissingTranslation
-                || CanRestoreTranslationsFromSource(mod))
-            .ToList();
+        var targets = GetModsExtractionTargets();
         if (targets.Count == 0)
         {
             MessageBox.Show(this, _l.T("ui.no_extract"), AppConstants.AppName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
-        if (!ValidateExtractionPaths())
+        // A JSON-only recovery does not need external extraction tools.
+        if (targets.Any(mod => mod.NeedsExtraction) && !ValidateExtractionPaths())
             return;
 
         SetBusy(true, _l.T("ui.extracting"));
         _operationCts = new CancellationTokenSource();
         try
         {
+            if (targets.Any(mod => mod.NeedsExtraction))
+            {
+                var skipped = _mods.Count(mod => mod.HasLocalization
+                    && !mod.NeedsExtraction
+                    && string.IsNullOrWhiteSpace(mod.ScanError));
+                AppendLog($"=== EXTRACTING {targets.Count} PENDING MOD{(targets.Count == 1 ? string.Empty : "S")} ===");
+                AppendLog($"Skipping {skipped} already extracted mod(s); previous workspaces are untouched.");
+            }
+            else
+            {
+                AppendLog("=== RESTORING MISSING TRANSLATION JSONS ===");
+            }
+
             var retoc = new RetocService(_settings.RetocPath, AppendLog);
             var repak = new RepakService(_settings.RepakPath, AppendLog);
             var uasset = new UAssetGuiService(_settings.UAssetGuiPath, _settings.MappingsPath, AppendLog);
@@ -2043,12 +2071,7 @@ public sealed class MainForm : Form
         var modsNeedExtraction = _mods.Any(
             mod => mod.UiStatus == ModUiStatus.NeedsExtraction
         );
-        var modsCanExtract = _mods.Any(
-            mod =>
-                mod.UiStatus is ModUiStatus.NeedsExtraction
-                    or ModUiStatus.MissingTranslation
-                || CanRestoreTranslationsFromSource(mod)
-        );
+        var modsCanExtract = GetModsExtractionTargets().Count > 0;
         var modsCanBuild = !_busy
             && hasLanguages
             && _mods.Any(mod =>
