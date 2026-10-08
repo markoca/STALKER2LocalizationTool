@@ -15,6 +15,7 @@ internal static class Program
         var settings = AppSettings.CreateRuntime();
         UserPathStore.Apply(settings);
         var localizer = new Localizer();
+        localizer.SetLanguage(settings.InterfaceLanguage);
 
         Application.Run(new MainForm(settings, localizer));
     }

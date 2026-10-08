@@ -19,6 +19,7 @@ public sealed class AppSettings
     public string S2HocmmPath { get; set; } = string.Empty;
 
     public bool AutoScan { get; set; } = true;
+    public string InterfaceLanguage { get; set; } = "en";
 
     public static AppSettings CreateRuntime()
     {

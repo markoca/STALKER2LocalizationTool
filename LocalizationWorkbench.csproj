@@ -22,6 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Languages\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <EmbeddedResource Include="Assets\localization-workbench.ico"
                       LogicalName="LocalizationWorkbench.Assets.localization-workbench.ico" />
   </ItemGroup>

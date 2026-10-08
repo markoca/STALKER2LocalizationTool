@@ -254,3 +254,8 @@ The MODS **Pack all editable** switch applies to both **BUILD MODULAR** and **BU
 - **OFF (default):** only localization databases with actual changes to the selected language compared with the extracted Source data are packaged.
 - **ON:** all localization databases with at least one editable/matched SID for the selected language are packaged, including those unchanged from Source.
 - Databases without any matching editable SIDs are skipped. The switch does not affect GAME, scanning, extraction, or existing translation files.
+
+
+## Interface localization
+
+Workbench interface language is configured in **Settings → Interface language** independently of the 18 game BUILD languages. Changes apply without restarting the app, and the selected UI language persists in `user-paths.json` beside the executable. English is the fallback for untranslated or missing strings. Translation dictionaries are editable UTF-8 JSON files under `Languages/<culture>.json` in the published app; invalid language files are ignored. Language selection never changes extracted game languages or JSON paths.

@@ -21,6 +21,7 @@ public static class UserPathStore
     public static void Apply(AppSettings settings)
     {
         var saved = Load();
+        settings.InterfaceLanguage = saved.InterfaceLanguage;
 
         if (IsValidGamePaksFolder(saved.GamePaksFolder))
             settings.GamePaksFolder = saved.GamePaksFolder;
@@ -32,6 +33,7 @@ public static class UserPathStore
     public static void SaveValidated(AppSettings settings)
     {
         var saved = Load();
+        saved.InterfaceLanguage = settings.InterfaceLanguage;
 
         if (IsValidGamePaksFolder(settings.GamePaksFolder))
             saved.GamePaksFolder = settings.GamePaksFolder.Trim();
@@ -92,5 +94,6 @@ public static class UserPathStore
     {
         public string GamePaksFolder { get; set; } = string.Empty;
         public string ModsFolder { get; set; } = string.Empty;
+        public string InterfaceLanguage { get; set; } = "en";
     }
 }

@@ -755,9 +755,8 @@ public sealed class MainForm : Form
         actionButtons.Controls.Add(_buildAllInOneButton);
 
         _packAllEditableMods.CheckedChanged += (_, _) =>
-            _packAllEditableMods.Text = _packAllEditableMods.Checked
-                ? "Pack all translations"
-                : "Pack only edited translations";
+            _packAllEditableMods.Text = _l.T(_packAllEditableMods.Checked
+                ? "ui.pack_all" : "ui.pack_only_edited");
         _toolTip.SetToolTip(_packAllEditableMods,
             "OFF: package only changed databases. ON: package all editable databases, including unchanged ones.");
         actionLayout.Controls.Add(_packAllEditableMods, 0, 0);
@@ -815,6 +814,8 @@ public sealed class MainForm : Form
             _configuredModsFolder = _settings.ModsFolder;
 
             ConfigureWatchers();
+            _l.SetLanguage(_settings.InterfaceLanguage);
+            ApplyLocalization();
             RefreshGrid();
             UpdateButtons();
 
@@ -1128,7 +1129,10 @@ public sealed class MainForm : Form
         _extractButton.Text = _l.T("ui.extract");
         _buildModularButton.Text = _l.T("ui.build_modular");
         _buildAllInOneButton.Text = _l.T("ui.build_all_in_one");
-        _toolTip.SetToolTip(_buildAllInOneButton, "Combine all mod localizations in one package");
+        _toolTip.SetToolTip(_buildAllInOneButton, _l.T("ui.all_in_one_tooltip"));
+        _packAllEditableMods.Text = _l.T(_packAllEditableMods.Checked
+            ? "ui.pack_all" : "ui.pack_only_edited");
+        _toolTip.SetToolTip(_packAllEditableMods, _l.T("ui.pack_tooltip"));
         _openJsons.Text = _l.T("ui.open_jsons_folder");
         _openOutput.Text = _l.T("ui.open_output");
         _logLabel.Text = _l.T("ui.log");

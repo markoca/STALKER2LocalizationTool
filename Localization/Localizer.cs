@@ -4,7 +4,48 @@ namespace LocalizationWorkbench.Localization;
 
 public sealed class Localizer
 {
-    private readonly Dictionary<string, string> _strings = BuildEnglish();
+    private static readonly Dictionary<string, string> English = BuildEnglish();
+    private Dictionary<string, string> _strings = new(StringComparer.OrdinalIgnoreCase);
+    public static readonly (string Code, string Name)[] InterfaceLanguages =
+    {
+        ("en", "English"), ("ar", "العربية"), ("zh-Hans", "简体中文"),
+        ("zh-Hant", "繁體中文"), ("cs", "Čeština"), ("fr", "Français"),
+        ("de", "Deutsch"), ("it", "Italiano"), ("ja", "日本語"),
+        ("ko", "한국어"), ("pl", "Polski"), ("pt-BR", "Português (Brasil)"),
+        ("ru", "Русский"), ("sr-Latn", "Srpski (latinica)"),
+        ("sr-Cyrl", "Српски (ћирилица)"), ("es", "Español"),
+        ("es-419", "Español (Latinoamérica)"), ("tr", "Türkçe"),
+        ("uk", "Українська")
+    };
+    public string CurrentLanguage { get; private set; } = "en";
+    public Localizer() => SetLanguage("en");
+
+    public void SetLanguage(string code)
+    {
+        code = InterfaceLanguages.FirstOrDefault(x =>
+            string.Equals(x.Code, code, StringComparison.OrdinalIgnoreCase)).Code ?? "en";
+        var merged = new Dictionary<string, string>(English, StringComparer.OrdinalIgnoreCase);
+        var path = Path.Combine(AppContext.BaseDirectory, "Languages", code + ".json");
+        if (File.Exists(path))
+        {
+            try
+            {
+                var translated = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(
+                    File.ReadAllText(path, System.Text.Encoding.UTF8));
+                if (translated is not null)
+                    foreach (var item in translated)
+                        if (English.ContainsKey(item.Key) && !string.IsNullOrWhiteSpace(item.Value))
+                            merged[item.Key] = item.Value;
+            }
+            catch (Exception)
+            {
+                // A malformed translation must not prevent Workbench startup.
+            }
+        }
+        _strings = merged;
+        CurrentLanguage = code;
+    }
+
 
     public string T(string key)
     {
@@ -19,6 +60,13 @@ public sealed class Localizer
     {
         ["app.title"] = AppConstants.AppName,
         ["ui.build_language"] = "Build languages",
+        ["ui.interface_language"] = "Interface language",
+        ["ui.interface_language_hint"] = "Interface language is independent of game build languages.",
+        ["ui.pack_only_edited"] = "Pack only edited translations",
+        ["ui.pack_all"] = "Pack all translations",
+        ["ui.pack_tooltip"] = "OFF: package only changed databases. ON: package all editable databases.",
+        ["ui.all_in_one_tooltip"] = "Combine all mod localizations in one package",
+        ["ui.auto_scan_hint"] = "Refresh GAME / MODS readiness when Source or Translations files change.",
         ["ui.extract"] = "EXTRACT",
         ["ui.build_modular"] = "BUILD MODULAR",
         ["ui.build_all_in_one"] = "BUILD ALL-IN-ONE",

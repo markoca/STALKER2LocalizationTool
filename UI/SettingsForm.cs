@@ -1,5 +1,6 @@
 using LocalizationWorkbench.Localization;
 using LocalizationWorkbench.Models;
+using LocalizationWorkbench.Services;
 
 namespace LocalizationWorkbench.UI;
 
@@ -9,6 +10,7 @@ public sealed class SettingsForm : UserControl
     private readonly Localizer _l;
     private readonly Dictionary<string, TextBox> _boxes = new();
     private readonly StalkerToggleCheckBox _autoScan = new();
+    private readonly ComboBox _interfaceLanguage = new();
 
     public event EventHandler? SettingsSaved;
     public event EventHandler? SourceDataDeleted;
@@ -67,16 +69,17 @@ public sealed class SettingsForm : UserControl
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             ColumnCount = 1,
-            RowCount = 2,
+            RowCount = 3,
             Margin = new Padding(0),
             Padding = new Padding(0),
         };
         bodyStack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-        bodyStack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-        bodyStack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        for (var i = 0; i < 3; i++)
+            bodyStack.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-        bodyStack.Controls.Add(BuildPathsCard(), 0, 0);
-        bodyStack.Controls.Add(BuildToolsCard(), 0, 1);
+        bodyStack.Controls.Add(BuildInterfaceCard(), 0, 0);
+        bodyStack.Controls.Add(BuildPathsCard(), 0, 1);
+        bodyStack.Controls.Add(BuildToolsCard(), 0, 2);
 
         body.Controls.Add(bodyStack);
         content.Controls.Add(body, 0, 0);
@@ -84,6 +87,33 @@ public sealed class SettingsForm : UserControl
 
         root.Controls.Add(content, 0, 0);
         root.Controls.Add(BuildFooter(), 0, 1);
+    }
+
+    private StalkerCardPanel BuildInterfaceCard()
+    {
+        var card = CreateSectionCard(accentEdge: false);
+        var layout = CreateSectionLayout(_l.T("ui.interface_language"));
+        layout.RowCount = 3;
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        _interfaceLanguage.DropDownStyle = ComboBoxStyle.DropDownList;
+        _interfaceLanguage.Width = 260;
+        _interfaceLanguage.Font = new Font("Segoe UI", 9F);
+        foreach (var language in Localizer.InterfaceLanguages)
+            _interfaceLanguage.Items.Add(language.Name);
+        _interfaceLanguage.SelectedIndex = Math.Max(0, Array.FindIndex(
+            Localizer.InterfaceLanguages, x => x.Code == _settings.InterfaceLanguage));
+
+        layout.Controls.Add(_interfaceLanguage, 0, 1);
+        layout.Controls.Add(new Label
+        {
+            Text = _l.T("ui.interface_language_hint"),
+            AutoSize = true,
+            Tag = StalkerTheme.MutedLabelTag,
+            Margin = new Padding(0, 5, 0, 0)
+        }, 0, 2);
+        card.Controls.Add(layout);
+        return card;
     }
 
     private StalkerCardPanel BuildPathsCard()
@@ -192,7 +222,7 @@ public sealed class SettingsForm : UserControl
 
         var hint = new Label
         {
-            Text = "Refresh GAME / MODS readiness when Source or Translations files change.",
+            Text = _l.T("ui.auto_scan_hint"),
             AutoSize = true,
             Font = new Font("Segoe UI", 8.5F),
             Tag = StalkerTheme.MutedLabelTag,
@@ -549,6 +579,8 @@ public sealed class SettingsForm : UserControl
             mods.Text = _settings.ModsFolder;
 
         _autoScan.Checked = _settings.AutoScan;
+        _interfaceLanguage.SelectedIndex = Math.Max(0, Array.FindIndex(
+            Localizer.InterfaceLanguages, x => x.Code == _settings.InterfaceLanguage));
     }
 
     private void CancelChanges()
@@ -563,6 +595,8 @@ public sealed class SettingsForm : UserControl
         _settings.GamePaksFolder = _boxes["game"].Text.Trim();
         _settings.ModsFolder = _boxes["mods"].Text.Trim();
         _settings.AutoScan = _autoScan.Checked;
+        _settings.InterfaceLanguage = Localizer.InterfaceLanguages[Math.Max(0, _interfaceLanguage.SelectedIndex)].Code;
+        UserPathStore.SaveValidated(_settings);
 
         if (!string.IsNullOrWhiteSpace(_settings.ModsFolder))
         {
