@@ -756,7 +756,7 @@ public sealed class MainForm : Form
 
         _packAllEditableMods.CheckedChanged += (_, _) =>
             _packAllEditableMods.Text = _packAllEditableMods.Checked
-                ? "Pack all editable"
+                ? "Pack all files"
                 : "Pack only changed files";
         _toolTip.SetToolTip(_packAllEditableMods,
             "OFF: package only changed databases. ON: package all editable databases, including unchanged ones.");
