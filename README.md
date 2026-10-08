@@ -245,3 +245,12 @@ This baseline is **Localization Workbench v2.0.0**.
 The final regression pass is documented in `RELEASE_CHECKLIST.md`, and the shipped Version 2 summary is in `RELEASE_NOTES.md`.
 
 For end-user instructions, see `QUICK_USER_HANDBOOK.md`.
+
+
+### MODS packaging switch
+
+The MODS **Pack all editable** switch applies to both **BUILD MODULAR** and **BUILD ALL-IN-ONE**.
+
+- **OFF (default):** only localization databases with actual changes to the selected language compared with the extracted Source data are packaged.
+- **ON:** all localization databases with at least one editable/matched SID for the selected language are packaged, including those unchanged from Source.
+- Databases without any matching editable SIDs are skipped. The switch does not affect GAME, scanning, extraction, or existing translation files.

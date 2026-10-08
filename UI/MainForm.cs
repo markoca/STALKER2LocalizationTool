@@ -47,6 +47,13 @@ public sealed class MainForm : Form
     private readonly StalkerActionButton _extractButton = new();
     private readonly StalkerActionButton _buildModularButton = new();
     private readonly StalkerActionButton _buildAllInOneButton = new();
+    private readonly StalkerToggleCheckBox _packAllEditableMods = new()
+    {
+        Text = "Pack all editable",
+        AutoSize = true,
+        Checked = false,
+        Margin = new Padding(0, 8, 12, 0),
+    };
     private readonly Panel _workspaceHost = new();
     private readonly Panel _gameTab = new();
     private readonly Panel _modsTab = new();
@@ -747,6 +754,9 @@ public sealed class MainForm : Form
         actionButtons.Controls.Add(_buildModularButton);
         actionButtons.Controls.Add(_buildAllInOneButton);
 
+        _toolTip.SetToolTip(_packAllEditableMods,
+            "OFF: package only changed databases. ON: package all editable databases, including unchanged ones.");
+        actionLayout.Controls.Add(_packAllEditableMods, 0, 0);
         actionLayout.Controls.Add(actionButtons, 1, 0);
         actionCard.Controls.Add(actionLayout);
         layout.Controls.Add(actionCard, 0, 1);
@@ -1609,7 +1619,8 @@ public sealed class MainForm : Form
                         language.Id,
                         mode,
                         progress,
-                        buildToken
+                        buildToken,
+                        _packAllEditableMods.Checked
                     ),
                     buildToken
                 );
@@ -2087,6 +2098,7 @@ public sealed class MainForm : Form
         _extractButton.Enabled = !_busy && modsCanExtract;
         _buildModularButton.Enabled = modsCanBuild;
         _buildAllInOneButton.Enabled = modsCanBuildAllInOne;
+        _packAllEditableMods.Enabled = !_busy;
 
         _scanGameButton.Enabled = !_busy;
         _extractGameButton.Enabled = !_busy

@@ -29,7 +29,8 @@ public sealed class BuildService
         int targetLanguageId,
         BuildMode mode,
         IProgress<(int Current, int Total, string Message)>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool packAllEditable = false)
     {
         var available = mods
             .Where(x =>
@@ -39,7 +40,7 @@ public sealed class BuildService
         ValidatePrerequisites(available, mode);
 
         if (mode == BuildMode.AllInOne)
-            return await BuildAllInOneAsync(available, targetLanguageId, progress, cancellationToken);
+            return await BuildAllInOneAsync(available, targetLanguageId, progress, cancellationToken, packAllEditable);
 
         var results = new List<ModBuildResult>();
         for (var i = 0; i < available.Count; i++)
@@ -48,13 +49,13 @@ public sealed class BuildService
             var mod = available[i];
             progress?.Report((i, available.Count, $"Building {mod.ModName}"));
             _log?.Invoke($"=== Building {mod.ModName} ===");
-            results.Add(await BuildOneAsync(mod, targetLanguageId, cancellationToken));
+            results.Add(await BuildOneAsync(mod, targetLanguageId, cancellationToken, packAllEditable));
             progress?.Report((i + 1, available.Count, $"Built {mod.ModName}"));
         }
         return results;
     }
 
-    private async Task<ModBuildResult> BuildOneAsync(ModScanResult mod, int targetLanguageId, CancellationToken cancellationToken)
+    private async Task<ModBuildResult> BuildOneAsync(ModScanResult mod, int targetLanguageId, CancellationToken cancellationToken, bool packAllEditable)
     {
         var result = new ModBuildResult { ModId = mod.ModId };
         var sourceRoot = Path.Combine(_settings.SourceFolder, mod.ModId);
@@ -79,7 +80,7 @@ public sealed class BuildService
         Directory.CreateDirectory(workRoot);
 
         if (manifest.Assets.Count > 0)
-            await BuildDatabaseOverlayAsync(manifest, translations, language, sourceRoot, outputModRoot, workRoot, result, cancellationToken);
+            await BuildDatabaseOverlayAsync(manifest, translations, language, sourceRoot, outputModRoot, workRoot, result, cancellationToken, packAllEditable);
 
         if (string.Equals(manifest.ModId, "Game", StringComparison.OrdinalIgnoreCase)
             && manifest.LocresAssets.Count > 0)
@@ -133,7 +134,8 @@ public sealed class BuildService
         List<ModScanResult> available,
         int targetLanguageId,
         IProgress<(int Current, int Total, string Message)>? progress,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool packAllEditable)
     {
         var language = BuildLanguageCatalog.ById(targetLanguageId);
         var outputRoot = Path.Combine(
@@ -221,9 +223,9 @@ public sealed class BuildService
                     + $"changed={patch.ChangedSids.Count}"
                 );
 
-                // Match current launch.py: an already-correct source needs no physical
-                // overlay asset. Only a real selected-language change enters the output.
-                if (patch.ChangedSids.Count == 0)
+                // With the switch ON, include unchanged editable database assets.
+                if (patch.ChangedSids.Count == 0
+                    && (!packAllEditable || patch.MatchedSids.Count == 0))
                     continue;
 
                 var identityPath = PathUtil.NormalizeVirtualPathForComparison(asset.VirtualPath);
@@ -336,7 +338,8 @@ public sealed class BuildService
         string outputModRoot,
         string workRoot,
         ModBuildResult result,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool packAllEditable)
     {
         var legacyRoot = Path.Combine(workRoot, "database", "legacy");
         Directory.CreateDirectory(legacyRoot);
@@ -396,9 +399,9 @@ public sealed class BuildService
                 + $"changed={patch.ChangedSids.Count}"
             );
 
-            // Match the current launch.py baseline: only databases whose target
-            // selected language slot actually changes need a physical override package.
-            if (patch.ChangedSids.Count == 0)
+            // With the switch ON, include unchanged editable database assets.
+            if (patch.ChangedSids.Count == 0
+                && (!packAllEditable || patch.MatchedSids.Count == 0))
                 continue;
 
             assetsPatched++;
