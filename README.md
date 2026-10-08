@@ -249,7 +249,7 @@ For end-user instructions, see `QUICK_USER_HANDBOOK.md`.
 
 ### MODS packaging switch
 
-The MODS **Pack all editable** switch applies to both **BUILD MODULAR** and **BUILD ALL-IN-ONE**.
+The MODS **Pack all editable** switch applies to both **BUILD MODULAR** and **BUILD ALL-IN-ONE**. It is visible only during the active MODS build stage, when at least one MODS BUILD button is highlighted yellow; it is hidden during scanning, extraction, and whenever neither MODS BUILD action is ready.
 
 - **OFF (default):** only localization databases with actual changes to the selected language compared with the extracted Source data are packaged.
 - **ON:** all localization databases with at least one editable/matched SID for the selected language are packaged, including those unchanged from Source.
