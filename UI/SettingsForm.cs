@@ -96,9 +96,29 @@ public sealed class SettingsForm : UserControl
         layout.RowCount = 3;
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
+        // Match the dark, accent-highlighted selection style used throughout Workbench.
         _interfaceLanguage.DropDownStyle = ComboBoxStyle.DropDownList;
-        _interfaceLanguage.Width = 260;
-        _interfaceLanguage.Font = new Font("Segoe UI", 9F);
+        _interfaceLanguage.DrawMode = DrawMode.OwnerDrawFixed;
+        _interfaceLanguage.ItemHeight = 28;
+        _interfaceLanguage.Width = 280;
+        _interfaceLanguage.FlatStyle = FlatStyle.Flat;
+        _interfaceLanguage.BackColor = StalkerTheme.PanelAlt;
+        _interfaceLanguage.ForeColor = StalkerTheme.Text;
+        _interfaceLanguage.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        _interfaceLanguage.DrawItem += (_, e) =>
+        {
+            if (e.Index < 0 || e.Index >= _interfaceLanguage.Items.Count)
+                return;
+            var selected = (e.State & DrawItemState.Selected) != 0;
+            using var background = new SolidBrush(selected ? StalkerTheme.Accent : StalkerTheme.PanelAlt);
+            using var foreground = new SolidBrush(selected ? StalkerTheme.WindowBackground : StalkerTheme.Text);
+            e.Graphics.FillRectangle(background, e.Bounds);
+            var bounds = new Rectangle(e.Bounds.Left + 10, e.Bounds.Top,
+                Math.Max(0, e.Bounds.Width - 14), e.Bounds.Height);
+            using var format = new StringFormat { LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisCharacter };
+            e.Graphics.DrawString(_interfaceLanguage.Items[e.Index]?.ToString() ?? string.Empty,
+                _interfaceLanguage.Font, foreground, bounds, format);
+        };
         foreach (var language in Localizer.InterfaceLanguages)
             _interfaceLanguage.Items.Add(language.Name);
         _interfaceLanguage.SelectedIndex = Math.Max(0, Array.FindIndex(
