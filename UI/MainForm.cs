@@ -2102,6 +2102,7 @@ public sealed class MainForm : Form
         _extractButton.Enabled = !_busy && modsCanExtract;
         _buildModularButton.Enabled = modsCanBuild;
         _buildAllInOneButton.Enabled = modsCanBuildAllInOne;
+        // Visibility is tied to the actual yellow MODS BUILD stage below.
         _packAllEditableMods.Enabled = !_busy;
 
         _scanGameButton.Enabled = !_busy;
@@ -2160,16 +2161,22 @@ public sealed class MainForm : Form
             this,
             modsExtractPrimary
         );
+        var modularBuildPrimary = modsBuildStage && _buildModularButton.Enabled;
+        var allInOneBuildPrimary = modsBuildStage && _buildAllInOneButton.Enabled;
+
         StalkerTheme.SetButtonPrimary(
             _buildModularButton,
             this,
-            modsBuildStage && _buildModularButton.Enabled
+            modularBuildPrimary
         );
         StalkerTheme.SetButtonPrimary(
             _buildAllInOneButton,
             this,
-            modsBuildStage && _buildAllInOneButton.Enabled
+            allInOneBuildPrimary
         );
+
+        // Only show the packaging switch when a MODS BUILD action is yellow.
+        _packAllEditableMods.Visible = modularBuildPrimary || allInOneBuildPrimary;
 
         RefreshGameLocalizationOverview();
     }
