@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "인터페이스 언어",
+  "ui.build_language": "빌드 언어",
+  "ui.settings": "설정",
+  "ui.tab_game": "게임",
+  "ui.tab_mods": "모드",
+  "ui.scan_game": "게임 스캔",
+  "ui.scan_mods": "모드 스캔",
+  "ui.extract": "추출",
+  "ui.build_game": "빌드",
+  "ui.build_modular": "개별 빌드",
+  "ui.build_all_in_one": "통합 빌드",
+  "ui.paths": "폴더",
+  "ui.tools": "도구",
+  "ui.status": "상태",
+  "ui.details": "세부 정보",
+  "ui.available": "사용 가능",
+  "status.extracted": "추출됨",
+  "status.needs_extraction": "추출 필요",
+  "ui.save": "저장",
+  "ui.cancel": "취소",
+  "ui.extract_game": "추출"
+}

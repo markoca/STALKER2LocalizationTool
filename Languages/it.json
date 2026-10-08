@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "Lingua dell'interfaccia",
+  "ui.build_language": "Lingue di compilazione",
+  "ui.settings": "Impostazioni",
+  "ui.tab_game": "GIOCO",
+  "ui.tab_mods": "MOD",
+  "ui.scan_game": "SCANSIONA GIOCO",
+  "ui.scan_mods": "SCANSIONA MOD",
+  "ui.extract": "ESTRAI",
+  "ui.build_game": "COMPILA",
+  "ui.build_modular": "COMPILA MODULARE",
+  "ui.build_all_in_one": "COMPILA TUTTO-IN-UNO",
+  "ui.paths": "Cartelle",
+  "ui.tools": "Strumenti",
+  "ui.status": "Stato",
+  "ui.details": "Dettagli",
+  "ui.available": "Disponibile",
+  "status.extracted": "Estratto",
+  "status.needs_extraction": "Estrazione necessaria",
+  "ui.save": "Salva",
+  "ui.cancel": "Annulla",
+  "ui.extract_game": "ESTRAI"
+}

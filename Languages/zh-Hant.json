@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "介面語言",
+  "ui.build_language": "建置語言",
+  "ui.settings": "設定",
+  "ui.tab_game": "遊戲",
+  "ui.tab_mods": "模組",
+  "ui.scan_game": "掃描遊戲",
+  "ui.scan_mods": "掃描模組",
+  "ui.extract": "擷取",
+  "ui.build_game": "建置",
+  "ui.build_modular": "模組化建置",
+  "ui.build_all_in_one": "合併建置",
+  "ui.paths": "資料夾",
+  "ui.tools": "工具",
+  "ui.status": "狀態",
+  "ui.details": "詳細資訊",
+  "ui.available": "可用",
+  "status.extracted": "已擷取",
+  "status.needs_extraction": "需要擷取",
+  "ui.save": "儲存",
+  "ui.cancel": "取消",
+  "ui.extract_game": "擷取"
+}

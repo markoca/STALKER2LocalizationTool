@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "Arayüz dili",
+  "ui.build_language": "Derleme dilleri",
+  "ui.settings": "Ayarlar",
+  "ui.tab_game": "OYUN",
+  "ui.tab_mods": "MODLAR",
+  "ui.scan_game": "OYUNU TARA",
+  "ui.scan_mods": "MODLARI TARA",
+  "ui.extract": "ÇIKAR",
+  "ui.build_game": "DERLE",
+  "ui.build_modular": "MODÜLER DERLE",
+  "ui.build_all_in_one": "HEPSİNİ BİRLEŞTİR",
+  "ui.paths": "Klasörler",
+  "ui.tools": "Araçlar",
+  "ui.status": "Durum",
+  "ui.details": "Ayrıntılar",
+  "ui.available": "Mevcut",
+  "status.extracted": "Çıkarıldı",
+  "status.needs_extraction": "Çıkarma gerekli",
+  "ui.save": "Kaydet",
+  "ui.cancel": "İptal",
+  "ui.extract_game": "ÇIKAR"
+}

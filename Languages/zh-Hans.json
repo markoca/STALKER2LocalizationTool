@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "界面语言",
+  "ui.build_language": "构建语言",
+  "ui.settings": "设置",
+  "ui.tab_game": "游戏",
+  "ui.tab_mods": "模组",
+  "ui.scan_game": "扫描游戏",
+  "ui.scan_mods": "扫描模组",
+  "ui.extract": "提取",
+  "ui.build_game": "构建",
+  "ui.build_modular": "模块化构建",
+  "ui.build_all_in_one": "合并构建",
+  "ui.paths": "文件夹",
+  "ui.tools": "工具",
+  "ui.status": "状态",
+  "ui.details": "详情",
+  "ui.available": "可用",
+  "status.extracted": "已提取",
+  "status.needs_extraction": "需要提取",
+  "ui.save": "保存",
+  "ui.cancel": "取消",
+  "ui.extract_game": "提取"
+}

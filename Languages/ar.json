@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "لغـة الواجهة",
+  "ui.build_language": "لغات البناء",
+  "ui.settings": "الإعدادات",
+  "ui.tab_game": "اللعبة",
+  "ui.tab_mods": "التعديلات",
+  "ui.scan_game": "فحص اللعبة",
+  "ui.scan_mods": "فحص التعديلات",
+  "ui.extract": "استخراج",
+  "ui.build_game": "بناء",
+  "ui.build_modular": "بناء منفصل",
+  "ui.build_all_in_one": "بناء شامل",
+  "ui.paths": "الملفات",
+  "ui.tools": "الأدوات",
+  "ui.status": "الحالة",
+  "ui.details": "التفاصيل",
+  "ui.available": "متاح",
+  "status.extracted": "تم الاستخراج",
+  "status.needs_extraction": "يحتاج إلى استخراج",
+  "ui.save": "حفظ",
+  "ui.cancel": "إلغاء",
+  "ui.extract_game": "استخراج"
+}

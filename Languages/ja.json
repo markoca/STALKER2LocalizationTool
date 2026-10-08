@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "インターフェース言語",
+  "ui.build_language": "ビルド言語",
+  "ui.settings": "設定",
+  "ui.tab_game": "ゲーム",
+  "ui.tab_mods": "MOD",
+  "ui.scan_game": "ゲームをスキャン",
+  "ui.scan_mods": "MODをスキャン",
+  "ui.extract": "抽出",
+  "ui.build_game": "ビルド",
+  "ui.build_modular": "個別ビルド",
+  "ui.build_all_in_one": "一括ビルド",
+  "ui.paths": "フォルダー",
+  "ui.tools": "ツール",
+  "ui.status": "状態",
+  "ui.details": "詳細",
+  "ui.available": "利用可能",
+  "status.extracted": "抽出済み",
+  "status.needs_extraction": "抽出が必要",
+  "ui.save": "保存",
+  "ui.cancel": "キャンセル",
+  "ui.extract_game": "抽出"
+}

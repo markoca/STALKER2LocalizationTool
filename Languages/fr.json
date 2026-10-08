@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "Langue de l'interface",
+  "ui.build_language": "Langues de compilation",
+  "ui.settings": "Paramètres",
+  "ui.tab_game": "JEU",
+  "ui.tab_mods": "MODS",
+  "ui.scan_game": "ANALYSER LE JEU",
+  "ui.scan_mods": "ANALYSER LES MODS",
+  "ui.extract": "EXTRAIRE",
+  "ui.build_game": "CONSTRUIRE",
+  "ui.build_modular": "CONSTRUIRE EN MODULES",
+  "ui.build_all_in_one": "CONSTRUIRE TOUT-EN-UN",
+  "ui.paths": "Dossiers",
+  "ui.tools": "Outils",
+  "ui.status": "Statut",
+  "ui.details": "Détails",
+  "ui.available": "Disponible",
+  "status.extracted": "Extrait",
+  "status.needs_extraction": "Extraction requise",
+  "ui.save": "Enregistrer",
+  "ui.cancel": "Annuler",
+  "ui.extract_game": "EXTRAIRE"
+}

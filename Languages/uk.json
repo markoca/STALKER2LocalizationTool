@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "Мова інтерфейсу",
+  "ui.build_language": "Мови збирання",
+  "ui.settings": "Налаштування",
+  "ui.tab_game": "ГРА",
+  "ui.tab_mods": "МОДИ",
+  "ui.scan_game": "СКАНУВАТИ ГРУ",
+  "ui.scan_mods": "СКАНУВАТИ МОДИ",
+  "ui.extract": "ВИДОБУТИ",
+  "ui.build_game": "ЗІБРАТИ",
+  "ui.build_modular": "МОДУЛЬНЕ ЗБИРАННЯ",
+  "ui.build_all_in_one": "ЗІБРАТИ ВСЕ РАЗОМ",
+  "ui.paths": "Теки",
+  "ui.tools": "Інструменти",
+  "ui.status": "Статус",
+  "ui.details": "Подробиці",
+  "ui.available": "Доступно",
+  "status.extracted": "Видобуто",
+  "status.needs_extraction": "Потрібне видобування",
+  "ui.save": "Зберегти",
+  "ui.cancel": "Скасувати",
+  "ui.extract_game": "ВИДОБУТИ"
+}

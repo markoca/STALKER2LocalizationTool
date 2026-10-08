@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "Язык интерфейса",
+  "ui.build_language": "Языки сборки",
+  "ui.settings": "Настройки",
+  "ui.tab_game": "ИГРА",
+  "ui.tab_mods": "МОДЫ",
+  "ui.scan_game": "СКАНИРОВАТЬ ИГРУ",
+  "ui.scan_mods": "СКАНИРОВАТЬ МОДЫ",
+  "ui.extract": "ИЗВЛЕЧЬ",
+  "ui.build_game": "СОБРАТЬ",
+  "ui.build_modular": "МОДУЛЬНАЯ СБОРКА",
+  "ui.build_all_in_one": "СБОРКА ВСЁ-В-ОДНОМ",
+  "ui.paths": "Папки",
+  "ui.tools": "Инструменты",
+  "ui.status": "Статус",
+  "ui.details": "Подробности",
+  "ui.available": "Доступно",
+  "status.extracted": "Извлечено",
+  "status.needs_extraction": "Требуется извлечение",
+  "ui.save": "Сохранить",
+  "ui.cancel": "Отмена",
+  "ui.extract_game": "ИЗВЛЕЧЬ"
+}

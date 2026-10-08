@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "Język interfejsu",
+  "ui.build_language": "Języki kompilacji",
+  "ui.settings": "Ustawienia",
+  "ui.tab_game": "GRA",
+  "ui.tab_mods": "MODY",
+  "ui.scan_game": "SKANUJ GRĘ",
+  "ui.scan_mods": "SKANUJ MODY",
+  "ui.extract": "WYODRĘBNIJ",
+  "ui.build_game": "ZBUDUJ",
+  "ui.build_modular": "ZBUDUJ MODUŁOWO",
+  "ui.build_all_in_one": "ZBUDUJ WSZYSTKO W JEDNYM",
+  "ui.paths": "Foldery",
+  "ui.tools": "Narzędzia",
+  "ui.status": "Status",
+  "ui.details": "Szczegóły",
+  "ui.available": "Dostępne",
+  "status.extracted": "Wyodrębniono",
+  "status.needs_extraction": "Wymaga wyodrębnienia",
+  "ui.save": "Zapisz",
+  "ui.cancel": "Anuluj",
+  "ui.extract_game": "WYODRĘBNIJ"
+}

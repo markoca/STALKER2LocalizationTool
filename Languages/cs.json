@@ -1,0 +1,23 @@
+{
+  "ui.interface_language": "Jazyk rozhraní",
+  "ui.build_language": "Jazyky sestavení",
+  "ui.settings": "Nastavení",
+  "ui.tab_game": "HRA",
+  "ui.tab_mods": "MODY",
+  "ui.scan_game": "PROHLEDAT HRU",
+  "ui.scan_mods": "PROHLEDAT MODY",
+  "ui.extract": "EXTRAHOVAT",
+  "ui.build_game": "SESTAVIT",
+  "ui.build_modular": "SESTAVIT MODULÁRNĚ",
+  "ui.build_all_in_one": "SESTAVIT VŠE V JEDNOM",
+  "ui.paths": "Složky",
+  "ui.tools": "Nástroje",
+  "ui.status": "Stav",
+  "ui.details": "Podrobnosti",
+  "ui.available": "Dostupné",
+  "status.extracted": "Extrahováno",
+  "status.needs_extraction": "Vyžaduje extrakci",
+  "ui.save": "Uložit",
+  "ui.cancel": "Zrušit",
+  "ui.extract_game": "EXTRAHOVAT"
+}
