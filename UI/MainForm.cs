@@ -49,7 +49,7 @@ public sealed class MainForm : Form
     private readonly StalkerActionButton _buildAllInOneButton = new();
     private readonly StalkerToggleCheckBox _packAllEditableMods = new()
     {
-        Text = "Pack all editable",
+        Text = "Packing only changed files",
         AutoSize = true,
         Checked = false,
         Margin = new Padding(0, 8, 12, 0),
@@ -754,6 +754,10 @@ public sealed class MainForm : Form
         actionButtons.Controls.Add(_buildModularButton);
         actionButtons.Controls.Add(_buildAllInOneButton);
 
+        _packAllEditableMods.CheckedChanged += (_, _) =>
+            _packAllEditableMods.Text = _packAllEditableMods.Checked
+                ? "Pack all editable"
+                : "Packing only changed files";
         _toolTip.SetToolTip(_packAllEditableMods,
             "OFF: package only changed databases. ON: package all editable databases, including unchanged ones.");
         actionLayout.Controls.Add(_packAllEditableMods, 0, 0);
