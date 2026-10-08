@@ -814,8 +814,22 @@ public sealed class MainForm : Form
             _configuredModsFolder = _settings.ModsFolder;
 
             ConfigureWatchers();
+            var languageChanged = !string.Equals(
+                _l.CurrentLanguage, _settings.InterfaceLanguage,
+                StringComparison.OrdinalIgnoreCase);
             _l.SetLanguage(_settings.InterfaceLanguage);
             ApplyLocalization();
+            if (languageChanged)
+            {
+                // Rebuild Settings labels after its Save click handler returns.
+                // Never dispose the settings control synchronously during its event.
+                BeginInvoke(new Action(() =>
+                {
+                    _settingsTab.Controls.Clear();
+                    BuildSettingsTab();
+                    StalkerTheme.Apply(_settingsView);
+                }));
+            }
             RefreshGrid();
             UpdateButtons();
 
