@@ -827,7 +827,8 @@ public sealed class MainForm : Form
                 {
                     _settingsTab.Controls.Clear();
                     BuildSettingsTab();
-                    StalkerTheme.Apply(_settingsView);
+                    // SettingsForm is a UserControl; re-theme its owning Form after rebuilding.
+                    StalkerTheme.Apply(this);
                 }));
             }
             RefreshGrid();
