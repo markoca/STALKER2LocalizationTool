@@ -12,6 +12,7 @@ internal static class AppConstants
     public const string UAssetGuiPinnedSha256 = "b7d75c0893f1a60e565853ae638bc21f2416cd12c2d9d854e297abb87ceb3263";
     public const string UAssetGuiKnownBadSha256 = "e9b953245fd3716545558d751a8855d14490cd0e9e377a828e5ab4e0f34e7109";
     public const string UAssetGuiMappingsAlias = "LocalizationWorkbench";
+    public const string PreferredMappingsFileName = "Stalker2-5.5.4-0+UE5-d7e7826d.usmap";
     public const string LocalizationDatabaseNeedle = "LocalizationDatabase.uasset";
     public const string BaseGamePakChunkPrefix = "pakchunk0";
     public const int ManifestSchemaVersion = 14;
