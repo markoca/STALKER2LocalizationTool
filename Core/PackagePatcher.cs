@@ -22,8 +22,19 @@ public static class PackagePatcher
             throw new FileNotFoundException($"{sourceLabel}: pristine .uasset not found", templateUasset);
         if (!File.Exists(templateUexp))
             throw new FileNotFoundException($"{sourceLabel}: pristine .uexp not found", templateUexp);
-        if (export.ExportCount != 1)
-            throw new InvalidDataException($"{sourceLabel}: expected exactly one export, found {export.ExportCount}");
+        if (export.ExportCount < 1)
+            throw new InvalidDataException($"{sourceLabel}: package contains no exports");
+        // Resizing an export that precedes other serialized exports would
+        // invalidate their offsets. Allow multi-export packages only when the
+        // target is last or when the replacement has exactly the same size.
+        if (export.ExportCount > 1
+            && patchedPayload.Length != export.Payload.Length
+            && !export.IsLastSerializedExport)
+        {
+            throw new InvalidDataException(
+                $"{sourceLabel}: cannot safely resize LocalizationDatabase in a multi-export package " +
+                "because serialized exports follow it; no output was written");
+        }
         if (export.SerialSize != export.Payload.Length)
             throw new InvalidDataException(
                 $"{sourceLabel}: RawExport SerialSize does not match payload size ({export.SerialSize} != {export.Payload.Length})"
