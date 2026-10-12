@@ -9,7 +9,7 @@ from their original project/release pages and place them beside this README:
     tools/retoc.exe
     tools/repak.exe
     tools/UAssetGUI.exe
-    tools/Mappings.usmap
+    tools/Stalker2-5.5.4-0+UE5-d7e7826d.usmap
     tools/S2HOCMM.exe
 
 The application resolves this directory relative to Localization Workbench.exe.
@@ -84,23 +84,22 @@ Place S2HOCMM.exe in:
     tools/S2HOCMM.exe
 
 
-Mappings.usmap
---------------
-Mappings are tied to the S.T.A.L.K.E.R. 2 game version.
+Stalker2-5.5.4-0+UE5-d7e7826d.usmap
+-----------------------------------
+Preferred supplied mappings baseline: UE5.5.4, named
+Stalker2-5.5.4-0+UE5-d7e7826d.usmap.
+SHA-256: 07b84e0a6f1090edeb3af2ea3686eca795e349ecdaca604f0495a70eb2011a86
 
-For the current tested game baseline 2.0.4:
-    https://www.nexusmods.com/stalker2heartofchornobyl/mods/2356
+Place that exact file in:
+    tools/Stalker2-5.5.4-0+UE5-d7e7826d.usmap
 
-Place the downloaded mapping file in:
-    tools/Mappings.usmap
-
-IMPORTANT:
-Do not keep using a 2.0.4 mapping after the game receives a newer patch unless
-it is confirmed compatible. For a newer game version, obtain a .usmap generated
-for that exact game build and save it as:
-
-    tools/Mappings.usmap
-
+The previous tools/Mappings.usmap is NOT the active default.
+This project does not include or copy the mappings binary.
+With recent mappings UAssetGUI can decode LocalizationDatabase into a
+structured Data array; Workbench reads the exact original bytes from
+the extracted .uexp for parsing and round-trip-safe rebuilding.
+Replace the mapping baseline when the installed game requires it, and
+update AppConstants.PreferredMappingsFileName accordingly.
 
 EXPECTED LAYOUT
 ===============
@@ -111,7 +110,7 @@ tools/
     retoc.exe
     repak.exe
     UAssetGUI.exe
-    Mappings.usmap
+    Stalker2-5.5.4-0+UE5-d7e7826d.usmap
     S2HOCMM.exe
 
 
@@ -127,7 +126,7 @@ repak.exe
 UAssetGUI.exe
   Used to inspect extracted Unreal assets and LocalizationDatabase metadata.
 
-Mappings.usmap
+Stalker2-5.5.4-0+UE5-d7e7826d.usmap
   Provides Unreal asset mappings required by UAssetGUI and must match the
   target game build.
 
