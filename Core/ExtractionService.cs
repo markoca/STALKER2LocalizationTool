@@ -403,13 +403,15 @@ public sealed class ExtractionService
                     );
                     var export = UAssetInspector.ReadLocalizationExport(
                         assetJson,
-                        alias.VirtualPath
+                        alias.VirtualPath,
+                        extractedUexp
                     );
                     inspectTimer.Stop();
                     _log?.Invoke(
                         $"UAssetGUI JSON inspected in "
                         + $"{inspectTimer.Elapsed.TotalSeconds:N1}s; "
-                        + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB"
+                        + $"payload={export.Payload.Length / (1024d * 1024d):N1} MiB; "
+                        + $"format={(export.UsedMappedExport ? "mapped JSON + pristine uexp" : "raw Base64")}"
                     );
 
                     if (!export.ImportsLocalizationDatabaseClass)
