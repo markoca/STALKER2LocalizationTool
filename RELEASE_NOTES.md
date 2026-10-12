@@ -42,7 +42,7 @@ tools/
   retoc.exe            # user supplied
   repak.exe            # user supplied
   UAssetGUI.exe        # user supplied
-  Stalker2-5.5.4-0+UE5-d7e7826d.usmap       # user supplied
+  Mappings.usmap       # user supplied
   S2HOCMM.exe          # user supplied
 Mods/
 Source/
@@ -72,7 +72,7 @@ Before shipping a distribution archive, complete `RELEASE_CHECKLIST.md` and ensu
 
 ## Mappings update after the v2.0.0 baseline
 
-- The runtime now selects user-supplied `tools/Stalker2-5.5.4-0+UE5-d7e7826d.usmap` instead of the old filename.
+- The runtime keeps the established `tools/Mappings.usmap` filename while using updated UE5.5.4 mappings content.
 - UAssetGUI v1.1.0 still receives the registered mappings alias, not the full filesystem path.
 - MODS EXTRACT and subsequent builds support mapped `LocalizationDatabase` JSON by pairing export metadata with validated pristine `.uexp` payload bytes; raw Base64 remains supported.
 - The `.usmap` binary remains excluded from the repository and must be supplied locally.
