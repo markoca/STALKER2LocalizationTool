@@ -42,10 +42,10 @@ The build also creates `Game.locres` for inspection; **install the .pak, not the
 Supported inputs include loose mod files, extracted mod folders, and **ZIP, 7z or RAR** archives. Loose IoStore mods need their matching `.pak`, `.utoc` and `.ucas` files. The Workbench processes supported **OverrideContent / LocalizationDatabase** localization; not every mod contains supported text.
 
 1. Put the original mod files or archives in the configured **Mods folder**.
-2. Open **MODS** and click **SCAN MODS**. Scanning is **manual**: opening the tab, changing Settings or adding files does not start a full scan.
+2. Open **MODS** and click **SCAN MODS**. Scanning is **manual**: opening the tab, changing Settings, adding files or enabling workspace Auto Refresh does not start a full scan of mod archives.
 3. Mods with new or updated localization show **Needs extraction**. Click **EXTRACT** to process pending sources.
 4. Click **Open JSONs** and edit `Translations\<ModName>\<language>.json`.
-5. Select one or more **Build languages**, choose a packaging setting, and build:
+5. Select one or more **Build languages**. When MODS is ready to build, choose the packing setting and action:
 
    | Setting / action | Result |
    | --- | --- |
@@ -88,7 +88,7 @@ Keep `sid_some_text` unchanged. For longer projects, back up `Translations` befo
 | `Mods` | Original mod sources used for scanning. |
 | `Source\Game` / `Source\<ModName>` | Internal extracted data used for rebuilding. **Do not edit.** |
 | `Translations\Game` / `Translations\<ModName>` | **Your editable language JSON files.** |
-| `Output\<Language>\... ` | Verified packages to install into the game. |
+| `Output\<Language>\...` | Verified packages to install into the game. |
 | `tools` | Required third-party executables and `Mappings.usmap`. |
 | `Languages` | Workbench interface language dictionaries, not game translations. |
 
@@ -110,9 +110,3 @@ All workspace folders are located beside the running executable. The app uses `u
 
 When reporting a problem, include the **Workbench version**, GAME or MODS workflow, selected language, mod name/version (if relevant), source format (loose/ZIP/7z/RAR), and the **application log with the exact error**.
 
-## 6. Useful distinctions
-
-- The **Build languages** selector controls which **game translation languages** to package; **Settings → Interface language** changes the Workbench UI. Missing interface translations fall back to English.
-- **GAME** generates a single installable `.pak`; **MODS** generates a `.pak/.utoc/.ucas` set.
-- **SCAN MODS** is always manual. Workspace **Auto Refresh** is not automatic scanning of mod archives.
-- Only packages from **Output** belong in the game's `~mods` folder; never install files directly from **Source** or **Translations**.
