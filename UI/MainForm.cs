@@ -2465,7 +2465,7 @@ public sealed class MainForm : Form
         {
             MessageBox.Show(
                 this,
-                "MODS EXTRACT requires retoc.exe, UAssetGUI.exe and Stalker2-5.5.4-0+UE5-d7e7826d.usmap, "
+                "MODS EXTRACT requires retoc.exe, UAssetGUI.exe and Mappings.usmap, "
                 + "plus a valid Game Paks folder. Configure these paths in Settings.",
                 AppConstants.AppName,
                 MessageBoxButtons.OK,
@@ -2479,13 +2479,13 @@ public sealed class MainForm : Form
     private bool ValidateBuildPaths()
     {
         // MODS BUILD patches pristine Source files and verifies output with retoc.
-        // UAssetGUI.exe and Stalker2-5.5.4-0+UE5-d7e7826d.usmap are only used during EXTRACT.
+        // UAssetGUI.exe and Mappings.usmap are only used during EXTRACT.
         if (!File.Exists(_settings.RetocPath) || !IsGamePathValid())
         {
             MessageBox.Show(
                 this,
                 "MODS BUILD requires retoc.exe and a valid Game Paks folder. "
-                + "UAssetGUI.exe and Stalker2-5.5.4-0+UE5-d7e7826d.usmap are only required for EXTRACT.",
+                + "UAssetGUI.exe and Mappings.usmap are only required for EXTRACT.",
                 AppConstants.AppName,
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
@@ -2519,9 +2519,9 @@ public sealed class MainForm : Form
             this,
             requireExtractionTools
                 ? "GAME EXTRACT requires retoc.exe, repak.exe and a valid Game Paks folder. "
-                  + "UAssetGUI.exe and Stalker2-5.5.4-0+UE5-d7e7826d.usmap are additionally required for localization databases."
+                  + "UAssetGUI.exe and Mappings.usmap are additionally required for localization databases."
                 : "GAME BUILD requires retoc.exe, repak.exe and a valid Game Paks folder. "
-                  + "S2HOCMM.exe is also required for LOCRES. Stalker2-5.5.4-0+UE5-d7e7826d.usmap is not needed.",
+                  + "S2HOCMM.exe is also required for LOCRES. Mappings.usmap is not needed.",
             AppConstants.AppName,
             MessageBoxButtons.OK,
             MessageBoxIcon.Information);
