@@ -2,6 +2,8 @@
 
 ## Unreleased — new mappings support
 
+- Fixed WinForms .NET 10 build error WFO1000 in `StalkerProfileDropDown` by explicitly disabling designer serialization for the runtime-managed `SelectedIndex` and `Items` properties (without suppressing the analyzer).
+- Clarified that stack traces mentioning `ReadLocalizationExport(String jsonPath, String sourceLabel)` and `no raw LocalizationDatabase export was found` originate from a pre-mappings-update binary; the new method requires a third `.uexp` path argument and emits more specific diagnostics.
 - Switched to updated UE5.5.4 mappings contents (SHA-256 `07b84e0a6f1090edeb3af2ea3686eca795e349ecdaca604f0495a70eb2011a86`) while keeping the runtime filename `tools/Mappings.usmap` unchanged.
 - Support both Base64 RawExport and mapped property-array exports. For mapped localization, obtain unchanged binary payload from the original retoc `.uexp`, validate it, and keep the existing binary patch / round-trip checks.
 - Reuse the paired `.uexp` during MODULAR and ALL-IN-ONE builds; no no-mappings retry or silent skip.
