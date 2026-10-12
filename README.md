@@ -9,10 +9,10 @@ This branch is the final **Version 2** baseline. The project uses `main` as the 
 ## v2 highlights
 
 - Unified **Localization Workbench** project/application identity.
-- English UI strings are embedded in the application; there are no loose locale files.
+- The English UI baseline is embedded; selected interface languages load external dictionaries from `Languages/<culture>.json` with English fallback.
 - Clean portable runtime layout with internal paths resolved from the running EXE directory.
 - No `settings.json` runtime configuration system.
-- Only user-selected external source paths are persisted in `user-paths.json`.
+- Validated external source paths and the selected interface language are persisted in `user-paths.json`.
 - GAME and MODS use separate, step-aware workflows.
 - MODS scanning is strictly manual and starts only when the user clicks **SCAN MODS**.
 - MODS tab entry performs only a lightweight source-presence check before the first scan.
@@ -153,6 +153,7 @@ Localization Workbench.exe
 Source/
 Translations/
 Output/
+Languages/
 tools/
 ```
 
@@ -162,14 +163,15 @@ The application persists only the external user-selected source locations:
 
 - GAME Paks folder
 - MODS source folder
+- Selected interface language
 
-Those values are stored in:
+These settings are stored in:
 
 ```text
 user-paths.json
 ```
 
-They are written only after a successful GAME or MODS scan and reused on future launches when the stored paths are still valid.
+External source paths are saved after a successful GAME or MODS scan and reused when valid. The interface language is saved from Settings.
 
 ## Workspace
 
@@ -249,10 +251,10 @@ For end-user instructions, see `QUICK_USER_HANDBOOK.md`.
 
 ### MODS packaging switch
 
-The MODS **Pack all editable** switch applies to both **BUILD MODULAR** and **BUILD ALL-IN-ONE**. It is visible only during the active MODS build stage, when at least one MODS BUILD button is highlighted yellow; it is hidden during scanning, extraction, and whenever neither MODS BUILD action is ready.
+The MODS **Pack only edited translations / Pack all translations** switch applies to both **BUILD MODULAR** and **BUILD ALL-IN-ONE**. It is visible only during the active MODS build stage, when at least one MODS BUILD button is highlighted yellow; it is hidden during scanning, extraction, and whenever neither MODS BUILD action is ready.
 
-- **OFF (default):** only localization databases with actual changes to the selected language compared with the extracted Source data are packaged.
-- **ON:** all localization databases with at least one editable/matched SID for the selected language are packaged, including those unchanged from Source.
+- **Pack only edited translations (OFF, default):** only localization databases with actual changes to the selected language compared with the extracted Source data are packaged.
+- **Pack all translations (ON):** all localization databases with at least one editable/matched SID for the selected language are packaged, including those unchanged from Source.
 - Databases without any matching editable SIDs are skipped. The switch does not affect GAME, scanning, extraction, or existing translation files.
 
 
