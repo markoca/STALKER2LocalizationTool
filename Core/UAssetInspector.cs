@@ -6,7 +6,8 @@ public static class UAssetInspector
 {
     public static RawExportInfo ReadLocalizationExport(
         string jsonPath,
-        string sourceLabel)
+        string sourceLabel,
+        string legacyUexpPath)
     {
         using var stream = new FileStream(
             jsonPath,
@@ -40,8 +41,11 @@ public static class UAssetInspector
                 ? nameElement.ToString()
                 : string.Empty;
 
+            // UAssetGUI represents unmapped assets as Base64 RawExport and
+            // mapped assets as a structured property array.
             var hasData = export.TryGetProperty("Data", out var dataElement)
-                          && dataElement.ValueKind == JsonValueKind.String;
+                          && (dataElement.ValueKind == JsonValueKind.String
+                              || dataElement.ValueKind == JsonValueKind.Array);
 
             if (hasData
                 && objectName.Contains(
@@ -51,7 +55,7 @@ public static class UAssetInspector
                 if (candidate is not null)
                 {
                     throw new InvalidDataException(
-                        $"{sourceLabel}: more than one raw "
+                        $"{sourceLabel}: more than one "
                         + "LocalizationDatabase export was found"
                     );
                 }
@@ -63,36 +67,69 @@ public static class UAssetInspector
         if (candidate is null)
         {
             throw new InvalidDataException(
-                $"{sourceLabel}: no raw LocalizationDatabase export was found"
+                $"{sourceLabel}: no LocalizationDatabase export with Base64 or mapped Data was found"
             );
         }
 
         var selected = candidate.Value;
+        var serialSize = ReadInt64Like(selected, "SerialSize", sourceLabel);
+        var serialOffset = ReadInt64Like(selected, "SerialOffset", sourceLabel);
+        var data = selected.GetProperty("Data");
+        var isMapped = data.ValueKind == JsonValueKind.Array;
         byte[] payload;
-        try
+
+        if (!isMapped)
         {
-            // Decode directly from System.Text.Json's UTF-8 token. Do not create
-            // an additional gigantic managed Base64 string first.
-            payload = selected.GetProperty("Data").GetBytesFromBase64();
+            try
+            {
+                // Decode the Base64 JSON token without allocating an intermediate string.
+                payload = data.GetBytesFromBase64();
+            }
+            catch (Exception ex) when (ex is FormatException or InvalidOperationException)
+            {
+                throw new InvalidDataException(
+                    $"{sourceLabel}: invalid RawExport Base64", ex);
+            }
         }
-        catch (Exception ex)
+        else
         {
-            throw new InvalidDataException(
-                $"{sourceLabel}: invalid RawExport Base64",
-                ex
-            );
+            // Modern mappings deserialize ModLocalizationDatabaseDataAsset into
+            // a property array. The original bytes are still present, untouched,
+            // in retoc\u0027s pristine .uexp. Reading them preserves the exact binary
+            // layout required by LocalizationDatabaseCodec and PackagePatcher.
+            if (exportCount != 1)
+                throw new InvalidDataException(
+                    $"{sourceLabel}: mapped LocalizationDatabase requires exactly one export (found {exportCount})");
+            if (serialSize <= 0 || serialSize > int.MaxValue)
+                throw new InvalidDataException(
+                    $"{sourceLabel}: invalid mapped export SerialSize {serialSize}");
+            if (!File.Exists(legacyUexpPath))
+                throw new FileNotFoundException(
+                    $"{sourceLabel}: pristine .uexp required for mapped export", legacyUexpPath);
+
+            var uexpBytes = File.ReadAllBytes(legacyUexpPath);
+            if (uexpBytes.LongLength < serialSize)
+                throw new InvalidDataException(
+                    $"{sourceLabel}: mapped export SerialSize {serialSize} exceeds pristine .uexp length {uexpBytes.LongLength}");
+
+            // retoc to-legacy places the sole export at the beginning of .uexp.
+            // Never attempt to reconstruct binary data from UAssetGUI JSON.
+            payload = uexpBytes.AsSpan(0, checked((int)serialSize)).ToArray();
+            try
+            {
+                _ = LocalizationDatabaseCodec.Parse(payload, sourceLabel);
+            }
+            catch (Exception ex) when (ex is InvalidDataException or ArgumentException)
+            {
+                throw new InvalidDataException(
+                    $"{sourceLabel}: mapped export raw bytes in pristine .uexp are not a valid LocalizationDatabase", ex);
+            }
         }
 
-        var serialSize = ReadInt64Like(
-            selected,
-            "SerialSize",
-            sourceLabel
-        );
-        var serialOffset = ReadInt64Like(
-            selected,
-            "SerialOffset",
-            sourceLabel
-        );
+        if (serialSize != payload.LongLength)
+            throw new InvalidDataException(
+                $"{sourceLabel}: SerialSize {serialSize} differs from payload length {payload.LongLength}");
+
 
         var importsClass = false;
         if (root.TryGetProperty("Imports", out var imports)
@@ -126,6 +163,7 @@ public static class UAssetInspector
         return new RawExportInfo
         {
             Payload = payload,
+            UsedMappedExport = isMapped,
             SerialSize = serialSize,
             SerialOffset = serialOffset,
             ExportCount = exportCount,
