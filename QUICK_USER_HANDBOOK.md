@@ -1,856 +1,118 @@
-# LOCALIZATION WORKBENCH
-## VERSION 2 — QUICK USER HANDBOOK
+# Localization Workbench — Quick User Handbook
 
-**v2.0.0**
+**Version 2.0.0 · Windows x64**
 
-**Extract. Edit. Build.**
+Extract, edit and build S.T.A.L.K.E.R. 2 localization. **GAME** handles the original game's text; **MODS** handles localization contained in supported mods. Localization Workbench **does not translate text automatically**.
 
-Use the **GAME** workflow for original S.T.A.L.K.E.R. 2 localization and the **MODS** workflow for localization supplied by supported mods.
+## 1. Install and set up
 
-> **IMPORTANT**
->
-> Localization Workbench is **not** an automatic translator.
->
-> It extracts localization into translation JSON files, lets you edit the text, and builds game-ready localization packages from your changes.
+1. Extract Localization Workbench into a writable folder, such as `C:\LocalizationWorkbench`.
+2. Download the required third-party tools and place them in the `tools` folder beside `Localization Workbench.exe`:
 
----
+   | File | Tested baseline / source |
+   | --- | --- |
+   | `retoc.exe` | [retoc v0.1.5](https://github.com/trumank/retoc/releases) |
+   | `repak.exe` | [repak v0.2.3](https://github.com/trumank/repak/releases) |
+   | `UAssetGUI.exe` | [UAssetGUI v1.1.0](https://github.com/atenfyr/UAssetGUI/releases) |
+   | `S2HOCMM.exe` | [S2HOCMM v2.3](https://gitlab.com/PatrykPniewski/s2hocmm/-/releases) |
+   | `Mappings.usmap` | Game-compatible UE mappings (see [S.T.A.L.K.E.R. 2 mappings](https://www.nexusmods.com/stalker2heartofchornobyl/mods/2356)) |
 
-## 1. INSTALLATION
+   Use compatible Windows x64 executables. The application does not bundle these tools. Keep the mappings filename exactly `Mappings.usmap`, and update its contents when the game version requires different mappings.
 
-### 1.1 Extract Localization Workbench
+3. Start `Localization Workbench.exe` and open **Settings**:
+   - **Game Paks folder:** point to `...\Stalker2\Content\Paks`.
+   - **Mods folder:** select the folder containing original mod files or archives; the default is `Mods` beside the application.
+   - **Interface language:** choose the Workbench UI language independently of the languages you will build.
+4. Save your settings. Valid source paths are remembered after a successful scan.
 
-Extract Localization Workbench to a writable folder.
+The Workbench itself is self-contained and needs no separate .NET installation. Third-party programs may need their own runtimes; for example, UAssetGUI v1.1.0 may require the .NET 8 Desktop Runtime.
 
-Example:
+## 2. GAME — translate the original game
 
-```text
-C:\LocalizationWorkbench
-```
+1. In **GAME**, click **SCAN GAME** to discover game localization.
+2. Click **EXTRACT**. The Workbench prepares JSON files for all 18 supported game languages in `Translations\Game`.
+3. Click **Open JSONs** and edit the desired language file, for example `Translations\Game\serbian.json`.
+4. Select one or more **Build languages** and click **BUILD**.
+5. Open `Output\<Language>\Game` and copy the generated **.pak** to the game's `Stalker2\Content\Paks\~mods` folder.
 
-### 1.2 Supply the required third-party tools
+The build also creates `Game.locres` for inspection; **install the .pak, not the standalone .locres**.
 
-Localization Workbench does **not** include or distribute the required third-party tools.
+## 3. MODS — translate supported mods
 
-Put compatible copies under:
+Supported inputs include loose mod files, extracted mod folders, and **ZIP, 7z or RAR** archives. Loose IoStore mods need their matching `.pak`, `.utoc` and `.ucas` files. The Workbench processes supported **OverrideContent / LocalizationDatabase** localization; not every mod contains supported text.
 
-```text
-LocalizationWorkbench\tools\
-```
+1. Put the original mod files or archives in the configured **Mods folder**.
+2. Open **MODS** and click **SCAN MODS**. Scanning is **manual**: opening the tab, changing Settings or adding files does not start a full scan.
+3. Mods with new or updated localization show **Needs extraction**. Click **EXTRACT** to process pending sources.
+4. Click **Open JSONs** and edit `Translations\<ModName>\<language>.json`.
+5. Select one or more **Build languages**, choose a packaging setting, and build:
 
-Required files:
+   | Setting / action | Result |
+   | --- | --- |
+   | **Pack only edited translations** (default) | Package only localization databases with changed text for the selected language. |
+   | **Pack all translations** | Include all buildable databases with matching editable text, even when unchanged. |
+   | **BUILD MODULAR** | A separate package for each buildable mod in `Output\<Language>\<ModName>`. |
+   | **BUILD ALL-IN-ONE** | One combined mod-localization package per language in `Output\<Language>\All-in-One`. |
 
-```text
-retoc.exe
-repak.exe
-UAssetGUI.exe
-S2HOCMM.exe
-Mappings.usmap
-```
+   The packaging setting applies to both MODULAR and ALL-IN-ONE builds. If no text differs from the extracted source under the default setting, no redundant override needs to be generated.
 
-Expected layout:
+6. Copy the **complete generated package** (`.pak` + `.utoc` + `.ucas`) into `Stalker2\Content\Paks\~mods`.
 
-```text
-Localization Workbench.exe
-tools\
-    retoc.exe
-    repak.exe
-    UAssetGUI.exe
-    S2HOCMM.exe
-    Mappings.usmap
-```
+Use **either** the individual MODULAR packages **or** the corresponding ALL-IN-ONE package for the same content, not both. Remove outdated packages you previously generated when replacing them with new builds.
 
-Download the tools from their original project/release pages:
+### When a mod is updated
 
-**retoc v0.1.5**
+1. Replace its old source files/archive in your **Mods folder**.
+2. Click **SCAN MODS**, then **EXTRACT** for items marked **Needs extraction**.
+3. Compare your existing JSON translation against the updated source. **Existing translation files are preserved, but new or changed source text is not automatically merged into your translation.**
+4. Make any needed translation changes and build again.
 
-```text
-https://github.com/trumank/retoc/releases
-```
+If a translation JSON is missing but valid extracted source data still exists, **EXTRACT** can restore the missing file without overwriting the others.
 
-Download the Windows x64 release and place the executable as:
+## 4. Editing JSON safely
 
-```text
-tools\retoc.exe
-```
-
-**repak v0.2.3**
-
-```text
-https://github.com/trumank/repak/releases
-```
-
-Download the Windows x64 release and place the executable as:
-
-```text
-tools\repak.exe
-```
-
-**UAssetGUI v1.1.0**
-
-```text
-https://github.com/atenfyr/UAssetGUI/releases
-```
-
-Use the stable v1.1.0 release and place:
-
-```text
-tools\UAssetGUI.exe
-```
-
-**S2HOCMM v2.3**
-
-Nexus Mods:
-
-```text
-https://www.nexusmods.com/stalker2heartofchornobyl/mods/540
-```
-
-Original project / releases:
-
-```text
-https://gitlab.com/PatrykPniewski/s2hocmm
-https://gitlab.com/PatrykPniewski/s2hocmm/-/releases
-```
-
-Place:
-
-```text
-tools\S2HOCMM.exe
-```
-
-**Mappings.usmap**
-
-Mappings must match the installed S.T.A.L.K.E.R. 2 game version.
-
-For the selected **UE5.5.4 mappings** baseline (supplied separately):
-
-```text
-https://www.nexusmods.com/stalker2heartofchornobyl/mods/2356
-```
-
-Place the mapping as:
-
-```text
-tools\Mappings.usmap
-```
-
-Use the updated UE5.5.4 mappings contents under the existing filename `Mappings.usmap`. Do not rename it. Future game updates may require replacing the file contents, not changing its filename.
-
-**When mappings are needed:** UAssetGUI.exe and Mappings.usmap are needed for extracting localization databases. They are **not** needed for SCAN, GAME BUILD, BUILD MODULAR or BUILD ALL-IN-ONE when Source has already been extracted. Building database packages still requires retoc.exe and valid Game Paks data.
-
-UAssetGUI v1.1.0 may require the .NET 8 Desktop Runtime when that dependency is not already available.
-
-### 1.3 Start the application
-
-Run:
-
-```text
-Localization Workbench.exe
-```
-
-### 1.4 Configure paths if required
-
-Open **Settings**.
-
-**GAME PAKS FOLDER**
-
-Select the game's Paks directory.
-
-Example:
-
-```text
-...\S.T.A.L.K.E.R. 2 Heart of Chornobyl\Stalker2\Content\Paks
-```
-
-**MODS FOLDER**
-
-Select the folder containing the original mod files or archives you want Localization Workbench to process.
-
-The default Mods folder is:
-
-```text
-Mods\
-```
-
-beside `Localization Workbench.exe`.
-
-After a successful scan, valid GAME and MODS source paths are remembered for future launches.
-
----
-
-## 2. GAME LOCALIZATION
-
-Use **GAME** for original S.T.A.L.K.E.R. 2 localization.
-
-The GAME action buttons are:
-
-```text
-SCAN GAME
-EXTRACT
-BUILD
-```
-
-The workflow is:
-
-```text
-SCAN GAME
-    ->
-EXTRACT
-    ->
-Edit JSONs in Translations\Game\
-    ->
-Select language(s)
-    ->
-BUILD
-```
-
-### STEP 1 — SCAN GAME
-
-Click:
-
-```text
-SCAN GAME
-```
-
-When game localization is found, the log reports:
-
-```text
-=== FOUND GAME LOCALIZATION ===
-```
-
-If extraction is required:
-
-```text
-=== LOCALIZATION READY FOR EXTRACTION ===
-```
-
-### STEP 2 — EXTRACT
-
-Click:
-
-```text
-EXTRACT
-```
-
-Localization Workbench extracts all 18 supported game languages.
-
-Translation JSON files are created under:
-
-```text
-Translations\Game\
-```
-
-Example:
-
-```text
-Translations\Game\serbian.json
-```
-
-Internal rebuild data is stored separately under:
-
-```text
-Source\Game\
-```
-
-After successful extraction, the log reports:
-
-```text
-=== LOCALIZATION EXTRACTION DONE ===
-=== LOCALIZATION READY FOR BUILD ===
-```
-
-### STEP 3 — EDIT JSON
-
-Click:
-
-```text
-Open JSONs
-```
-
-Edit the JSON file for the language you want.
-
-> **IMPORTANT**
->
-> Edit JSON **VALUES** only.
->
-> Do **not** change localization **KEYS**.
-
-Example:
+Edit **text values**, not localization keys. Keep the JSON structure valid, including quotes, commas and escape sequences.
 
 ```json
-"sid_some_text": "My translated text"
+{
+  "sid_some_text": "Your translated text"
+}
 ```
 
-Do not rename:
-
-```text
-sid_some_text
-```
-
-### STEP 4 — BUILD
-
-Select one or more languages in the **Languages** panel.
-
-Click:
-
-```text
-BUILD
-```
-
-Localization Workbench builds and verifies each selected language.
-
-### STEP 5 — INSTALL THE GAME PACKAGE
-
-Built GAME localization is stored under:
-
-```text
-Output\<Language>\Game\
-```
-
-Example:
-
-```text
-Output\Serbian\Game\
-```
-
-The folder contains the generated installable localization `.pak`.
-
-A standalone:
-
-```text
-Game.locres
-```
-
-is also created for inspection.
-
-For normal game installation, use the generated `.pak`.
-
-Copy the generated `.pak` to:
-
-```text
-Stalker2\Content\Paks\~mods
-```
-
----
-
-## 3. MOD LOCALIZATION
-
-Use **MODS** for LocalizationDatabase / IoStore localization supplied by supported mods.
-
-> **IMPORTANT**
->
-> MODS scanning is manual.
->
-> Localization Workbench does not automatically scan the Mods folder when the application starts, when you switch to MODS, when files change, or when Settings are changed.
-
-A full MODS scan starts only when you click:
-
-```text
-SCAN MODS
-```
-
-Before the first scan in the current session, entering the MODS tab checks only whether mod sources are present.
-
-If mod sources are found, the log reports once:
-
-```text
-=== MODS FOUND ===
-=== READY TO SCAN ===
-```
-
-Switching between GAME and MODS does not repeat these messages.
-
-### STEP 1 — ADD MOD SOURCES
-
-Put the original mod files or archives in your configured Mods folder.
-
-Localization Workbench can read:
-
-- loose mod files
-- extracted mod folders
-- ZIP archives
-- 7z archives
-- RAR archives
-
-A loose IoStore source must contain a complete container set:
-
-```text
-.pak
-.utoc
-.ucas
-```
-
-### STEP 2 — SCAN MODS
-
-Click:
-
-```text
-SCAN MODS
-```
-
-Localization Workbench scans the configured Mods folder and detects supported OverrideContent localization sources.
-
-New or changed localization is marked:
-
-```text
-Needs extraction
-```
-
-When extraction is required, the log reports:
-
-```text
-=== MODS READY FOR EXTRACTION ===
-```
-
-### STEP 3 — EXTRACT
-
-Click:
-
-```text
-EXTRACT
-```
-
-After adding a new ZIP/7z/RAR archive, click **SCAN MODS**. If some mods are already extracted, **EXTRACT** processes only mods marked **Needs extraction** and skips the others. Their Source data and edited JSONs remain untouched. If no source extraction is pending, EXTRACT can instead restore missing translation JSONs without overwriting existing files.
-
-Internal rebuild data is stored under:
-
-```text
-Source\<ModName>\
-```
-
-Translation JSON files are stored under:
-
-```text
-Translations\<ModName>\
-```
-
-Example:
-
-```text
-Translations\SomeMod\
-    english.json
-    serbian.json
-    ukrainian.json
-    ...
-```
-
-When extraction is complete and localization is ready to build, the log reports:
-
-```text
-=== MODS READY FOR BUILD ===
-```
-
-### STEP 4 — EDIT JSON
-
-Click:
-
-```text
-Open JSONs
-```
-
-Edit the desired language JSON.
-
-> **IMPORTANT**
->
-> Edit **VALUES** only.
->
-> Do **not** change **KEYS**.
-
-Your files under `Translations` are your working translation files.
-
-### STEP 5 — BUILD
-
-Select one or more languages in the **Languages** panel.
-
-Choose one of the two build modes.
-
-### BUILD MODULAR
-
-Creates a separate localization package for each buildable mod.
-
-Output is organized as:
-
-```text
-Output\<Language>\<ModName>\
-```
-
-Example:
-
-```text
-Output\Serbian\SomeMod\
-```
-
-Each generated MODS localization package consists of:
-
-```text
-.pak
-.utoc
-.ucas
-```
-
-### BUILD ALL-IN-ONE
-
-Combines all available buildable mod localization into one package for each selected language.
-
-Output is stored under:
-
-```text
-Output\<Language>\All-in-One\
-```
-
-Example:
-
-```text
-Output\Serbian\All-in-One\
-```
-
-The generated All-in-One package consists of:
-
-```text
-.pak
-.utoc
-.ucas
-```
-
-### STEP 6 — INSTALL THE MOD PACKAGE
-
-Copy the complete generated MODS package to:
-
-```text
-Stalker2\Content\Paks\~mods
-```
-
-Always copy all three generated files together:
-
-```text
-.pak
-.utoc
-.ucas
-```
-
----
-
-## 4. WHEN A MOD IS UPDATED
-
-Localization data is tied to the version of the mod it was extracted from.
-
-When a mod is updated:
-
-1. Replace the old mod files or archive in your Mods folder.
-2. Open the MODS tab.
-3. Click **SCAN MODS**.
-4. The updated localization should be detected as **Needs extraction**.
-5. Click **EXTRACT**.
-6. Review your existing translation JSON against the updated localization data.
-7. Build the localization again.
-
-> **IMPORTANT**
->
-> Your existing translation JSON files are not automatically overwritten.
-
-Localization Workbench keeps your translation work separate from newly extracted rebuild data.
-
----
-
-## 5. SOURCE VS TRANSLATIONS VS OUTPUT
-
-### SOURCE
-
-Location:
-
-```text
-Source\
-```
-
-Contains internal extracted data required for comparison and safe rebuilding.
-
-**DO NOT EDIT SOURCE FILES.**
-
-### TRANSLATIONS
-
-Location:
-
-```text
-Translations\
-```
-
-Contains the JSON files you are expected to edit.
-
-GAME localization:
-
-```text
-Translations\Game\
-```
-
-MOD localization:
-
-```text
-Translations\<ModName>\
-```
-
-**EDIT YOUR TRANSLATIONS HERE.**
-
-### OUTPUT
-
-Location:
-
-```text
-Output\
-```
-
-Contains finished localization packages created by build operations.
-
-Only finished packages from Output should be installed into the game.
-
----
-
-## 6. SUPPORTED MOD SOURCES
-
-Localization Workbench uses supported OverrideContent localization containers only.
-
-Sources may be supplied as:
-
-- loose files
-- extracted mod folders
-- ZIP archives
-- 7z archives
-- RAR archives
-
-A loose IoStore source must contain a complete container triplet:
-
-```text
-.pak
-.utoc
-.ucas
-```
-
-Common recognized OverrideContent-style container names include:
-
-```text
-Stalker2-Windows-OverrideContent
--OverrideContent
-_OC
-_OC_50
-_OC_<number>_P
-_O
-B_P
-```
-
-Localization Workbench groups supported container variants belonging to the same mod and processes the supported OverrideContent localization source.
-
----
-
-## 7. QUICK REFERENCE
-
-### GAME
-
-```text
-SCAN GAME
-    ->
-EXTRACT
-    ->
-Edit JSON files in Translations\Game\
-    ->
-Select language(s)
-    ->
-BUILD
-    ->
-Find output in Output\<Language>\Game\
-    ->
-Copy generated .pak to:
-Stalker2\Content\Paks\~mods
-```
-
-### MODS
-
-```text
-Put original mod files or archives in the Mods folder
-    ->
-Open MODS
-    ->
-SCAN MODS
-    ->
-EXTRACT
-    ->
-Edit JSON files in Translations\<ModName>\
-    ->
-Select language(s)
-    ->
-BUILD MODULAR
-or
-BUILD ALL-IN-ONE
-    ->
-Find output under Output\<Language>\
-    ->
-Copy generated .pak + .utoc + .ucas to:
-Stalker2\Content\Paks\~mods
-```
-
----
-
-## 8. IMPORTANT WORKFLOW RULES
-
-GAME and MODS are separate workflows.
-
-GAME handles original game localization.
-
-MODS handles supported mod LocalizationDatabase / IoStore localization.
-
-MODS uses supported OverrideContent localization sources only.
-
-Do not edit Source.
-
-Edit translation files only under Translations.
-
-Do not change localization keys.
-
-Change localization values only.
-
-Do not copy files from Source or Translations into the game.
-
-Install only finished packages from Output.
-
-MODS are never scanned automatically.
-
-Always click:
-
-```text
-SCAN MODS
-```
-
-when you want the current Mods folder to be scanned.
-
----
-
-## 9. DELETE SOURCE DATA
-
-The Settings window contains:
-
-```text
-DELETE SOURCE DATA
-```
-
-This removes internal source extraction data.
-
-It does **not** delete your translation files under Translations.
-
-It does **not** delete your Output files.
-
-After deleting Source data, extraction will be required again.
-
-For MODS, a fresh:
-
-```text
-SCAN MODS
-```
-
-is required before extraction.
-
-Use DELETE SOURCE DATA when you intentionally want Localization Workbench to rebuild its internal extraction state.
-
----
-
-## 10. PATHS AND PORTABLE DATA
-
-Localization Workbench automatically uses folders beside the EXE:
-
-```text
-Mods\
-Source\
-Translations\
-Output\
-tools\
-```
-
-These internal paths move together with the application.
-
-The application may also create:
-
-```text
-user-paths.json
-```
-
-`user-paths.json` stores only valid external source locations:
-
-- GAME Paks folder
-- MODS folder
-
-These paths are remembered after a successful scan.
-
-The application does not use a general `settings.json` file.
-
----
-
-## 11. IF SOMETHING FAILS
-
-First check that all required tools exist under:
-
-```text
-tools\
-```
-
-Required:
-
-```text
-retoc.exe
-repak.exe
-UAssetGUI.exe
-S2HOCMM.exe
-Mappings.usmap
-```
-
-Also verify that the GAME Paks folder points to:
-
-```text
-Stalker2\Content\Paks
-```
-
-For MODS problems:
-
-- make sure you clicked **SCAN MODS**
-- make sure a loose source contains a complete `.pak/.utoc/.ucas` set
-- make sure the mod contains supported OverrideContent localization
-
-When reporting a problem, include:
-
-- Localization Workbench version
-- whether you used GAME or MODS
-- selected language
-- mod name and version, if applicable
-- whether the source was loose, ZIP, 7z or RAR
-- application log
-- exact error message shown by the application
-
----
-
-## 12. APPLICATION LANGUAGE
-
-Localization Workbench itself is English-only.
-
-There are no external locale files required by the application.
-
-The language selector inside Localization Workbench refers to S.T.A.L.K.E.R. 2 localization languages being extracted or built, not the language of the Workbench interface.
-
----
-
-## PLATFORM
-
-Localization Workbench is built for:
-
-```text
-Windows x64
-```
-
-The application itself is published as a self-contained Windows build.
-
-A separate .NET installation is not required for Localization Workbench itself.
-
-> **IMPORTANT**
->
-> Third-party tools may have their own runtime requirements.
-
-For example, UAssetGUI v1.1.0 may require the appropriate .NET Desktop Runtime in environments where that dependency is not otherwise available.
-
-Development and testing were primarily performed under Linux/Wine.
-
-The distributed application target is Windows x64.
+Keep `sid_some_text` unchanged. For longer projects, back up `Translations` before major edits or source updates.
+
+### Where files belong
+
+| Folder | Purpose |
+| --- | --- |
+| `Mods` | Original mod sources used for scanning. |
+| `Source\Game` / `Source\<ModName>` | Internal extracted data used for rebuilding. **Do not edit.** |
+| `Translations\Game` / `Translations\<ModName>` | **Your editable language JSON files.** |
+| `Output\<Language>\... ` | Verified packages to install into the game. |
+| `tools` | Required third-party executables and `Mappings.usmap`. |
+| `Languages` | Workbench interface language dictionaries, not game translations. |
+
+All workspace folders are located beside the running executable. The app uses `user-paths.json` for remembered settings. To move a portable workspace, move its data folders with the executable; recheck external source paths afterward.
+
+**Settings → DELETE SOURCE DATA** deletes extracted `Source` data but **does not delete `Translations` or `Output`**. You will need to extract again; for MODS, click **SCAN MODS** first.
+
+## 5. Troubleshooting
+
+| Problem | What to check |
+| --- | --- |
+| **SCAN GAME** cannot find localization | Confirm **Game Paks folder** points to `Stalker2\Content\Paks` and that the required tools are in `tools`. |
+| MODS list is not updated | Click **SCAN MODS** after adding, removing or updating sources. |
+| A mod shows no supported localization | It may not contain a supported OverrideContent localization database. Confirm complete IoStore file sets for loose sources. |
+| Extraction fails | Check `UAssetGUI.exe`, a game-compatible `Mappings.usmap`, tool runtime dependencies and the application log. |
+| **BUILD** is unavailable | Finish extraction and select at least one **Build language**. |
+| No MODS package is produced | With **Pack only edited translations**, unchanged text is intentionally skipped. Confirm that your JSON contains changes, or choose **Pack all translations**. |
+| Translation does not appear in-game | Install only files from `Output`, keep each MODS triplet together, and remove conflicting older generated packages. |
+
+When reporting a problem, include the **Workbench version**, GAME or MODS workflow, selected language, mod name/version (if relevant), source format (loose/ZIP/7z/RAR), and the **application log with the exact error**.
+
+## 6. Useful distinctions
+
+- The **Build languages** selector controls which **game translation languages** to package; **Settings → Interface language** changes the Workbench UI. Missing interface translations fall back to English.
+- **GAME** generates a single installable `.pak`; **MODS** generates a `.pak/.utoc/.ucas` set.
+- **SCAN MODS** is always manual. Workspace **Auto Refresh** is not automatic scanning of mod archives.
+- Only packages from **Output** belong in the game's `~mods` folder; never install files directly from **Source** or **Translations**.
