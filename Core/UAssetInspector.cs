@@ -28,54 +28,65 @@ public static class UAssetInspector
             );
         }
 
-        JsonElement? candidate = null;
         var exportCount = exports.GetArrayLength();
+        var candidates = new List<(JsonElement Value, string Name, int Index)>();
+        var descriptions = new List<string>();
+        var exportIndex = 0;
+
         foreach (var export in exports.EnumerateArray())
         {
             if (export.ValueKind != JsonValueKind.Object)
+            {
+                exportIndex++;
                 continue;
+            }
 
-            var objectName = export.TryGetProperty(
-                "ObjectName",
-                out var nameElement)
+            var objectName = export.TryGetProperty("ObjectName", out var nameElement)
                 ? nameElement.ToString()
                 : string.Empty;
+            var dataKind = export.TryGetProperty("Data", out var dataElement)
+                ? dataElement.ValueKind
+                : JsonValueKind.Undefined;
 
-            // UAssetGUI represents unmapped assets as Base64 RawExport and
-            // mapped assets as a structured property array.
-            var hasData = export.TryGetProperty("Data", out var dataElement)
-                          && (dataElement.ValueKind == JsonValueKind.String
-                              || dataElement.ValueKind == JsonValueKind.Array);
-
-            if (hasData
-                && objectName.Contains(
-                    "LocalizationDatabase",
-                    StringComparison.OrdinalIgnoreCase))
+            // A fully mapped export may be an object or an array, whereas
+            // unmapped RawExport.Data is a Base64 string.
+            descriptions.Add($"#{exportIndex}: {objectName} (Data={dataKind})");
+            if (objectName.Contains("LocalizationDatabase", StringComparison.OrdinalIgnoreCase)
+                && dataKind is JsonValueKind.String or JsonValueKind.Array or JsonValueKind.Object)
             {
-                if (candidate is not null)
-                {
-                    throw new InvalidDataException(
-                        $"{sourceLabel}: more than one "
-                        + "LocalizationDatabase export was found"
-                    );
-                }
-
-                candidate = export;
+                candidates.Add((export, objectName, exportIndex));
             }
+
+            exportIndex++;
         }
 
-        if (candidate is null)
+        var assetStem = Path.GetFileNameWithoutExtension(sourceLabel.Replace('\\', '/'));
+        var matchedByName = candidates
+            .Where(item => string.Equals(item.Name, assetStem, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Class-default objects and related exports can also contain the
+        // substring "LocalizationDatabase". Only the export whose ObjectName
+        // equals the asset stem identifies the actual localization asset.
+        // Do not pick an arbitrary export when names remain ambiguous.
+        var eligible = matchedByName.Count == 1 ? matchedByName : candidates;
+        if (eligible.Count != 1)
         {
+            var reason = eligible.Count == 0
+                ? "no matching LocalizationDatabase export"
+                : $"ambiguous LocalizationDatabase exports ({eligible.Count})";
             throw new InvalidDataException(
-                $"{sourceLabel}: no LocalizationDatabase export with Base64 or mapped Data was found"
+                $"{sourceLabel}: {reason}. Expected ObjectName '{assetStem}'. "
+                + $"Available exports: {string.Join("; ", descriptions)}"
             );
         }
 
+        var candidate = eligible[0];
         var selected = candidate.Value;
         var serialSize = ReadInt64Like(selected, "SerialSize", sourceLabel);
         var serialOffset = ReadInt64Like(selected, "SerialOffset", sourceLabel);
         var data = selected.GetProperty("Data");
-        var isMapped = data.ValueKind == JsonValueKind.Array;
+        var isMapped = data.ValueKind != JsonValueKind.String;
         byte[] payload;
 
         if (!isMapped)
@@ -108,13 +119,26 @@ public static class UAssetInspector
                     $"{sourceLabel}: pristine .uexp required for mapped export", legacyUexpPath);
 
             var uexpBytes = File.ReadAllBytes(legacyUexpPath);
-            if (uexpBytes.LongLength < serialSize)
-                throw new InvalidDataException(
-                    $"{sourceLabel}: mapped export SerialSize {serialSize} exceeds pristine .uexp length {uexpBytes.LongLength}");
 
-            // retoc to-legacy places the sole export at the beginning of .uexp.
-            // Never attempt to reconstruct binary data from UAssetGUI JSON.
-            payload = uexpBytes.AsSpan(0, checked((int)serialSize)).ToArray();
+            // SerialOffset values are package-relative. In the retoc legacy
+            // output the lowest non-empty export offset starts at .uexp[0].
+            // Account for preceding exports instead of assuming this one is
+            // always the first export.
+            var offsets = ReadSerializedExports(exports, sourceLabel);
+            var firstOffset = offsets.Min(item => item.Offset);
+            var relativeOffset = serialOffset - firstOffset;
+            if (relativeOffset < 0 || relativeOffset > uexpBytes.LongLength
+                || serialSize > uexpBytes.LongLength - relativeOffset)
+            {
+                throw new InvalidDataException(
+                    $"{sourceLabel}: mapped export at relative offset {relativeOffset} "
+                    + $"with SerialSize {serialSize} is outside pristine .uexp "
+                    + $"({uexpBytes.LongLength} bytes)");
+            }
+
+            // Preserve exact pristine binary contents. Never reverse-engineer
+            // or reserialize the UAssetGUI mapped JSON property representation.
+            payload = uexpBytes.AsSpan(checked((int)relativeOffset), checked((int)serialSize)).ToArray();
             try
             {
                 _ = LocalizationDatabaseCodec.Parse(payload, sourceLabel);
@@ -130,6 +154,11 @@ public static class UAssetInspector
             throw new InvalidDataException(
                 $"{sourceLabel}: SerialSize {serialSize} differs from payload length {payload.LongLength}");
 
+
+        var serializedExports = ReadSerializedExports(exports, sourceLabel);
+        var selectedIsLast = serializedExports.All(item =>
+            item.Offset <= serialOffset
+            && (item.Offset < serialOffset || item.Size == serialSize));
 
         var importsClass = false;
         if (root.TryGetProperty("Imports", out var imports)
@@ -167,9 +196,36 @@ public static class UAssetInspector
             SerialSize = serialSize,
             SerialOffset = serialOffset,
             ExportCount = exportCount,
+            IsLastSerializedExport = selectedIsLast,
             ImportsLocalizationDatabaseClass = importsClass,
             InternalPackagePath = internalPackagePath,
         };
+    }
+
+    private static List<(long Offset, long Size)> ReadSerializedExports(
+        JsonElement exports, string sourceLabel)
+    {
+        var result = new List<(long Offset, long Size)>();
+        foreach (var export in exports.EnumerateArray())
+        {
+            if (export.ValueKind != JsonValueKind.Object
+                || !export.TryGetProperty("SerialOffset", out _)
+                || !export.TryGetProperty("SerialSize", out _))
+                continue;
+
+            var size = ReadInt64Like(export, "SerialSize", sourceLabel);
+            var offset = ReadInt64Like(export, "SerialOffset", sourceLabel);
+            if (size < 0 || offset < 0)
+                throw new InvalidDataException(
+                    $"{sourceLabel}: invalid export offset/size {offset}/{size}");
+            if (size > 0)
+                result.Add((offset, size));
+        }
+
+        if (result.Count == 0)
+            throw new InvalidDataException(
+                $"{sourceLabel}: no exports with non-empty serialized data");
+        return result;
     }
 
     private static string DetectInternalPackagePath(
