@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — new mappings support
+
+- Switched the selected runtime mapping to user-supplied `tools/Stalker2-5.5.4-0+UE5-d7e7826d.usmap` (SHA-256 `07b84e0a6f1090edeb3af2ea3686eca795e349ecdaca604f0495a70eb2011a86`).
+- Support both Base64 RawExport and mapped property-array exports. For mapped localization, obtain unchanged binary payload from the original retoc `.uexp`, validate it, and keep the existing binary patch / round-trip checks.
+- Reuse the paired `.uexp` during MODULAR and ALL-IN-ONE builds; no no-mappings retry or silent skip.
+- Keep helper tools and mappings untracked and user-supplied.
+
 ## 2.0.0
 
 - Migrated the Version 2 application target from .NET 8 to .NET 10 LTS (`net10.0-windows`) before the final release tag.
