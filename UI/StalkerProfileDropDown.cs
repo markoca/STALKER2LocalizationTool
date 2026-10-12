@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Drawing.Drawing2D;
 
 namespace LocalizationWorkbench.UI;
@@ -32,7 +33,14 @@ internal sealed class StalkerProfileDropDown : Control
         _menu.Closed += (_, _) => Invalidate();
     }
 
+    // Both are runtime-managed settings; the WinForms designer must not
+    // serialize them into generated InitializeComponent code.
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public IList<string> Items => _items;
+
+    [Browsable(false)]
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int SelectedIndex
     {
         get => _selectedIndex;
