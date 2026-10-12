@@ -95,7 +95,7 @@ public static class UAssetInspector
         {
             // Modern mappings deserialize ModLocalizationDatabaseDataAsset into
             // a property array. The original bytes are still present, untouched,
-            // in retoc\u0027s pristine .uexp. Reading them preserves the exact binary
+            // in the pristine .uexp extracted by retoc. Reading them preserves the exact binary
             // layout required by LocalizationDatabaseCodec and PackagePatcher.
             if (exportCount != 1)
                 throw new InvalidDataException(
