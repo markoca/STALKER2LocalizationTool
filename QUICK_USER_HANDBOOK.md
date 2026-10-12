@@ -44,7 +44,7 @@ retoc.exe
 repak.exe
 UAssetGUI.exe
 S2HOCMM.exe
-Mappings.usmap
+Stalker2-5.5.4-0+UE5-d7e7826d.usmap
 ```
 
 Expected layout:
@@ -56,7 +56,7 @@ tools\
     repak.exe
     UAssetGUI.exe
     S2HOCMM.exe
-    Mappings.usmap
+    Stalker2-5.5.4-0+UE5-d7e7826d.usmap
 ```
 
 Download the tools from their original project/release pages:
@@ -118,11 +118,11 @@ Place:
 tools\S2HOCMM.exe
 ```
 
-**Mappings.usmap**
+**Stalker2-5.5.4-0+UE5-d7e7826d.usmap**
 
 Mappings must match the installed S.T.A.L.K.E.R. 2 game version.
 
-For the current tested game baseline **2.0.4**:
+For the selected **UE5.5.4 mappings** baseline (supplied separately):
 
 ```text
 https://www.nexusmods.com/stalker2heartofchornobyl/mods/2356
@@ -131,12 +131,12 @@ https://www.nexusmods.com/stalker2heartofchornobyl/mods/2356
 Place the mapping as:
 
 ```text
-tools\Mappings.usmap
+tools\Stalker2-5.5.4-0+UE5-d7e7826d.usmap
 ```
 
-If the game is updated beyond 2.0.4, obtain a mapping generated for that game build instead of assuming the old mapping is compatible.
+Use the supplied UE5.5.4 mappings at the exact filename shown above. The older `Mappings.usmap` is no longer the default. Future game updates may require a new mappings baseline and program configuration.
 
-**When mappings are needed:** UAssetGUI.exe and Mappings.usmap are needed for extracting localization databases. They are **not** needed for SCAN, GAME BUILD, BUILD MODULAR or BUILD ALL-IN-ONE when Source has already been extracted. Building database packages still requires retoc.exe and valid Game Paks data.
+**When mappings are needed:** UAssetGUI.exe and Stalker2-5.5.4-0+UE5-d7e7826d.usmap are needed for extracting localization databases. They are **not** needed for SCAN, GAME BUILD, BUILD MODULAR or BUILD ALL-IN-ONE when Source has already been extracted. Building database packages still requires retoc.exe and valid Game Paks data.
 
 UAssetGUI v1.1.0 may require the .NET 8 Desktop Runtime when that dependency is not already available.
 
@@ -796,7 +796,7 @@ retoc.exe
 repak.exe
 UAssetGUI.exe
 S2HOCMM.exe
-Mappings.usmap
+Stalker2-5.5.4-0+UE5-d7e7826d.usmap
 ```
 
 Also verify that the GAME Paks folder points to:
