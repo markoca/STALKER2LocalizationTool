@@ -46,7 +46,7 @@ tools/
 ├── retoc.exe
 ├── repak.exe
 ├── UAssetGUI.exe
-├── Stalker2-5.5.4-0+UE5-d7e7826d.usmap
+├── Mappings.usmap
 └── S2HOCMM.exe
 ```
 
@@ -56,11 +56,11 @@ Tested tool baselines and download sources:
 - **repak v0.2.3** — https://github.com/trumank/repak/releases
 - **UAssetGUI v1.1.0** — https://github.com/atenfyr/UAssetGUI/releases
 - **S2HOCMM v2.3** — https://www.nexusmods.com/stalker2heartofchornobyl/mods/540 or https://gitlab.com/PatrykPniewski/s2hocmm/-/releases
-- **Stalker2-5.5.4-0+UE5-d7e7826d.usmap** — the new supplied UE5.5.4 mappings baseline (SHA-256 `07b84e0a6f1090edeb3af2ea3686eca795e349ecdaca604f0495a70eb2011a86`); place this exact filename in `tools/`. The mapping is user-supplied and is not committed or bundled.
+- **Mappings.usmap** — keep the existing filename in `tools/`, now with the updated UE5.5.4 mappings content (SHA-256 `07b84e0a6f1090edeb3af2ea3686eca795e349ecdaca604f0495a70eb2011a86`). The user supplies this file; it is not committed or bundled.
 
-If S.T.A.L.K.E.R. 2 changes, use a mapping generated for that game build, but update `AppConstants.PreferredMappingsFileName` and the documentation before switching the program baseline. The previous `Mappings.usmap` filename is no longer selected by default. Both raw Base64 and fully mapped UAssetGUI localization exports are supported: a mapped export is paired with its pristine `.uexp` bytes (validated with `LocalizationDatabaseCodec`) instead of incorrectly requiring a raw JSON export. This also applies to MODULAR and ALL-IN-ONE builds from previously extracted `Source`.
+When the game changes, replace the contents of `tools/Mappings.usmap` with mappings compatible with that game build; the expected filename and `AppConstants.PreferredMappingsFileName` remain `Mappings.usmap`. Both raw Base64 and fully mapped UAssetGUI localization exports are supported: a mapped export is paired with its pristine `.uexp` bytes (validated with `LocalizationDatabaseCodec`) instead of incorrectly requiring a raw JSON export. This also applies to MODULAR and ALL-IN-ONE builds from previously extracted `Source`.
 
-**Tool requirements by action:** SCAN requires no mappings. EXTRACT uses UAssetGUI.exe and the game-compatible Stalker2-5.5.4-0+UE5-d7e7826d.usmap when reading localization databases. BUILD (GAME, MODULAR, and ALL-IN-ONE) uses already extracted Source data and does **not** require UAssetGUI.exe or Stalker2-5.5.4-0+UE5-d7e7826d.usmap. retoc.exe and a valid Game Paks folder remain required for database builds; GAME LOCRES builds additionally require repak.exe and S2HOCMM.exe.
+**Tool requirements by action:** SCAN requires no mappings. EXTRACT uses UAssetGUI.exe and the game-compatible Mappings.usmap when reading localization databases. BUILD (GAME, MODULAR, and ALL-IN-ONE) uses already extracted Source data and does **not** require UAssetGUI.exe or Mappings.usmap. retoc.exe and a valid Game Paks folder remain required for database builds; GAME LOCRES builds additionally require repak.exe and S2HOCMM.exe.
 
 The publish scripts do not download, validate, copy, or redistribute these third-party tools.
 
