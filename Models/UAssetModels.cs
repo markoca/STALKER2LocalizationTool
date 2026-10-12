@@ -7,6 +7,7 @@ public sealed class RawExportInfo
     public long SerialSize { get; set; }
     public long SerialOffset { get; set; }
     public int ExportCount { get; set; }
+    public bool IsLastSerializedExport { get; set; }
     public bool ImportsLocalizationDatabaseClass { get; set; }
     public string InternalPackagePath { get; set; } = string.Empty;
 }
