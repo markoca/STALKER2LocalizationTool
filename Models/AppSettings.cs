@@ -48,7 +48,7 @@ public sealed class AppSettings
             OutputFolder = Path.Combine(baseDir, "Output"),
             RetocPath = Path.Combine(baseDir, "tools", "retoc.exe"),
             UAssetGuiPath = Path.Combine(baseDir, "tools", "UAssetGUI.exe"),
-            MappingsPath = Path.Combine(baseDir, "tools", "Mappings.usmap"),
+            MappingsPath = Path.Combine(baseDir, "tools", AppConstants.PreferredMappingsFileName),
             RepakPath = Path.Combine(baseDir, "tools", "repak.exe"),
             S2HocmmPath = Path.Combine(baseDir, "tools", "S2HOCMM.exe"),
         };
