@@ -196,7 +196,8 @@ public sealed class BuildService
 
                 var export = UAssetInspector.ReadLocalizationExport(
                     sourceJson,
-                    asset.VirtualPath
+                    asset.VirtualPath,
+                    sourceUexp
                 );
 
                 _log?.Invoke(
@@ -371,7 +372,8 @@ public sealed class BuildService
 
             var export = UAssetInspector.ReadLocalizationExport(
                 sourceJson,
-                asset.VirtualPath
+                asset.VirtualPath,
+                sourceUexp
             );
 
             var inspectElapsed = assetTimer.Elapsed;
